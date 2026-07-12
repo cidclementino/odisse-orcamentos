@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Orçamentos</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ================= GATE DE SENHA ================= -->
+<div id="gate" class="gate">
+  <div class="gate__card">
+    <div class="gate__mark">ODISSE</div>
+    <div class="gate__label">Ferramenta interna &mdash; Orçamentos</div>
+    <form id="gate-form" autocomplete="off">
+      <label class="gate__field">
+        <span>Senha de acesso</span>
+        <input type="password" id="gate-password" required autofocus>
+      </label>
+      <label class="gate__field">
+        <span>Seu nome</span>
+        <input type="text" id="gate-name" placeholder="Quem está preenchendo" required>
+      </label>
+      <button type="submit" class="btn btn--primary">Entrar</button>
+      <p class="gate__error" id="gate-error" hidden>Senha incorreta. Tente novamente.</p>
+    </form>
+    <p class="gate__note">Acesso restrito à equipe Odisse. Este aviso não substitui um controle de segurança real &mdash; trate este link como confidencial.</p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="app" hidden>
+
+  <header class="rail">
+    <div class="rail__mark">ODISSE</div>
+    <div class="rail__title">Orçamentos</div>
+    <nav class="rail__steps" id="rail-steps"></nav>
+    <div class="rail__meta">
+      <span id="rail-user"></span>
+      <button class="rail__reset" id="btn-reset" type="button">Recomeçar</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__col" id="step-container"></div>
+  </main>
+
+  <footer class="ticket" id="ticket">
+    <div class="ticket__row">
+      <span class="ticket__label">Honorário estimado</span>
+      <span class="ticket__value" id="ticket-total">R$ 0,00</span>
+    </div>
+    <div class="ticket__sub" id="ticket-sub">Preencha a classificação do serviço para iniciar o cálculo</div>
+    <div class="ticket__nav">
+      <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
+      <button class="btn btn--primary" id="btn-next" type="button">Continuar</button>
+    </div>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="data-loader.js"></script>
+<script src="calc.js"></script>
+<script src="pdf.js"></script>
+<script src="steps.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
