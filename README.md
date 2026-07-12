@@ -17,6 +17,10 @@ do repositório consegue ler o código-fonte, a lógica de precificação e
 qualquer dado de cliente que for commitado. Enquanto isso:
 
 - **Não commite dados reais de clientes.** Use só dados fictícios para testar.
+  Isso vale também para a numeração automática: se você configurar um token
+  do GitHub antes de privar o repositório, cada proposta gerada grava um
+  arquivo em `propostas/` com os dados do cliente — não gere propostas reais
+  enquanto o repositório estiver público.
 - Assim que a ferramenta entrar em uso real, **assine o GitHub (Pro ou Team)
   e torne o repositório privado** em Settings → General → Danger Zone →
   Change visibility. O GitHub Pages continua funcionando normalmente em
@@ -48,19 +52,68 @@ Depois acesse `http://localhost:8000`.
    ```bash
    python3 -c "import hashlib; print(hashlib.sha256('SUA_SENHA_AQUI'.encode()).hexdigest())"
    ```
-   Copie o resultado e cole em `app.js`, na constante `CONFIG.passwordHash`.
+   Copie o resultado e cole em `config.js`, na constante `CONFIG.passwordHash`.
    A senha de fábrica é `odisse2026` — troque assim que possível.
+
+## Acesso (login.html)
+
+A senha agora é pedida numa página própria (`login.html`), separada do
+formulário. Depois de entrar uma vez, o navegador lembra (via
+`localStorage`) e não pede de novo — até alguém clicar em **Sair**, no
+canto superior direito do app.
+
+## Numeração automática de propostas
+
+O número da proposta (`PC0XX/AAAA`) é gerado automaticamente na etapa de
+revisão, e não mais digitado à mão. Duas formas de funcionar:
+
+- **Com token do GitHub** (recomendado): configure um token na tela de
+  login (campo "Numeração automática de propostas"). A cada proposta
+  gerada, a ferramenta grava um contador (`propostas/contador.json`) e uma
+  cópia completa da proposta (`propostas/PC0XX-AAAA.json`) direto no
+  repositório — assim o número é compartilhado entre todo mundo que usa a
+  ferramenta, e fica um histórico versionado de cada orçamento gerado.
+- **Sem token**: a numeração cai para um contador local, salvo só no
+  navegador de quem está usando — funciona, mas cada pessoa/computador
+  tem sua própria contagem, sem sincronizar com o restante da equipe.
+
+### Como gerar o token do GitHub
+
+1. Em github.com → **Settings** (da sua conta) → **Developer settings** →
+   **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+2. **Repository access**: "Only select repositories" → escolha só o
+   `odisse-orcamentos`.
+3. **Permissions** → **Repository permissions** → **Contents**: `Read and write`.
+   Nenhuma outra permissão é necessária.
+4. Copie o token gerado (começa com `github_pat_...`) e cole no campo de
+   login. Ele fica salvo só no `localStorage` do navegador — nunca é
+   commitado no repositório.
+
+## Endereço com busca automática por CEP
+
+O campo de CEP (na etapa "Cliente & projeto") busca o endereço
+automaticamente via [ViaCEP](https://viacep.com.br) (serviço público,
+gratuito, sem necessidade de chave de API) assim que os 8 dígitos são
+preenchidos. Logradouro, bairro e cidade/UF vêm preenchidos e continuam
+editáveis, e há campos separados para número e complemento (apartamento,
+bloco, etc.).
 
 ## Estrutura
 
 ```
-index.html          → shell da página (gate de senha + app)
+login.html            → página de senha (separada do app)
+index.html          → shell do app (formulário)
+config.js             → senha (hash) e configuração do repositório GitHub
+auth.js                → autenticação (mantém a sessão entre visitas)
+github-store.js          → numeração automática + histórico de propostas via API do GitHub
 styles.css           → estilos (tema escuro, identidade Odisse)
 data-loader.js        → carrega os data/*.json
 calc.js                → motor de cálculo (ver "Como o cálculo funciona" abaixo)
 steps.js                → renderização e lógica de cada etapa do formulário
 pdf.js                    → gera o PDF final (jsPDF + autotable)
-app.js                     → orquestração geral (senha, navegação, ficha de valores)
+app.js                     → orquestração geral (navegação, ficha de valores)
+propostas/                  → criada automaticamente pelo github-store.js —
+                               contador + histórico de cada proposta gerada
 data/
   tipologias.json          → tabela de tipologias × CUB × fator de adequação × BH
   cub.json                  → valores de CUB vigentes (atualizado mensalmente)
@@ -78,11 +131,29 @@ data/
   escopo-master.json                 → banco de itens de escopo (compreende /
                                         não compreende), editável na própria página
   servicos-odisse.json                → os 9 serviços do grid da Odisse, cada um
-                                         com predefinições de IC, escopo e etapas
+                                         com predefinições de IC, escopo, etapas e
+                                         quais macro categorias da tabela CAU ele
+                                         engloba (ver "Classificação" abaixo)
 scripts/update_cub.py                  → busca o PDF do CUB no Sinduscon-JP e
                                           atualiza data/cub.json
 .github/workflows/update-cub.yml         → roda o script acima todo dia 8 do mês
 ```
+
+## Classificação: serviço Odisse × macro categoria CAU
+
+O formulário não pede mais a macro categoria da tabela CAU como um campo
+separado — isso duplicava o que o "Serviço Odisse" já define. Em vez
+disso, cada serviço do grid da Odisse já sabe quais macro categorias CAU
+ele engloba (campo `macro_categorias` em `servicos-odisse.json`), e a
+lista de tipologias específicas é filtrada automaticamente:
+
+| Serviço Odisse | Macro categorias CAU |
+|---|---|
+| Residencial | HabitacionalUnifamiliar |
+| Edifícios Mistos e Multifamiliares | HabitacionalMultifamiliar, HabitaçõesEspeciais |
+| Projetos Comerciais | Hospedagem, Comércio, Serviços, Diversos |
+| Projetos Institucionais | Educação, Saúde, Esportes, Lazer, Cultura |
+| Reforma, Estudo de Viabilidade, Laudos e Regularização, Consultoria Remota, Design de Interiores | (todas — são serviços transversais, que podem se aplicar a qualquer tipologia) |
 
 ## Como o cálculo funciona
 

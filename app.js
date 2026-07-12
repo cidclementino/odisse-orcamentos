@@ -1,14 +1,7 @@
 // ==========================================================================
-// Orquestração geral: senha, estado, navegação entre etapas, ficha de valores
+// Orquestração geral: estado, navegação entre etapas, ficha de valores
+// (senha e autenticação vivem em auth.js + login.html)
 // ==========================================================================
-
-const CONFIG = {
-  // Hash SHA-256 da senha de acesso. Veja README.md → "Trocar a senha" para
-  // gerar um novo hash sem deixar a senha em texto puro no código.
-  // Senha padrão de fábrica: "odisse2026" — TROQUE assim que publicar
-  // (ver README.md → "Trocar a senha de acesso").
-  passwordHash: 'b861c55695a5130cdd716d983135490ff669c5649e67c96d79f172b89ed64747'
-};
 
 let STATE = null;
 let DATA = null;
@@ -16,12 +9,15 @@ let currentStepIndex = 0;
 
 function estadoInicial() {
   return {
-    cliente: { nome: '', email: '', telefone: '', representacao: 'PF', documento: '', endereco: '' },
+    cliente: {
+      nome: '', email: '', telefone: '', representacao: 'PF', documento: '',
+      cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidadeUf: ''
+    },
     numeroProposta: '',
+    numeroPropostaStatus: '', // '', 'gerando', 'ok', 'erro'
     dataProposta: new Date().toISOString().slice(0, 10),
     tetoOrcamentario: '',
     servicoId: '',
-    macroCategoria: '',
     tipologiaItem: null,
     modificadorIntervencao: 1,
     areaConstruida: 0,
@@ -45,9 +41,16 @@ function estadoInicial() {
   };
 }
 
-async function sha256(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+function enderecoCompleto(cliente) {
+  const partes = [];
+  let linha1 = cliente.logradouro || '';
+  if (cliente.numero) linha1 += (linha1 ? ', ' : '') + cliente.numero;
+  if (cliente.complemento) linha1 += ' – ' + cliente.complemento;
+  if (linha1) partes.push(linha1);
+  if (cliente.bairro) partes.push(cliente.bairro);
+  if (cliente.cidadeUf) partes.push(cliente.cidadeUf);
+  if (cliente.cep) partes.push('CEP ' + cliente.cep);
+  return partes.join(' — ');
 }
 
 function updateTicket() {
@@ -132,50 +135,30 @@ function goPrev() {
   }
 }
 
-function initApp() {
+async function initApp() {
+  document.getElementById('app').hidden = false;
   document.getElementById('btn-next').onclick = goNext;
   document.getElementById('btn-prev').onclick = goPrev;
+  document.getElementById('btn-logout').onclick = (e) => {
+    e.preventDefault();
+    logout();
+    window.location.href = 'login.html';
+  };
   document.getElementById('btn-reset').onclick = () => {
     if (confirm('Recomeçar limpa todos os dados preenchidos. Confirma?')) {
+      const nome = STATE._userName;
       STATE = estadoInicial();
-      STATE._userName = document.getElementById('rail-user').dataset.name || '';
+      STATE._userName = nome;
       currentStepIndex = 0;
       renderStep();
     }
   };
-  renderStep();
-}
-
-async function handleGate(e) {
-  e.preventDefault();
-  const pass = document.getElementById('gate-password').value;
-  const name = document.getElementById('gate-name').value.trim();
-  const hash = await sha256(pass);
-  const errEl = document.getElementById('gate-error');
-
-  if (hash !== CONFIG.passwordHash) {
-    errEl.hidden = false;
-    return;
-  }
-  errEl.hidden = true;
-
-  // Registro local de acesso (apenas neste navegador — ver README sobre
-  // como ligar isso a um registro compartilhado de verdade, se necessário).
-  try {
-    const log = JSON.parse(localStorage.getItem('odisse-acessos') || '[]');
-    log.push({ nome: name, quando: new Date().toISOString() });
-    localStorage.setItem('odisse-acessos', JSON.stringify(log.slice(-50)));
-  } catch (_) { /* localStorage indisponível — segue sem registrar */ }
-
-  document.getElementById('gate').hidden = true;
-  const appEl = document.getElementById('app');
-  appEl.hidden = false;
 
   DATA = await OdisseData.load();
   STATE = estadoInicial();
-  STATE._userName = name;
+  STATE._userName = getUserName();
 
-  initApp();
+  renderStep();
 }
 
-document.getElementById('gate-form').addEventListener('submit', handleGate);
+if (isAuthenticated()) initApp();

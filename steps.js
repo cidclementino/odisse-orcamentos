@@ -30,7 +30,7 @@ STEPS.push({
   id: 'cliente',
   eyebrow: 'Etapa 1 de 9',
   title: 'Cliente & projeto',
-  desc: 'Dados de identificação que vão para o cabeçalho da proposta.',
+  desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
     const c = state.cliente;
     return `
@@ -57,25 +57,46 @@ STEPS.push({
           <label class="field__label">CPF / CNPJ</label>
           <input type="text" id="f-doc" value="${c.documento || ''}">
         </div>
-        <div class="field">
-          <label class="field__label">Endereço do imóvel / empreendimento</label>
-          <input type="text" id="f-endereco" value="${c.endereco || ''}" placeholder="Rua, número, bairro, cidade – UF">
-        </div>
       </div>
       <div class="field-group">
         <div class="row-2">
           <div class="field">
-            <label class="field__label">Nº da proposta</label>
-            <input type="text" id="f-numero" value="${state.numeroProposta || ''}" placeholder="Ex: PC051/2026">
+            <label class="field__label">CEP do imóvel / empreendimento</label>
+            <input type="text" id="f-cep" value="${c.cep || ''}" placeholder="58000-000" maxlength="9">
+            <p class="field__hint" id="cep-status"></p>
           </div>
           <div class="field">
-            <label class="field__label">Data da proposta</label>
-            <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}">
+            <label class="field__label">Número</label>
+            <input type="text" id="f-numero-end" value="${c.numero || ''}">
           </div>
         </div>
         <div class="field">
+          <label class="field__label">Logradouro</label>
+          <input type="text" id="f-logradouro" value="${c.logradouro || ''}" placeholder="Preenchido automaticamente pelo CEP — edite se precisar">
+        </div>
+        <div class="row-2">
+          <div class="field">
+            <label class="field__label">Complemento</label>
+            <input type="text" id="f-complemento" value="${c.complemento || ''}" placeholder="Apto, bloco, sala…">
+          </div>
+          <div class="field">
+            <label class="field__label">Bairro</label>
+            <input type="text" id="f-bairro" value="${c.bairro || ''}">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label">Cidade – UF</label>
+          <input type="text" id="f-cidade-uf" value="${c.cidadeUf || ''}">
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field">
+          <label class="field__label">Data da proposta</label>
+          <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}">
+        </div>
+        <div class="field">
           <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
-          <input type="text" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Ex: R$ 6.000.000,00">
+          <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
         </div>
       </div>
     `;
@@ -85,13 +106,58 @@ STEPS.push({
     el.querySelector('#f-email').oninput = e => state.cliente.email = e.target.value;
     el.querySelector('#f-telefone').oninput = e => state.cliente.telefone = e.target.value;
     el.querySelector('#f-doc').oninput = e => state.cliente.documento = e.target.value;
-    el.querySelector('#f-endereco').oninput = e => state.cliente.endereco = e.target.value;
-    el.querySelector('#f-numero').oninput = e => state.numeroProposta = e.target.value;
     el.querySelector('#f-data-proposta').oninput = e => state.dataProposta = e.target.value;
-    el.querySelector('#f-teto').oninput = e => state.tetoOrcamentario = e.target.value;
     el.querySelectorAll('input[name="representacao"]').forEach(r => {
       r.onchange = e => state.cliente.representacao = e.target.value;
     });
+
+    el.querySelector('#f-numero-end').oninput = e => state.cliente.numero = e.target.value;
+    el.querySelector('#f-logradouro').oninput = e => state.cliente.logradouro = e.target.value;
+    el.querySelector('#f-complemento').oninput = e => state.cliente.complemento = e.target.value;
+    el.querySelector('#f-bairro').oninput = e => state.cliente.bairro = e.target.value;
+    el.querySelector('#f-cidade-uf').oninput = e => state.cliente.cidadeUf = e.target.value;
+
+    const cepInput = el.querySelector('#f-cep');
+    const cepStatus = el.querySelector('#cep-status');
+    cepInput.oninput = e => {
+      let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+      e.target.value = v;
+      state.cliente.cep = v;
+      const digits = v.replace(/\D/g, '');
+      if (digits.length === 8) buscarCep(digits);
+    };
+
+    async function buscarCep(cep) {
+      cepStatus.textContent = 'Buscando endereço…';
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const dados = await res.json();
+        if (dados.erro) {
+          cepStatus.textContent = 'CEP não encontrado — preencha manualmente.';
+          return;
+        }
+        state.cliente.logradouro = dados.logradouro || '';
+        state.cliente.bairro = dados.bairro || '';
+        state.cliente.cidadeUf = dados.localidade && dados.uf ? `${dados.localidade} – ${dados.uf}` : '';
+        el.querySelector('#f-logradouro').value = state.cliente.logradouro;
+        el.querySelector('#f-bairro').value = state.cliente.bairro;
+        el.querySelector('#f-cidade-uf').value = state.cliente.cidadeUf;
+        cepStatus.textContent = 'Endereço preenchido — confira e edite se precisar.';
+      } catch (err) {
+        cepStatus.textContent = 'Não consegui buscar o CEP agora — preencha manualmente.';
+      }
+    }
+
+    const tetoInput = el.querySelector('#f-teto');
+    tetoInput.oninput = e => {
+      const digits = e.target.value.replace(/\D/g, '');
+      if (!digits) { state.tetoOrcamentario = ''; e.target.value = ''; return; }
+      const valor = parseInt(digits, 10) / 100;
+      const formatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      e.target.value = formatado;
+      state.tetoOrcamentario = formatado;
+    };
   },
   validate(state) {
     if (!state.cliente.nome) return 'Informe o nome do cliente.';
@@ -109,9 +175,14 @@ STEPS.push({
   desc: 'Define a base de honorários (CUB/tipologia) e o porte do projeto.',
   render(state, data) {
     const servicoOpts = data.servicosOdisse.map(s => `<option value="${s.id}" ${state.servicoId === s.id ? 'selected' : ''}>${s.nome}</option>`).join('');
-    const macroOpts = Object.keys(data.tipologias).map(m => `<option value="${m}" ${state.macroCategoria === m ? 'selected' : ''}>${m}</option>`).join('');
-    const tipoList = data.tipologias[state.macroCategoria] || [];
-    const tipoOpts = tipoList.map(t => `<option value="${t.item}" ${state.tipologiaItem && state.tipologiaItem.item === t.item ? 'selected' : ''}>${t.item} — ${t.descricao}</option>`).join('');
+    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
+    const macros = (servico && servico.macro_categorias.length) ? servico.macro_categorias : Object.keys(data.tipologias);
+    const tipoOpts = macros.map(macro => {
+      const itens = data.tipologias[macro] || [];
+      if (!itens.length) return '';
+      const opcoes = itens.map(t => `<option value="${macro}|||${t.item}" ${state.tipologiaItem && state.tipologiaItem.item === t.item ? 'selected' : ''}>${t.descricao}</option>`).join('');
+      return `<optgroup label="${macro}">${opcoes}</optgroup>`;
+    }).join('');
     const modOpts = data.modificadoresIntervencao.map(m => `<option value="${m.modificador}" ${state.modificadorIntervencao === m.modificador ? 'selected' : ''}>${m.nome}</option>`).join('');
 
     return `
@@ -119,17 +190,13 @@ STEPS.push({
         <div class="field">
           <label class="field__label">Serviço Odisse</label>
           <select id="f-servico"><option value="">Selecione…</option>${servicoOpts}</select>
-          <p class="field__hint">Define os valores padrão de complexidade, escopo e etapas — tudo ajustável depois.</p>
+          <p class="field__hint">Define os valores padrão de complexidade, escopo e etapas — tudo ajustável depois. A lista de tipologias abaixo também é filtrada por este serviço.</p>
         </div>
       </div>
       <div class="field-group">
         <div class="field">
-          <label class="field__label">Macro categoria (tabela CAU)</label>
-          <select id="f-macro"><option value="">Selecione…</option>${macroOpts}</select>
-        </div>
-        <div class="field">
           <label class="field__label">Tipologia específica</label>
-          <select id="f-tipo" ${tipoList.length ? '' : 'disabled'}><option value="">${tipoList.length ? 'Selecione…' : 'Escolha a macro categoria primeiro'}</option>${tipoOpts}</select>
+          <select id="f-tipo" ${servico ? '' : 'disabled'}><option value="">${servico ? 'Selecione…' : 'Escolha o serviço Odisse primeiro'}</option>${tipoOpts}</select>
         </div>
         <div class="field">
           <label class="field__label">Tipo de intervenção</label>
@@ -158,11 +225,11 @@ STEPS.push({
     `;
   },
   bind(el, state, data, ctx) {
-    const macroSel = el.querySelector('#f-macro');
     const servicoSel = el.querySelector('#f-servico');
 
     servicoSel.onchange = e => {
       state.servicoId = e.target.value;
+      state.tipologiaItem = null;
       const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
       if (servico) {
         const icNum = {};
@@ -172,19 +239,18 @@ STEPS.push({
         state.compreendeSelecionados = [...servico.compreende_default];
         state.naoCompreendeSelecionados = [...servico.nao_compreende_default];
       }
-      ctx.updateTicket();
-    };
-
-    macroSel.onchange = e => {
-      state.macroCategoria = e.target.value;
-      state.tipologiaItem = null;
       ctx.rerender();
     };
-    el.querySelector('#f-tipo').onchange = e => {
-      const list = data.tipologias[state.macroCategoria] || [];
-      state.tipologiaItem = list.find(t => t.item === e.target.value) || null;
-      ctx.updateTicket();
-    };
+
+    const tipoSel = el.querySelector('#f-tipo');
+    if (tipoSel) {
+      tipoSel.onchange = e => {
+        const [macro, item] = e.target.value.split('|||');
+        const list = data.tipologias[macro] || [];
+        state.tipologiaItem = list.find(t => t.item === item) || null;
+        ctx.updateTicket();
+      };
+    }
     el.querySelector('#f-intervencao').onchange = e => {
       state.modificadorIntervencao = parseFloat(e.target.value);
       ctx.updateTicket();
@@ -568,7 +634,13 @@ STEPS.push({
   render(state, data) {
     const r = state._calcResult;
     if (!r) return `<p class="muted">Complete as etapas anteriores para ver o resumo do cálculo.</p>`;
+
+    const numeroBloco = state.numeroProposta
+      ? `<div class="data-row"><span class="data-row__label">Nº da proposta</span><span class="data-row__value tabular">${state.numeroProposta}</span></div>`
+      : `<button class="btn btn--ghost" id="btn-gerar-numero" type="button" style="width:100%; margin-bottom:16px">${state.numeroPropostaStatus === 'gerando' ? 'Gerando número…' : 'Gerar número da proposta'}</button>`;
+
     return `
+      ${numeroBloco}
       <div class="card">
         <div class="card__title">Memória de cálculo</div>
         <div class="data-row"><span class="data-row__label">Base de Honorários (BH) — CUB vigente</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.bh)}/m²</span></div>
@@ -582,11 +654,30 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Escopo de contratação</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
-      <button class="btn btn--primary" id="btn-gerar-pdf" type="button" style="width:100%">Gerar PDF da proposta</button>
-      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — nenhum dado é enviado a um servidor.</p>
+      <button class="btn btn--primary" id="btn-gerar-pdf" type="button" style="width:100%" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
+      ${state.numeroProposta ? '' : '<p class="field__hint" style="margin-top:8px">Gere o número da proposta acima antes de baixar o PDF.</p>'}
+      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — nenhum dado é enviado a um servidor além do GitHub, e só para registrar o número da proposta.</p>
     `;
   },
-  bind(el, state, data) {
+  bind(el, state, data, ctx) {
+    const btnNumero = el.querySelector('#btn-gerar-numero');
+    if (btnNumero) {
+      btnNumero.onclick = async () => {
+        state.numeroPropostaStatus = 'gerando';
+        ctx.rerender();
+        try {
+          const resultado = await OdisseGithubStore.proximoNumero();
+          state.numeroProposta = resultado.numeroFormatado;
+          state.numeroPropostaStatus = 'ok';
+          if (resultado.aviso) console.warn(resultado.aviso);
+          await OdisseGithubStore.salvarRegistro(resultado.numeroFormatado, state);
+        } catch (e) {
+          state.numeroPropostaStatus = 'erro';
+          alert('Não consegui gerar o número da proposta: ' + e.message);
+        }
+        ctx.rerender();
+      };
+    }
     const btn = el.querySelector('#btn-gerar-pdf');
     if (btn) btn.onclick = () => OdissePdf.gerar(state, data);
   },

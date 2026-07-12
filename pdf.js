@@ -95,6 +95,15 @@ const OdissePdf = (() => {
     doc.setTextColor(...INK);
     doc.text(`${state.cliente.nome},`, MARGIN, y);
 
+    const endereco = enderecoCompleto(state.cliente);
+    if (endereco) {
+      y += 16;
+      doc.setFontSize(9);
+      doc.setTextColor(...MUTED);
+      doc.text(endereco, MARGIN, y);
+      doc.setTextColor(...INK);
+    }
+
     y += 22;
     const intro = `Agradecemos o interesse em trabalhar com o Odisse Arquitetos, e a consequente oportunidade de apresentar-lhe nossa proposta comercial. Abaixo, detalhamos nosso entendimento do escopo dos serviços solicitados, assim como cronograma e honorários propostos.`;
     y = paragrafo(doc, intro, MARGIN, y, CONTENT_W);

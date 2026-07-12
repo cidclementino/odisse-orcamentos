@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Acesso</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="gate-body">
+
+<div class="gate">
+  <div class="gate__card">
+    <div class="gate__mark">ODISSE</div>
+    <div class="gate__label">Ferramenta interna &mdash; Orçamentos</div>
+    <form id="gate-form" autocomplete="off">
+      <label class="gate__field">
+        <span>Senha de acesso</span>
+        <input type="password" id="gate-password" required autofocus>
+      </label>
+      <label class="gate__field">
+        <span>Seu nome</span>
+        <input type="text" id="gate-name" placeholder="Quem está preenchendo" required>
+      </label>
+      <details class="gate__advanced">
+        <summary>Numeração automática de propostas (opcional)</summary>
+        <label class="gate__field">
+          <span>Token do GitHub</span>
+          <input type="password" id="gate-token" placeholder="ghp_… (fine-grained, só este repo)" value="">
+        </label>
+        <p class="gate__hint">
+          Sem isso, a numeração das propostas fica só neste navegador. Com um
+          token, o número e uma cópia de cada proposta ficam salvos direto no
+          repositório. Veja README.md → "Numeração automática" para gerar um
+          token com o mínimo de permissão necessária.
+        </p>
+      </details>
+      <button type="submit" class="btn btn--primary">Entrar</button>
+      <p class="gate__error" id="gate-error" hidden>Senha incorreta. Tente novamente.</p>
+    </form>
+    <p class="gate__note">Acesso restrito à equipe Odisse. Este aviso não substitui um controle de segurança real &mdash; trate este link como confidencial.</p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+  if (isAuthenticated()) window.location.href = 'index.html';
+
+  document.getElementById('gate-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass = document.getElementById('gate-password').value;
+    const name = document.getElementById('gate-name').value.trim();
+    const token = document.getElementById('gate-token').value.trim();
+    const hash = await sha256(pass);
+    const errEl = document.getElementById('gate-error');
+
+    if (hash !== CONFIG.passwordHash) {
+      errEl.hidden = false;
+      return;
+    }
+    errEl.hidden = true;
+    setAuthenticated(name, token);
+    window.location.href = 'index.html';
+  });
+</script>
+</body>
+</html>

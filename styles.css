@@ -131,6 +131,10 @@ a { color: inherit; }
 .gate .btn { width: 100%; margin-top: 6px; }
 .gate__error { color: var(--danger); font-size: 0.82rem; margin-top: 14px; }
 .gate__note { color: var(--paper-faint); font-size: 0.74rem; margin-top: 26px; line-height: 1.5; }
+.gate__advanced { margin: 4px 0 18px; border: 1px solid var(--line); border-radius: 3px; padding: 10px 14px; }
+.gate__advanced summary { font-size: 0.78rem; color: var(--paper-dim); cursor: pointer; }
+.gate__advanced .gate__field { margin-top: 14px; }
+.gate__hint { color: var(--paper-faint); font-size: 0.74rem; margin-top: 10px; line-height: 1.5; }
 
 /* ==========================================================================
    APP SHELL
@@ -372,11 +376,11 @@ a { color: inherit; }
   background: rgba(20,20,20,0.96);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--copper);
-  padding: 16px clamp(20px, 4vw, 48px) 18px;
+  padding: 14px clamp(20px, 4vw, 48px) 18px;
 }
-.ticket__row {
-  max-width: var(--content-w); margin: 0 auto;
-  display: flex; justify-content: space-between; align-items: baseline;
+.ticket__totals {
+  display: flex; flex-direction: column; align-items: flex-end;
+  text-align: right; margin-bottom: 12px;
 }
 .ticket__label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--paper-dim); }
 .ticket__value {
@@ -384,15 +388,12 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .ticket__sub {
-  max-width: var(--content-w); margin: 4px auto 0;
-  font-size: 0.76rem; color: var(--paper-faint);
+  font-size: 0.76rem; color: var(--paper-faint); margin-top: 2px; max-width: 60ch;
 }
 .ticket__nav {
-  max-width: var(--content-w); margin: 14px auto 0;
-  display: flex; justify-content: space-between; gap: 12px;
+  display: flex; justify-content: center; gap: 12px;
 }
-.ticket__nav .btn { flex: 1; }
-@media (min-width: 560px) { .ticket__nav .btn { flex: none; min-width: 140px; } .ticket__nav { justify-content: flex-end; } }
+.ticket__nav .btn { min-width: 140px; }
 
 /* ---------- utilitários de texto ---------- */
 .muted { color: var(--paper-dim); }
