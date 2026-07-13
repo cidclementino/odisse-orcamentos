@@ -5,12 +5,27 @@
     "nome": "Programação Projetual",
     "semanas_base": 2,
     "descricao": "Etapa de definição dos requisitos, objetivos e diretrizes que orientarão o desenvolvimento do projeto, levando em consideração as necessidades do cliente, as características do terreno e as regulamentações aplicáveis.",
-    "entregaveis": [
-      "Análise de similares",
-      "Análise do entorno imediato",
-      "Definição do programa projetual básico",
-      "Análise da legislação municipal incidente sobre o terreno",
-      "Relatório sintético com diretrizes para projeto"
+    "subitens": [
+      {
+        "id": "programacao_projetual__1",
+        "texto": "Análise de similares"
+      },
+      {
+        "id": "programacao_projetual__2",
+        "texto": "Análise do entorno imediato"
+      },
+      {
+        "id": "programacao_projetual__3",
+        "texto": "Definição do programa projetual básico"
+      },
+      {
+        "id": "programacao_projetual__4",
+        "texto": "Análise da legislação municipal incidente sobre o terreno"
+      },
+      {
+        "id": "programacao_projetual__5",
+        "texto": "Relatório sintético com diretrizes para projeto"
+      }
     ]
   },
   {
@@ -19,13 +34,31 @@
     "nome": "Concepção Esquemática",
     "semanas_base": 2,
     "descricao": "Etapa onde são desenvolvidos os primeiros ensaios de ocupação do terreno, assim como os primeiros volumes, soluções formais do projeto, definições de fluxos e a relação do edifício com seu entorno imediato e com as restrições legais impostas sobre ele.",
-    "entregaveis": [
-      "Estudos volumétricos e de massas",
-      "Diagramas de fluxos",
-      "Diagramas de zoneamentos",
-      "Croquis e esboços preliminares",
-      "Modelos 3D ou maquetes físicas esquemáticas",
-      "Numérico inicial contendo áreas totais e privativas"
+    "subitens": [
+      {
+        "id": "concepcao_esquematica__1",
+        "texto": "Estudos volumétricos e de massas"
+      },
+      {
+        "id": "concepcao_esquematica__2",
+        "texto": "Diagramas de fluxos"
+      },
+      {
+        "id": "concepcao_esquematica__3",
+        "texto": "Diagramas de zoneamentos"
+      },
+      {
+        "id": "concepcao_esquematica__4",
+        "texto": "Croquis e esboços preliminares"
+      },
+      {
+        "id": "concepcao_esquematica__5",
+        "texto": "Modelos 3D ou maquetes físicas esquemáticas"
+      },
+      {
+        "id": "concepcao_esquematica__6",
+        "texto": "Numérico inicial contendo áreas totais e privativas"
+      }
     ]
   },
   {
@@ -34,14 +67,35 @@
     "nome": "Concepção Básica",
     "semanas_base": 3,
     "descricao": "Etapa de consolidação de uma das alternativas de ocupação do terreno, com ampliação do grau de materialidade do projeto, trazendo primeiras propostas de solução estrutural e de materialidade do projeto.",
-    "entregaveis": [
-      "Definição da linguagem estética e materialidade do projeto",
-      "Plantas com layout dos principais pavimentos",
-      "Cortes esquemáticos do projeto",
-      "Modelos 3D ou maquetes físicas esquemáticas",
-      "Ilustrações do Projeto",
-      "Numérico consolidado de áreas",
-      "Orçamento simplificado da obra"
+    "subitens": [
+      {
+        "id": "concepcao_basica__1",
+        "texto": "Definição da linguagem estética e materialidade do projeto"
+      },
+      {
+        "id": "concepcao_basica__2",
+        "texto": "Plantas com layout dos principais pavimentos"
+      },
+      {
+        "id": "concepcao_basica__3",
+        "texto": "Cortes esquemáticos do projeto"
+      },
+      {
+        "id": "concepcao_basica__4",
+        "texto": "Modelos 3D ou maquetes físicas esquemáticas"
+      },
+      {
+        "id": "concepcao_basica__5",
+        "texto": "Ilustrações do Projeto"
+      },
+      {
+        "id": "concepcao_basica__6",
+        "texto": "Numérico consolidado de áreas"
+      },
+      {
+        "id": "concepcao_basica__7",
+        "texto": "Orçamento simplificado da obra"
+      }
     ]
   },
   {
@@ -50,16 +104,43 @@
     "nome": "Projeto Básico/Legal",
     "semanas_base": 2,
     "descricao": "Etapa de consolidação do projeto arquitetônico, com desenvolvimento de documentação técnico-legal para solicitação de alvará de construção junto aos órgãos competentes.",
-    "entregaveis": [
-      "Planta de implantação",
-      "Planta de coberta",
-      "Planta baixa de todos os pavimentos",
-      "2 cortes técnicos",
-      "4 elevações",
-      "Sugestão dos principais acabamentos",
-      "Memorial descritivo simplificado",
-      "Pré-lançamento de projetos complementares",
-      "Orçamento simplificado da obra"
+    "subitens": [
+      {
+        "id": "projeto_basico_legal__1",
+        "texto": "Planta de implantação"
+      },
+      {
+        "id": "projeto_basico_legal__2",
+        "texto": "Planta de coberta"
+      },
+      {
+        "id": "projeto_basico_legal__3",
+        "texto": "Planta baixa de todos os pavimentos"
+      },
+      {
+        "id": "projeto_basico_legal__4",
+        "texto": "2 cortes técnicos"
+      },
+      {
+        "id": "projeto_basico_legal__5",
+        "texto": "4 elevações"
+      },
+      {
+        "id": "projeto_basico_legal__6",
+        "texto": "Sugestão dos principais acabamentos"
+      },
+      {
+        "id": "projeto_basico_legal__7",
+        "texto": "Memorial descritivo simplificado"
+      },
+      {
+        "id": "projeto_basico_legal__8",
+        "texto": "Pré-lançamento de projetos complementares"
+      },
+      {
+        "id": "projeto_basico_legal__9",
+        "texto": "Orçamento simplificado da obra"
+      }
     ]
   },
   {
@@ -68,13 +149,31 @@
     "nome": "Pré-Executivo",
     "semanas_base": 8,
     "descricao": "Etapa de coordenação do projeto arquitetônico junto aos projetos de disciplinas complementares. Todos os materiais técnicos produzidos pelas equipes de projetos complementares serão analisados pela equipe do Odisse.",
-    "entregaveis": [
-      "Reuniões de coordenação e compatibilização de projetos",
-      "Planta de coberta compatibilizada",
-      "Planta baixa compatibilizada de todos os pavimentos",
-      "Planta baixa de pontos elétricos e hidrossanitários",
-      "Cortes técnicos compatibilizados",
-      "Documentação básica dos principais elementos de fachada"
+    "subitens": [
+      {
+        "id": "pre_executivo__1",
+        "texto": "Reuniões de coordenação e compatibilização de projetos"
+      },
+      {
+        "id": "pre_executivo__2",
+        "texto": "Planta de coberta compatibilizada"
+      },
+      {
+        "id": "pre_executivo__3",
+        "texto": "Planta baixa compatibilizada de todos os pavimentos"
+      },
+      {
+        "id": "pre_executivo__4",
+        "texto": "Planta baixa de pontos elétricos e hidrossanitários"
+      },
+      {
+        "id": "pre_executivo__5",
+        "texto": "Cortes técnicos compatibilizados"
+      },
+      {
+        "id": "pre_executivo__6",
+        "texto": "Documentação básica dos principais elementos de fachada"
+      }
     ]
   },
   {
@@ -83,14 +182,35 @@
     "nome": "Projeto Executivo de Arquitetura",
     "semanas_base": 8,
     "descricao": "Descrição completa e detalhada do projeto arquitetônico em plantas, cortes e elevações, assim como a consolidação da compatibilização e coordenação de projetos técnicos, de consultoria e de engenharia.",
-    "entregaveis": [
-      "Planta de implantação, coberta e todos os pavimentos",
-      "Planta de layout, forros, acabamentos",
-      "Planta de locação de pontos elétricos e hidrossanitários",
-      "Cortes e fachadas",
-      "Detalhamento de esquadrias",
-      "Memorial descritivo",
-      "Ilustrações do projeto"
+    "subitens": [
+      {
+        "id": "projeto_executivo_arquitetura__1",
+        "texto": "Planta de implantação, coberta e todos os pavimentos"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__2",
+        "texto": "Planta de layout, forros, acabamentos"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__3",
+        "texto": "Planta de locação de pontos elétricos e hidrossanitários"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__4",
+        "texto": "Cortes e fachadas"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__5",
+        "texto": "Detalhamento de esquadrias"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__6",
+        "texto": "Memorial descritivo"
+      },
+      {
+        "id": "projeto_executivo_arquitetura__7",
+        "texto": "Ilustrações do projeto"
+      }
     ]
   },
   {
@@ -99,13 +219,31 @@
     "nome": "Detalhamento Executivo Complementar",
     "semanas_base": 4,
     "descricao": "Compreende a descrição detalhada e específica das soluções, junções, elementos, objetos e materiais propostos.",
-    "entregaveis": [
-      "Ampliação de áreas molhadas",
-      "Detalhamento de bancadas, escadas, rampas",
-      "Detalhamento interno de elevadores",
-      "Detalhamento de guarda-corpos e corrimãos",
-      "Detalhamento de portões, portas, janelas e painéis",
-      "Detalhamento de jardineiras e elementos específicos"
+    "subitens": [
+      {
+        "id": "detalhamento_executivo__1",
+        "texto": "Ampliação de áreas molhadas"
+      },
+      {
+        "id": "detalhamento_executivo__2",
+        "texto": "Detalhamento de bancadas, escadas, rampas"
+      },
+      {
+        "id": "detalhamento_executivo__3",
+        "texto": "Detalhamento interno de elevadores"
+      },
+      {
+        "id": "detalhamento_executivo__4",
+        "texto": "Detalhamento de guarda-corpos e corrimãos"
+      },
+      {
+        "id": "detalhamento_executivo__5",
+        "texto": "Detalhamento de portões, portas, janelas e painéis"
+      },
+      {
+        "id": "detalhamento_executivo__6",
+        "texto": "Detalhamento de jardineiras e elementos específicos"
+      }
     ]
   },
   {
@@ -114,13 +252,31 @@
     "nome": "Estudo Básico de Interiores (Áreas Comuns)",
     "semanas_base": 4,
     "descricao": "Etapa de desenvolvimento do conceito geral da decoração dos interiores das áreas comuns do projeto.",
-    "entregaveis": [
-      "Planta de layout com definições de mobiliário",
-      "Ilustrações dos interiores",
-      "Estudos das marcenarias fixas",
-      "Prancha de amostras dos acabamentos",
-      "Lista preliminar de mobiliários e artigos de decoração",
-      "Planilha orçamentária preliminar"
+    "subitens": [
+      {
+        "id": "estudo_basico_interiores__1",
+        "texto": "Planta de layout com definições de mobiliário"
+      },
+      {
+        "id": "estudo_basico_interiores__2",
+        "texto": "Ilustrações dos interiores"
+      },
+      {
+        "id": "estudo_basico_interiores__3",
+        "texto": "Estudos das marcenarias fixas"
+      },
+      {
+        "id": "estudo_basico_interiores__4",
+        "texto": "Prancha de amostras dos acabamentos"
+      },
+      {
+        "id": "estudo_basico_interiores__5",
+        "texto": "Lista preliminar de mobiliários e artigos de decoração"
+      },
+      {
+        "id": "estudo_basico_interiores__6",
+        "texto": "Planilha orçamentária preliminar"
+      }
     ]
   },
   {
@@ -129,13 +285,31 @@
     "nome": "Projeto Executivo de Interiores (Áreas Comuns)",
     "semanas_base": 8,
     "descricao": "Descrição completa e detalhada em plantas, cortes e elevações do projeto de interiores das áreas comuns.",
-    "entregaveis": [
-      "Ampliações das áreas comuns (plantas, layouts, elevações, forros, acabamentos)",
-      "Ilustrações de interiores",
-      "Detalhamento de marcenarias fixas",
-      "Lista consolidada de mobiliários e artigos de decoração",
-      "Planilha orçamentária consolidada",
-      "Análise dos desenhos e amostras dos fornecedores"
+    "subitens": [
+      {
+        "id": "projeto_executivo_interiores__1",
+        "texto": "Ampliações das áreas comuns (plantas, layouts, elevações, forros, acabamentos)"
+      },
+      {
+        "id": "projeto_executivo_interiores__2",
+        "texto": "Ilustrações de interiores"
+      },
+      {
+        "id": "projeto_executivo_interiores__3",
+        "texto": "Detalhamento de marcenarias fixas"
+      },
+      {
+        "id": "projeto_executivo_interiores__4",
+        "texto": "Lista consolidada de mobiliários e artigos de decoração"
+      },
+      {
+        "id": "projeto_executivo_interiores__5",
+        "texto": "Planilha orçamentária consolidada"
+      },
+      {
+        "id": "projeto_executivo_interiores__6",
+        "texto": "Análise dos desenhos e amostras dos fornecedores"
+      }
     ]
   }
 ]

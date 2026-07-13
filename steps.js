@@ -47,7 +47,12 @@ function maskDocumento(v, tipo) {
 }
 
 const IC_LABELS = { baixo: 0.7, medio: 1.0, alto: 1.3 };
-const IC_KEYS_ALL = ['empenho_porte', 'qtd_especialistas', 'qtd_aprovacoes', 'grau_detalhamento', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica', 'grau_controle_custo', 'indefinicao_escopo', 'indefinicao_prazo'];
+
+// Ordem fixa dos 11 critérios — index casa com data/ic-criterios.json.
+// 'empenho_porte' e 'grau_detalhamento' NÃO são mais preenchidos manualmente:
+// são calculados a partir do escopo/etapas selecionados (ver recomputeIndicadores).
+const IC_KEYS_ALL = ['empenho_porte', 'qtd_especialistas', 'qtd_aprovacoes', 'grau_detalhamento', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica', 'grau_controle_custo', 'indefinicao_escopo', 'indefinicao_prazo', 'demanda_midia'];
+const MANUAL_COMPLEXIDADE_KEYS = ['qtd_especialistas', 'qtd_aprovacoes', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica', 'grau_controle_custo', 'indefinicao_prazo', 'demanda_midia'];
 
 const REPETICOES_FAIXAS = [
   { label: '0 (nenhuma)', value: 0 },
@@ -62,6 +67,7 @@ const REPETICOES_FAIXAS = [
 ];
 
 const ARQ_ETAPA_IDS = ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica', 'projeto_basico_legal', 'pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
+const ETAPAS_EXECUTIVAS_IDS = ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
 const ETAPAS_POR_ESCOPO = {
   'Projeto Completo': ARQ_ETAPA_IDS,
   'Até Estudo Preliminar': ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica'],
@@ -74,6 +80,45 @@ function semanasDefault(etapa, ic) {
   return Math.max(1, Math.min(10, Math.round(etapa.semanas_base * ic)));
 }
 
+// ---------- Indicadores calculados (Grau de Detalhamento / Empenho ao Projeto vs Porte) ----------
+// NOTA: os cortes de contagem do Empenho (3 / 4-6 / 7+) foram definidos ainda com a lista
+// antiga de escopo (~14 itens) e ficaram pendentes de recalibração — a base de contagem
+// mudou (agora soma subitens de todas as etapas + assessoramento, tipicamente um número
+// bem maior). Mantido assim por ora, por acordo explícito, até revisarmos os cortes.
+function computeGrauDetalhamento(etapasSelecionadas) {
+  if (etapasSelecionadas.includes('detalhamento_executivo')) return 'alto';
+  if (ETAPAS_EXECUTIVAS_IDS.some(id => etapasSelecionadas.includes(id))) return 'medio';
+  return 'baixo';
+}
+
+function countSubitensSelecionados(state) {
+  const etapas = Object.values(state.etapasSubitens || {}).reduce((s, arr) => s + arr.length, 0);
+  const assess = (state.assessoramentoSelecionados || []).length;
+  return etapas + assess;
+}
+
+function computeEmpenhoPorte(total) {
+  if (total <= 3) return 'baixo';
+  if (total <= 6) return 'medio';
+  return 'alto';
+}
+
+function recomputeIndicadores(state) {
+  state.icValores.grau_detalhamento = IC_LABELS[computeGrauDetalhamento(state.etapasSelecionadas)];
+  state.icValores.empenho_porte = IC_LABELS[computeEmpenhoPorte(countSubitensSelecionados(state))];
+}
+
+const PRAZO_CLIENTE_OPCOES = [
+  { label: '30 dias', semanas: 4 },
+  { label: '2 meses', semanas: 8 },
+  { label: '4 meses', semanas: 16 },
+  { label: '6 meses', semanas: 24 },
+  { label: '12 meses', semanas: 48 },
+  { label: '1 ano e 6 meses', semanas: 72 },
+  { label: '2 anos', semanas: 96 },
+  { label: 'Indefinido', semanas: null }
+];
+
 const STEPS = [];
 
 // -------------------------------------------------------------------------
@@ -81,7 +126,7 @@ const STEPS = [];
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'cliente',
-  eyebrow: 'Etapa 1 de 7',
+  eyebrow: 'Etapa 1 de 6',
   title: 'Cliente & projeto',
   desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
@@ -147,9 +192,18 @@ STEPS.push({
           <label class="field__label">Data da proposta</label>
           <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}">
         </div>
-        <div class="field">
-          <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
-          <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
+        <div class="row-2">
+          <div class="field">
+            <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
+            <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
+          </div>
+          <div class="field">
+            <label class="field__label">Prazo esperado pelo cliente (opcional)</label>
+            <select id="f-prazo-cliente">
+              <option value="">Não informado</option>
+              ${PRAZO_CLIENTE_OPCOES.map(o => `<option value="${o.label}" ${state.prazoEsperadoCliente === o.label ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
         </div>
       </div>
     `;
@@ -222,11 +276,16 @@ STEPS.push({
     const tetoInput = el.querySelector('#f-teto');
     tetoInput.oninput = e => {
       const digits = e.target.value.replace(/\D/g, '');
-      if (!digits) { state.tetoOrcamentario = ''; e.target.value = ''; return; }
+      if (!digits) { state.tetoOrcamentario = ''; state.tetoOrcamentarioNumero = 0; e.target.value = ''; return; }
       const valor = parseInt(digits, 10) / 100;
       const formatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       e.target.value = formatado;
       state.tetoOrcamentario = formatado;
+      state.tetoOrcamentarioNumero = valor;
+    };
+
+    el.querySelector('#f-prazo-cliente').onchange = e => {
+      state.prazoEsperadoCliente = e.target.value;
     };
   },
   validate(state) {
@@ -240,7 +299,7 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'classificacao',
-  eyebrow: 'Etapa 2 de 7',
+  eyebrow: 'Etapa 2 de 6',
   title: 'Classificação do serviço',
   desc: 'Define a base de honorários (CUB/tipologia), o entendimento do projeto e o porte do trabalho.',
   render(state, data) {
@@ -255,11 +314,8 @@ STEPS.push({
     }).join('');
 
     let intervencaoHtml = '';
-    if (servico && (servico.intervencoes_permitidas || []).length > 1) {
-      const opts = servico.intervencoes_permitidas.map(nome => {
-        const mod = data.modificadoresIntervencao.find(m => m.nome === nome);
-        return { value: mod.modificador, label: nome };
-      });
+    if (servico && (servico.modificadores || []).length > 1) {
+      const opts = servico.modificadores.map(m => ({ value: m.valor, label: m.nome }));
       intervencaoHtml = `
         <div class="field">
           <label class="field__label">Tipo de intervenção</label>
@@ -338,17 +394,21 @@ STEPS.push({
       if (servico) {
         const icNum = {};
         Object.entries(servico.ic_preset).forEach(([k, v]) => { icNum[k] = IC_LABELS[v]; });
-        state.icValores = icNum;
+        state.icValores = { ...state.icValores, ...icNum };
         state.etapasSelecionadas = [...servico.etapas_default];
-        state.compreendeSelecionados = [...servico.compreende_default];
-        state.naoCompreendeSelecionados = [...servico.nao_compreende_default];
-        const permitidas = servico.intervencoes_permitidas || [];
-        if (!permitidas.length) {
-          state.modificadorIntervencao = 1;
-        } else {
-          const mod = data.modificadoresIntervencao.find(m => m.nome === permitidas[0]);
-          state.modificadorIntervencao = mod ? mod.modificador : 1;
-        }
+        state.etapasSemanas = {};
+        state.etapasSubitens = {};
+        const icCalc = OdisseCalc.mediaIC(state.icValores);
+        servico.etapas_default.forEach(id => {
+          const etapa = data.etapas.find(x => x.id === id);
+          if (etapa) {
+            state.etapasSemanas[id] = semanasDefault(etapa, icCalc);
+            state.etapasSubitens[id] = etapa.subitens.map(si => si.id);
+          }
+        });
+        const mods = servico.modificadores || [];
+        state.modificadorIntervencao = mods.length ? mods[0].valor : 1;
+        recomputeIndicadores(state);
       }
       ctx.rerender();
     };
@@ -391,19 +451,20 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 3. Índice de complexidade (9 critérios — indefinição de escopo ficou na
-//    etapa de Classificação, junto das áreas)
+// 3. Índice de complexidade (8 critérios manuais — indefinição de escopo
+//    fica na Classificação; empenho e detalhamento viraram indicadores
+//    calculados, exibidos em Etapas & Cronograma)
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'complexidade',
-  eyebrow: 'Etapa 3 de 7',
+  eyebrow: 'Etapa 3 de 6',
   title: 'Índice de complexidade',
   desc: 'Padrão pré-carregado a partir do serviço escolhido. Ajuste qualquer critério se o padrão não refletir o projeto.',
   render(state, data) {
     return `
       <div class="field-group">
-        ${IC_KEYS_ALL.map((key, i) => {
-          if (key === 'indefinicao_escopo') return '';
+        ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
+          const i = IC_KEYS_ALL.indexOf(key);
           const crit = data.icCriterios[i];
           const current = state.icValores[key] != null ? state.icValores[key] : 1.0;
           const currentLabel = current === 0.7 ? 'baixo' : current === 1.3 ? 'alto' : 'medio';
@@ -420,11 +481,12 @@ STEPS.push({
           `;
         }).join('')}
       </div>
+      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir do escopo e das etapas selecionadas em "Etapas & Cronograma".</p>
     `;
   },
   bind(el, state, data, ctx) {
-    IC_KEYS_ALL.forEach((key, i) => {
-      if (key === 'indefinicao_escopo') return;
+    MANUAL_COMPLEXIDADE_KEYS.forEach(key => {
+      const i = IC_KEYS_ALL.indexOf(key);
       const crit = data.icCriterios[i];
       el.querySelectorAll(`input[name="ic-${key}"]`).forEach(r => {
         r.onchange = e => {
@@ -439,96 +501,24 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 5. Escopo do serviço (checkboxes)
-// -------------------------------------------------------------------------
-function renderCheckList(items, selectedIds, name) {
-  return `<div class="check-list" data-list="${name}">` +
-    items.map(item => `
-      <label class="check-row">
-        <input type="checkbox" data-id="${item.id}" ${selectedIds.includes(item.id) ? 'checked' : ''}>
-        <span class="check-row__box">${checkSvg()}</span>
-        <span class="check-row__text">${item.texto}</span>
-      </label>
-    `).join('') +
-    `</div>`;
-}
-
-STEPS.push({
-  id: 'escopo',
-  eyebrow: 'Etapa 4 de 7',
-  title: 'Escopo do serviço',
-  desc: 'Marque o que compreende e o que não compreende esta proposta. A lista vem pré-marcada pelo serviço escolhido — ajuste livremente.',
-  render(state, data) {
-    return `
-      <div class="field-group">
-        <div class="card__title" style="margin-bottom:14px">Compreende o serviço</div>
-        ${renderCheckList(data.escopoMaster.compreende, state.compreendeSelecionados, 'compreende')}
-        <div class="add-item">
-          <input type="text" id="f-add-compreende" placeholder="Adicionar item personalizado…">
-          <button class="btn btn--ghost" id="btn-add-compreende" type="button">Adicionar</button>
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="card__title" style="margin-bottom:14px">Não compreende esta proposta</div>
-        ${renderCheckList(data.escopoMaster.nao_compreende, state.naoCompreendeSelecionados, 'nao_compreende')}
-        <div class="add-item">
-          <input type="text" id="f-add-nao" placeholder="Adicionar item personalizado…">
-          <button class="btn btn--ghost" id="btn-add-nao" type="button">Adicionar</button>
-        </div>
-      </div>
-    `;
-  },
-  bind(el, state, data, ctx) {
-    el.querySelectorAll('[data-list="compreende"] input[type=checkbox]').forEach(cb => {
-      cb.onchange = e => {
-        const id = e.target.dataset.id;
-        if (e.target.checked) state.compreendeSelecionados.push(id);
-        else state.compreendeSelecionados = state.compreendeSelecionados.filter(x => x !== id);
-      };
-    });
-    el.querySelectorAll('[data-list="nao_compreende"] input[type=checkbox]').forEach(cb => {
-      cb.onchange = e => {
-        const id = e.target.dataset.id;
-        if (e.target.checked) state.naoCompreendeSelecionados.push(id);
-        else state.naoCompreendeSelecionados = state.naoCompreendeSelecionados.filter(x => x !== id);
-      };
-    });
-    el.querySelector('#btn-add-compreende').onclick = () => {
-      const input = el.querySelector('#f-add-compreende');
-      const texto = input.value.trim();
-      if (!texto) return;
-      const id = 'custom-c-' + Date.now();
-      data.escopoMaster.compreende.push({ id, texto });
-      state.compreendeSelecionados.push(id);
-      ctx.rerender();
-    };
-    el.querySelector('#btn-add-nao').onclick = () => {
-      const input = el.querySelector('#f-add-nao');
-      const texto = input.value.trim();
-      if (!texto) return;
-      const id = 'custom-n-' + Date.now();
-      data.escopoMaster.nao_compreende.push({ id, texto });
-      state.naoCompreendeSelecionados.push(id);
-      ctx.rerender();
-    };
-  },
-  validate() { return true; }
-});
-
-// -------------------------------------------------------------------------
-// 6. Etapas & cronograma (inclui o antigo "Escopo de Contratação")
+// 4. Etapas & cronograma (inclui escopo de contratação, os subitens de cada
+//    etapa — antigo "Escopo do Serviço" — e o bloco de Assessoramento)
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'etapas',
-  eyebrow: 'Etapa 5 de 7',
+  eyebrow: 'Etapa 4 de 6',
   title: 'Etapas & cronograma',
-  desc: 'Escolha o escopo de contratação (ele já marca as etapas correspondentes) e ajuste o cronograma. As semanas definem só o cronograma/documento — não afetam o valor.',
+  desc: 'Escolha o escopo de contratação, ajuste as etapas e refine cada uma com os subitens que se aplicam ao projeto.',
   render(state, data) {
     const ic = OdisseCalc.mediaIC(state.icValores);
     const reducaoOpts = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo];
     let escopoAtualNome = 'Personalizado';
     for (const r of reducaoOpts) { if (r.percentual === state.reducaoEscopoPercentual) { escopoAtualNome = r.nome; break; } }
     const todasOpcoes = [...reducaoOpts, { nome: 'Personalizado' }];
+
+    const grauDetalhamento = computeGrauDetalhamento(state.etapasSelecionadas);
+    const empenhoPorte = computeEmpenhoPorte(countSubitensSelecionados(state));
+    const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
     return `
       <div class="field-group">
@@ -542,10 +532,18 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
+        <div class="row-2">
+          <div class="data-row"><span class="data-row__label">Grau de Detalhamento (calculado)</span><span class="data-row__value" id="badge-detalhamento">${labelCap(grauDetalhamento)}</span></div>
+          <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte (calculado)</span><span class="data-row__value" id="badge-empenho">${labelCap(empenhoPorte)}</span></div>
+        </div>
+        <p class="field__hint">Atualizam sozinhos conforme as etapas e subitens marcados abaixo.</p>
+      </div>
+      <div class="field-group">
         <div class="check-list">
           ${data.etapas.map(etapa => {
             const selecionada = state.etapasSelecionadas.includes(etapa.id);
             const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
+            const subitensSel = state.etapasSubitens[etapa.id] || [];
             return `
               <div class="etapa-row">
                 <label class="check-row check-row__toggle">
@@ -559,6 +557,17 @@ STEPS.push({
                   </select>
                 ` : ''}
               </div>
+              ${selecionada ? `
+                <div class="subitens-list" data-subitens-de="${etapa.id}">
+                  ${etapa.subitens.map(si => `
+                    <label class="check-row check-row--sub">
+                      <input type="checkbox" data-subitem="${etapa.id}::${si.id}" ${subitensSel.includes(si.id) ? 'checked' : ''}>
+                      <span class="check-row__box">${checkSvg()}</span>
+                      <span class="check-row__text small">${si.texto}</span>
+                    </label>
+                  `).join('')}
+                </div>
+              ` : ''}
             `;
           }).join('')}
         </div>
@@ -571,9 +580,29 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group" id="cronograma-preview"></div>
+      <div class="field-group">
+        <div class="card__title" style="margin-bottom:6px">${data.assessoramento.titulo}</div>
+        <p class="field__hint" style="margin-bottom:14px">Bloco independente — não entra no cronograma nem na soma de semanas.</p>
+        <div class="check-list">
+          ${data.assessoramento.subitens.map(si => `
+            <label class="check-row">
+              <input type="checkbox" data-assess="${si.id}" ${(state.assessoramentoSelecionados || []).includes(si.id) ? 'checked' : ''}>
+              <span class="check-row__box">${checkSvg()}</span>
+              <span class="check-row__text">${si.texto_curto}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
     `;
   },
   bind(el, state, data, ctx) {
+    function atualizarBadges() {
+      const detEl = el.querySelector('#badge-detalhamento');
+      const empEl = el.querySelector('#badge-empenho');
+      const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
+      if (detEl) detEl.textContent = labelCap(computeGrauDetalhamento(state.etapasSelecionadas));
+      if (empEl) empEl.textContent = labelCap(computeEmpenhoPorte(countSubitensSelecionados(state)));
+    }
     function atualizarTotal() {
       const total = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
         .reduce((s, e) => s + (state.etapasSemanas[e.id] || 0), 0);
@@ -600,6 +629,13 @@ STEPS.push({
     const inputCustom = el.querySelector('#f-escopo-custom');
     const ic = OdisseCalc.mediaIC(state.icValores);
 
+    function garantirSubitens(id) {
+      if (state.etapasSubitens[id] == null) {
+        const etapa = data.etapas.find(x => x.id === id);
+        state.etapasSubitens[id] = etapa.subitens.map(si => si.id);
+      }
+    }
+
     selectEscopo.onchange = e => {
       const nome = e.target.value;
       if (nome === 'Personalizado') {
@@ -619,7 +655,9 @@ STEPS.push({
           const etapa = data.etapas.find(x => x.id === id);
           state.etapasSemanas[id] = semanasDefault(etapa, ic);
         }
+        garantirSubitens(id);
       });
+      recomputeIndicadores(state);
       ctx.rerender();
     };
     inputCustom.oninput = e => {
@@ -636,9 +674,11 @@ STEPS.push({
             const etapa = data.etapas.find(x => x.id === id);
             state.etapasSemanas[id] = semanasDefault(etapa, ic);
           }
+          garantirSubitens(id);
         } else {
           state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
         }
+        recomputeIndicadores(state);
         ctx.rerender();
       };
     });
@@ -647,6 +687,34 @@ STEPS.push({
         state.etapasSemanas[e.target.dataset.semanas] = parseInt(e.target.value, 10) || 1;
         atualizarTotal();
         renderCronograma();
+        ctx.updateTicket();
+      };
+    });
+    el.querySelectorAll('input[data-subitem]').forEach(cb => {
+      cb.onchange = e => {
+        const [etapaId, subitemId] = e.target.dataset.subitem.split('::');
+        garantirSubitens(etapaId);
+        if (e.target.checked) {
+          if (!state.etapasSubitens[etapaId].includes(subitemId)) state.etapasSubitens[etapaId].push(subitemId);
+        } else {
+          state.etapasSubitens[etapaId] = state.etapasSubitens[etapaId].filter(x => x !== subitemId);
+        }
+        recomputeIndicadores(state);
+        atualizarBadges();
+        ctx.updateTicket();
+      };
+    });
+    el.querySelectorAll('input[data-assess]').forEach(cb => {
+      cb.onchange = e => {
+        const id = e.target.dataset.assess;
+        state.assessoramentoSelecionados = state.assessoramentoSelecionados || [];
+        if (e.target.checked) {
+          if (!state.assessoramentoSelecionados.includes(id)) state.assessoramentoSelecionados.push(id);
+        } else {
+          state.assessoramentoSelecionados = state.assessoramentoSelecionados.filter(x => x !== id);
+        }
+        recomputeIndicadores(state);
+        atualizarBadges();
         ctx.updateTicket();
       };
     });
@@ -666,11 +734,11 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 6. Ajuste de mercado & condições de pagamento
+// 5. Ajuste de mercado & condições de pagamento
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'pagamento',
-  eyebrow: 'Etapa 6 de 7',
+  eyebrow: 'Etapa 5 de 6',
   title: 'Ajuste de mercado & pagamento',
   desc: 'Ajuste o valor final e defina as condições de pagamento — o preview abaixo atualiza a cada mudança.',
   render(state, data) {
@@ -717,16 +785,6 @@ STEPS.push({
       <div class="field-group">
         <div class="switch-row">
           <div class="switch-row__text">
-            <div class="switch-row__title">Incluir acompanhamento mensal de obra</div>
-            <div class="switch-row__hint">Visitas mensais de um arquiteto da equipe durante a execução</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="f-acompanhamento" ${state.incluirAcompanhamentoObra ? 'checked' : ''}>
-            <span class="switch__track"></span><span class="switch__thumb"></span>
-          </label>
-        </div>
-        <div class="switch-row">
-          <div class="switch-row__text">
             <div class="switch-row__title">Incluir cláusula de despesas reembolsáveis</div>
             <div class="switch-row__hint">Plotagem, viagens fora da região metropolitana, taxas e certidões</div>
           </div>
@@ -759,18 +817,17 @@ STEPS.push({
     el.querySelector('#f-fator-custom').onchange = () => ctx.rerender();
     el.querySelector('#f-desconto').oninput = e => { state.descontoAvista = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
-    el.querySelector('#f-acompanhamento').onchange = e => state.incluirAcompanhamentoObra = e.target.checked;
     el.querySelector('#f-reembolsaveis').onchange = e => state.incluirDespesasReembolsaveis = e.target.checked;
   },
   validate() { return true; }
 });
 
 // -------------------------------------------------------------------------
-// 8. Revisão & download (número gerado automaticamente ao entrar aqui)
+// 6. Revisão & download (número gerado só ao clicar em "Finalizar orçamento")
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'revisao',
-  eyebrow: 'Etapa 7 de 7',
+  eyebrow: 'Etapa 6 de 6',
   title: 'Revisão & geração do PDF',
   desc: 'Confira os valores calculados. Finalize o orçamento para gerar o número da proposta e liberar o PDF.',
   render(state, data) {

@@ -17,6 +17,8 @@ function estadoInicial() {
     numeroPropostaStatus: '', // '', 'gerando', 'ok', 'erro'
     dataProposta: new Date().toISOString().slice(0, 10),
     tetoOrcamentario: '',
+    tetoOrcamentarioNumero: 0,
+    prazoEsperadoCliente: '',
     entendimentoProjeto: '',
     servicoId: '',
     tipologiaItem: null,
@@ -25,17 +27,16 @@ function estadoInicial() {
     areaExterna: 0,
     areaTerreno: 0,
     contagemRepeticoes: 0,
-    icValores: { empenho_porte: 1, qtd_especialistas: 1, qtd_aprovacoes: 1, grau_detalhamento: 1, grau_resp_civil: 1, grau_intervencao_cliente: 1, expectativa_plastica: 1, grau_controle_custo: 1, indefinicao_escopo: 1, indefinicao_prazo: 1 },
+    icValores: { empenho_porte: 1, qtd_especialistas: 1, qtd_aprovacoes: 1, grau_detalhamento: 1, grau_resp_civil: 1, grau_intervencao_cliente: 1, expectativa_plastica: 1, grau_controle_custo: 1, indefinicao_escopo: 1, indefinicao_prazo: 1, demanda_midia: 1 },
     fatorAjuste: 1.25,
     reducaoEscopoPercentual: 1,
-    compreendeSelecionados: [],
-    naoCompreendeSelecionados: [],
     etapasSelecionadas: [],
     etapasSemanas: {},
+    etapasSubitens: {},
+    assessoramentoSelecionados: [],
     dataInicio: '',
     descontoAvista: 0.08,
     pctEntrada: 0.35,
-    incluirAcompanhamentoObra: true,
     incluirDespesasReembolsaveis: true,
     _calcResult: null,
     _userName: '',
@@ -64,7 +65,6 @@ function duracaoTotalSemanas() {
 }
 
 function updateTicket() {
-  const stepData = STEPS[currentStepIndex];
   const ticketTotal = document.getElementById('ticket-total');
   const ticketSub = document.getElementById('ticket-sub');
   const ticketDuracao = document.getElementById('ticket-prazo-duracao');
@@ -107,8 +107,43 @@ function updateTicket() {
     ticketDatas.textContent = '';
   }
 
-  // se a etapa de revisão ou pagamento estiver ativa, re-renderiza para refletir o valor novo
-  if (stepData && (stepData.id === 'revisao' || stepData.id === 'pagamento')) renderStep();
+  renderAlertaOrcamento();
+  renderAlertaPrazo();
+}
+
+function alertaHtml(texto, tipo) {
+  const cor = tipo === 'atencao' ? 'var(--danger)' : 'var(--copper-strong)';
+  return `<p class="ticket__alerta" style="color:${cor}">${texto}</p>`;
+}
+
+function renderAlertaOrcamento() {
+  const box = document.getElementById('ticket-alerta-orcamento');
+  if (!box) return;
+  const teto = STATE.tetoOrcamentarioNumero;
+  const atual = STATE._calcResult ? STATE._calcResult.valorFinal : null;
+  if (!teto || !atual) { box.innerHTML = ''; return; }
+  const diff = atual - teto;
+  const pct = (Math.abs(diff) / teto) * 100;
+  if (diff > 0) {
+    box.innerHTML = alertaHtml(`Orçamento ${pct.toFixed(0)}% acima do teto do cliente (${OdisseCalc.fmtMoeda(teto)})`, 'atencao');
+  } else {
+    box.innerHTML = alertaHtml(`Dentro do teto do cliente (${OdisseCalc.fmtMoeda(teto)}) — ${pct.toFixed(0)}% de folga`, 'ok');
+  }
+}
+
+function renderAlertaPrazo() {
+  const box = document.getElementById('ticket-alerta-prazo');
+  if (!box) return;
+  const opcao = (typeof PRAZO_CLIENTE_OPCOES !== 'undefined') ? PRAZO_CLIENTE_OPCOES.find(o => o.label === STATE.prazoEsperadoCliente) : null;
+  const semanasCliente = opcao ? opcao.semanas : null;
+  const semanasProjeto = duracaoTotalSemanas();
+  if (!semanasCliente || !semanasProjeto) { box.innerHTML = ''; return; }
+  const diff = semanasProjeto - semanasCliente;
+  if (diff > 0) {
+    box.innerHTML = alertaHtml(`Cronograma ${diff} semana${diff === 1 ? '' : 's'} além do prazo esperado pelo cliente (${semanasCliente} sem.)`, 'atencao');
+  } else {
+    box.innerHTML = alertaHtml(`Dentro do prazo esperado pelo cliente (${semanasCliente} sem.) — ${Math.abs(diff)} sem. de folga`, 'ok');
+  }
 }
 
 function renderSidebar() {
@@ -147,7 +182,7 @@ function renderStep() {
   renderSidebar();
 
   document.getElementById('btn-prev').disabled = currentStepIndex === 0;
-  document.getElementById('btn-prev').style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-prev').style.display = currentStepIndex === 0 ? 'none' : '';
   const nextBtn = document.getElementById('btn-next');
   nextBtn.textContent = currentStepIndex === STEPS.length - 1 ? 'Concluído' : 'Continuar';
   nextBtn.style.display = currentStepIndex === STEPS.length - 1 ? 'none' : '';

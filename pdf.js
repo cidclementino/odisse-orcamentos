@@ -118,7 +118,20 @@ const OdissePdf = (() => {
       y = paragrafo(doc, `O limite antecipado do custo construtivo foi estimado em ${state.tetoOrcamentario}.`, MARGIN, y, CONTENT_W);
     }
 
-    // ---- Escopo ----
+    // ---- Escopo (derivado dos subitens de cada etapa + assessoramento) ----
+    const compreendeTextos = [];
+    const naoCompreendeTextos = [];
+    data.etapas.forEach(etapa => {
+      const marcados = state.etapasSubitens[etapa.id] || [];
+      etapa.subitens.forEach(si => {
+        (marcados.includes(si.id) ? compreendeTextos : naoCompreendeTextos).push(si.texto);
+      });
+    });
+    data.assessoramento.subitens.forEach(si => {
+      const marcado = (state.assessoramentoSelecionados || []).includes(si.id);
+      (marcado ? compreendeTextos : naoCompreendeTextos).push(si.texto_curto);
+    });
+
     y = checarQuebra(doc, y, 60);
     y += 16;
     y = tituloSecao(doc, 'Escopo', y);
@@ -126,7 +139,6 @@ const OdissePdf = (() => {
     doc.text('Compreende o serviço:', MARGIN, y);
     doc.setFont('helvetica', 'normal');
     y += 16;
-    const compreendeTextos = data.escopoMaster.compreende.filter(i => state.compreendeSelecionados.includes(i.id)).map(i => i.texto);
     y = listaBullets(doc, compreendeTextos.length ? compreendeTextos : ['—'], y);
 
     y = checarQuebra(doc, y, 40);
@@ -134,7 +146,6 @@ const OdissePdf = (() => {
     doc.text('O escopo desta proposta não inclui:', MARGIN, y);
     doc.setFont('helvetica', 'normal');
     y += 16;
-    const naoCompreendeTextos = data.escopoMaster.nao_compreende.filter(i => state.naoCompreendeSelecionados.includes(i.id)).map(i => i.texto);
     y = listaBullets(doc, naoCompreendeTextos.length ? naoCompreendeTextos : ['—'], y);
 
     // ---- Etapas de desenvolvimento ----
@@ -255,12 +266,15 @@ const OdissePdf = (() => {
       y = paragrafo(doc, 'O cliente deverá providenciar o reembolso em até 30 dias, contados do recebimento dos respectivos comprovantes.', MARGIN, y, CONTENT_W, 9.5);
     }
 
-    // ---- Acompanhamento de obra ----
-    if (state.incluirAcompanhamentoObra) {
+    // ---- Assessoramento (bloco independente, texto por subitem marcado) ----
+    const assessSelecionados = data.assessoramento.subitens.filter(si => (state.assessoramentoSelecionados || []).includes(si.id));
+    if (assessSelecionados.length) {
       y = checarQuebra(doc, y, 90);
       y += 16;
-      y = tituloSecao(doc, 'Acompanhamento da Execução da Obra', y);
-      y = paragrafo(doc, 'Durante o período de execução da obra, a equipe do Odisse Arquitetos fornecerá suporte técnico ao cliente/construtora, a fim de esclarecer dúvidas ou suprir eventuais lacunas de informação. Visitas mensais à obra serão efetuadas por um arquiteto integrante da equipe, contando a partir da data de início da mesma até sua conclusão, desde que não ultrapasse um período de 4 anos.', MARGIN, y, CONTENT_W, 9.5);
+      y = tituloSecao(doc, data.assessoramento.titulo, y);
+      y = paragrafo(doc, data.assessoramento.descricao_abertura, MARGIN, y, CONTENT_W, 9.5);
+      y += 6;
+      y = listaBullets(doc, assessSelecionados.map(si => si.texto_pdf), y);
     }
 
     // ---- Informações adicionais ----
