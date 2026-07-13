@@ -54,6 +54,37 @@
         <div id="tabela-modificadores"></div>
       </div>
 
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">As 4 camadas até o valor base</h2>
+      <p class="step__desc">O honorário de um serviço passa por 4 classificações diferentes, cada uma vinda de uma fonte própria, antes de chegar num valor base:</p>
+      <div class="card">
+        <div class="data-row"><span class="data-row__label">1. Serviço Odisse</span><span class="data-row__value">Seu agrupamento comercial (9 itens) — escolhe o modificador da camada 2</span></div>
+        <div class="data-row"><span class="data-row__label">2. Modificador</span><span class="data-row__value">Tabela CAU "Modificador de Fator Percentual" (1,0 / 1,25 / 1,5 / 0,75 / 0,20 / 0,15)</span></div>
+        <div class="data-row"><span class="data-row__label">3. Tipologia construtiva</span><span class="data-row__value">Tabela CAU de enquadramento (49 tipos) — define a categoria (1-4) e o Fator de Adequação</span></div>
+        <div class="data-row"><span class="data-row__label">4. CUB</span><span class="data-row__value">Sinduscon-JP, 19 códigos, atualizado todo mês — o preço bruto de construção</span></div>
+      </div>
+      <p class="step__desc">A Tipologia não deriva do CUB — ela <strong>referencia</strong> um dos 19 códigos. É uma relação de muitos-para-um: várias tipologias diferentes podem apontar pro mesmo código de CUB (ex: 13 das 49 tipologias usam o código "CSL-16-N"). A Tipologia pega esse valor bruto e ajusta com seu próprio Fator de Adequação:</p>
+      <div class="card">
+        <div class="card__title">Fórmula da Base de Honorários</div>
+        <div class="data-row"><span class="data-row__label">BH</span><span class="data-row__value">CUB vigente (do código que a tipologia referencia) × Fator de Adequação da tipologia</span></div>
+      </div>
+
+      <h3 class="step__title" style="font-size:1.05rem; margin-top:20px">Os 19 códigos de CUB</h3>
+      <p class="step__desc">Nomenclatura oficial da NBR 12.721/ABNT, publicada mensalmente por todos os Sinduscons do país:</p>
+      <div class="card">
+        <div class="data-row"><span class="data-row__label">R-1</span><span class="data-row__value">Residência unifamiliar</span></div>
+        <div class="data-row"><span class="data-row__label">PP-4</span><span class="data-row__value">Prédio Popular (multifamiliar simples, 4 pavimentos)</span></div>
+        <div class="data-row"><span class="data-row__label">R-8 / R-16</span><span class="data-row__value">Residência multifamiliar, 8 ou 16 pavimentos</span></div>
+        <div class="data-row"><span class="data-row__label">PIS</span><span class="data-row__value">Projeto de Interesse Social</span></div>
+        <div class="data-row"><span class="data-row__label">RP1Q</span><span class="data-row__value">Residência Popular de 1 Quarto</span></div>
+        <div class="data-row"><span class="data-row__label">CAL-8</span><span class="data-row__value">Comercial Andares Livres (escritórios, planta aberta)</span></div>
+        <div class="data-row"><span class="data-row__label">CSL-8 / CSL-16</span><span class="data-row__value">Comercial Salas e Lojas</span></div>
+        <div class="data-row"><span class="data-row__label">GI</span><span class="data-row__value">Galpão Industrial</span></div>
+      </div>
+
+      <h3 class="step__title" style="font-size:1.05rem; margin-top:20px">Como a Tipologia se filtra pelo Serviço</h3>
+      <p class="step__desc">Ao escolher o Serviço Odisse, o formulário mostra só as Macro Categorias relevantes — e dentro dela, só as Tipologias daquele grupo. Os 4 serviços de Nova Edificação restringem a lista (faz sentido, cada um é um tipo de edificação específico); os outros 5 deixam as 12 macro categorias e 49 tipologias completas abertas, porque podem se aplicar a qualquer tipo de imóvel:</p>
+      <div class="card" id="tabela-macro-categorias"></div>
+
       <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Percentual do serviço, por etapa</h2>
       <p class="step__desc">Vale para os 5 serviços com estrutura Conceitual/Legal/Executivo (Nova Edificação em suas 4 variações, e Reforma). Os outros 4 (Interiores, Consultoria Remota, Estudo de Viabilidade, Laudos) ainda usam o percentual fixo por escopo de contratação, até ganharem sua própria estrutura.</p>
       <p class="step__desc">Cada etapa vale um peso fixo dentro dos 100% do serviço completo. Todas vêm marcadas por padrão — desmarcar uma etapa a exclui do orçamento.</p>
@@ -141,6 +172,28 @@
       <div class="data-row">
         <span class="data-row__label">${s.nome}</span>
         <span class="data-row__value">${(s.modificadores || []).map(m => `${m.nome} (${m.valor.toFixed(2)})`).join(' ou ') || '—'}</span>
+      </div>
+    `).join('');
+
+    const rotulosMacro = {
+      HabitacionalUnifamiliar: 'Habitacional Unifamiliar',
+      HabitacionalMultifamiliar: 'Habitacional Multifamiliar',
+      Hospedagem: 'Hospedagem',
+      HabitaçõesEspeciais: 'Habitações Especiais',
+      Comércio: 'Comércio',
+      Serviços: 'Serviços',
+      Educação: 'Educação',
+      Saúde: 'Saúde',
+      Esportes: 'Esportes',
+      Lazer: 'Lazer',
+      Cultura: 'Cultura',
+      Diversos: 'Diversos'
+    };
+    const boxMacro = document.getElementById('tabela-macro-categorias');
+    boxMacro.innerHTML = data.servicosOdisse.map(s => `
+      <div class="data-row">
+        <span class="data-row__label">${s.nome}</span>
+        <span class="data-row__value">${s.macro_categorias.length ? s.macro_categorias.map(m => rotulosMacro[m] || m).join(', ') : 'Todas as 12 macro categorias'}</span>
       </div>
     `).join('');
   }
