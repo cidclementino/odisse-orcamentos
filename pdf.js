@@ -244,25 +244,64 @@ const OdissePdf = (() => {
       y = paragrafo(doc, `O limite antecipado do custo construtivo foi estimado em ${state.tetoOrcamentario}.`, LEFT, y, CONTENT_W);
     }
 
-    // ---- Escopo (derivado dos subitens de cada etapa + assessoramento) ----
-    const compreendeTextos = [];
+    // ---- Escopo ----
+    // "Compreende o serviço" agora é um resumo geral do arco do serviço,
+    // derivado de quais fases/assessoramento foram contratados — não mais
+    // a lista granular de subitens (essa lista virou os bullets de cada
+    // etapa, lá embaixo em "Etapas de Desenvolvimento do Projeto").
+    // "Não compreende" continua específico: todo subitem NÃO marcado,
+    // de qualquer etapa (contratada ou não) + assessoramento.
+    const temEtapa = id => state.etapasSelecionadas.includes(id);
+    const temAssess = id => (state.assessoramentoSelecionados || []).includes(id);
+
+    const temConceitual = ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica'].some(temEtapa);
+    const temLegal = temEtapa('projeto_basico_legal');
+    const temExecutivo = ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'].some(temEtapa);
+    const temInteriores = ['estudo_basico_interiores', 'projeto_executivo_interiores'].some(temEtapa);
+
+    const compreendeGeral = [];
+    if (temConceitual && temLegal && temExecutivo) {
+      compreendeGeral.push('Desenvolvimento de projeto arquitetônico desde o nível conceitual até sua documentação executiva');
+    } else if (temConceitual || temLegal || temExecutivo) {
+      const partes = [];
+      if (temConceitual) partes.push('a concepção conceitual');
+      if (temLegal) partes.push('o projeto legal');
+      if (temExecutivo) partes.push('a documentação executiva');
+      compreendeGeral.push(`Desenvolvimento de projeto arquitetônico compreendendo ${partes.join(', ')}`);
+    }
+    if (temInteriores) {
+      compreendeGeral.push('Desenvolvimento de projeto de decoração das áreas comuns do empreendimento');
+    }
+    if (temLegal) {
+      compreendeGeral.push('Acompanhamento do processo de aprovação do projeto junto à prefeitura municipal e demais órgãos competentes');
+    }
+    if (temEtapa('pre_executivo')) {
+      compreendeGeral.push('Compatibilização do projeto arquitetônico com outras disciplinas complementares');
+      compreendeGeral.push('Participação em reuniões de coordenação de projeto com disciplinas complementares');
+    }
+    if (temAssess('assess__2')) {
+      compreendeGeral.push('Suporte técnico à construtora em todas as suas solicitações de esclarecimento do projeto arquitetônico e elaboração de adendos ou croquis quando necessários para o bom andamento das obras');
+    }
+    if (temAssess('assess__3')) {
+      compreendeGeral.push('Suporte técnico à construtora durante as tratativas junto a fornecedores de serviços, elementos e materiais diretamente relacionados à arquitetura');
+    }
+
     const naoCompreendeTextos = [];
     data.etapas.forEach(etapa => {
       const marcados = state.etapasSubitens[etapa.id] || [];
       etapa.subitens.forEach(si => {
-        (marcados.includes(si.id) ? compreendeTextos : naoCompreendeTextos).push(si.texto);
+        if (!marcados.includes(si.id)) naoCompreendeTextos.push(si.texto);
       });
     });
     data.assessoramento.subitens.forEach(si => {
-      const marcado = (state.assessoramentoSelecionados || []).includes(si.id);
-      (marcado ? compreendeTextos : naoCompreendeTextos).push(si.texto_curto);
+      if (!temAssess(si.id)) naoCompreendeTextos.push(si.texto_curto);
     });
 
     y += 16;
     y = tituloSecao(doc, 'Escopo', y);
     y = linhaTexto(doc, 'Compreende o serviço:', LEFT, y, { negrito: true });
     y += 16;
-    y = listaBullets(doc, compreendeTextos.length ? compreendeTextos : ['—'], y);
+    y = listaBullets(doc, compreendeGeral.length ? compreendeGeral : ['—'], y);
 
     y = linhaTexto(doc, 'O escopo desta proposta não inclui:', LEFT, y, { negrito: true });
     y += 16;
@@ -282,7 +321,14 @@ const OdissePdf = (() => {
       y = linhaTexto(doc, etapa.nome + ':', LEFT + 8, y, { negrito: true });
       y += 13;
       y = paragrafo(doc, etapa.descricao, LEFT + 8, y, CONTENT_W - 8, 10.5);
-      y += 4;
+      y += 6;
+      const subitensMarcados = (state.etapasSubitens[etapa.id] || []);
+      const bulletsEtapa = etapa.subitens.filter(si => subitensMarcados.includes(si.id)).map(si => si.texto);
+      if (bulletsEtapa.length) {
+        y = listaBullets(doc, bulletsEtapa, y);
+      } else {
+        y += 4;
+      }
     }
 
     // ---- Cronograma ----
