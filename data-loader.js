@@ -9,9 +9,8 @@ const OdisseData = (() => {
     reducaoEscopo: 'data/reducao-escopo.json',
     jurosParcelamento: 'data/juros-parcelamento.json',
     etapasPagamento: 'data/etapas-pagamento.json',
-    modificadoresIntervencao: 'data/modificadores-intervencao.json',
     etapas: 'data/etapas.json',
-    escopoMaster: 'data/escopo-master.json',
+    assessoramento: 'data/assessoramento.json',
     servicosOdisse: 'data/servicos-odisse.json'
   };
 

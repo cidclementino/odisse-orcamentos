@@ -1,18 +1,17 @@
 [
   {
     "id": "residencial",
-    "nome": "Projeto Residencial",
+    "nome": "Projeto de Nova Edificação Residencial",
     "ic_preset": {
-      "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "medio",
-      "grau_detalhamento": "alto",
       "grau_resp_civil": "medio",
       "grau_intervencao_cliente": "alto",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "medio",
       "indefinicao_escopo": "medio",
-      "indefinicao_prazo": "medio"
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "programacao_projetual",
@@ -23,48 +22,29 @@
       "projeto_executivo_arquitetura",
       "detalhamento_executivo"
     ],
-    "compreende_default": [
-      "c1",
-      "c3",
-      "c4",
-      "c5",
-      "c6",
-      "c7"
-    ],
-    "nao_compreende_default": [
-      "n7",
-      "n8",
-      "n9",
-      "n10",
-      "n11",
-      "n13",
-      "n14",
-      "n15",
-      "n16",
-      "n20",
-      "n23"
-    ],
     "macro_categorias": [
       "HabitacionalUnifamiliar"
     ],
-    "intervencoes_permitidas": [
-      "Nova Edificação"
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
     ]
   },
   {
     "id": "reforma",
     "nome": "Projeto de Reforma",
     "ic_preset": {
-      "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "baixo",
-      "grau_detalhamento": "medio",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "alto",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "alto",
       "indefinicao_escopo": "alto",
-      "indefinicao_prazo": "alto"
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "concepcao_basica",
@@ -72,70 +52,52 @@
       "projeto_executivo_arquitetura",
       "detalhamento_executivo"
     ],
-    "compreende_default": [
-      "c1",
-      "c8",
-      "c6"
-    ],
-    "nao_compreende_default": [
-      "n9",
-      "n13",
-      "n14",
-      "n15",
-      "n16",
-      "n23"
-    ],
     "macro_categorias": [],
-    "intervencoes_permitidas": [
-      "Reforma",
-      "Adequação de Acessibilidade"
+    "modificadores": [
+      {
+        "nome": "Reforma",
+        "valor": 1.25
+      }
     ]
   },
   {
     "id": "viabilidade",
     "nome": "Estudo de Viabilidade",
     "ic_preset": {
-      "empenho_porte": "baixo",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "baixo",
-      "grau_detalhamento": "baixo",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "medio",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "alto",
       "indefinicao_escopo": "alto",
-      "indefinicao_prazo": "medio"
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "baixo"
     },
     "etapas_default": [
       "programacao_projetual"
     ],
-    "compreende_default": [
-      "c9"
-    ],
-    "nao_compreende_default": [
-      "n7",
-      "n8",
-      "n9",
-      "n10",
-      "n11"
-    ],
     "macro_categorias": [],
-    "intervencoes_permitidas": []
+    "modificadores": [
+      {
+        "nome": "Estudo de Viabilidade",
+        "valor": 0.2
+      }
+    ]
   },
   {
     "id": "institucional",
-    "nome": "Projeto Institucional",
+    "nome": "Projeto de Nova Edificação Institucional",
     "ic_preset": {
-      "empenho_porte": "alto",
       "qtd_especialistas": "alto",
       "qtd_aprovacoes": "alto",
-      "grau_detalhamento": "alto",
       "grau_resp_civil": "alto",
       "grau_intervencao_cliente": "medio",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "alto",
       "indefinicao_escopo": "medio",
-      "indefinicao_prazo": "medio"
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "programacao_projetual",
@@ -145,27 +107,6 @@
       "pre_executivo",
       "projeto_executivo_arquitetura",
       "detalhamento_executivo"
-    ],
-    "compreende_default": [
-      "c1",
-      "c3",
-      "c4",
-      "c5",
-      "c6",
-      "c7"
-    ],
-    "nao_compreende_default": [
-      "n7",
-      "n8",
-      "n9",
-      "n10",
-      "n11",
-      "n13",
-      "n14",
-      "n15",
-      "n16",
-      "n20",
-      "n23"
     ],
     "macro_categorias": [
       "Educação",
@@ -174,24 +115,26 @@
       "Lazer",
       "Cultura"
     ],
-    "intervencoes_permitidas": [
-      "Nova Edificação"
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
     ]
   },
   {
     "id": "comercial",
-    "nome": "Projeto Comercial",
+    "nome": "Projeto de Nova Edificação Comercial",
     "ic_preset": {
-      "empenho_porte": "medio",
       "qtd_especialistas": "medio",
       "qtd_aprovacoes": "medio",
-      "grau_detalhamento": "medio",
       "grau_resp_civil": "medio",
       "grau_intervencao_cliente": "medio",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "alto",
       "indefinicao_escopo": "baixo",
-      "indefinicao_prazo": "alto"
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "concepcao_basica",
@@ -199,46 +142,32 @@
       "projeto_executivo_arquitetura",
       "detalhamento_executivo"
     ],
-    "compreende_default": [
-      "c1",
-      "c3",
-      "c4",
-      "c6"
-    ],
-    "nao_compreende_default": [
-      "n7",
-      "n8",
-      "n9",
-      "n13",
-      "n14",
-      "n15",
-      "n16",
-      "n23"
-    ],
     "macro_categorias": [
       "Hospedagem",
       "Comércio",
       "Serviços",
       "Diversos"
     ],
-    "intervencoes_permitidas": [
-      "Nova Edificação"
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
     ]
   },
   {
     "id": "edificios_mistos",
-    "nome": "Edifício Misto e Multifamiliar",
+    "nome": "Projeto de Nova Edificação Multifamiliar e/ou Mista",
     "ic_preset": {
-      "empenho_porte": "medio",
       "qtd_especialistas": "alto",
       "qtd_aprovacoes": "medio",
-      "grau_detalhamento": "alto",
       "grau_resp_civil": "alto",
       "grau_intervencao_cliente": "baixo",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "medio",
       "indefinicao_escopo": "medio",
-      "indefinicao_prazo": "alto"
+      "indefinicao_prazo": "alto",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "programacao_projetual",
@@ -251,137 +180,91 @@
       "estudo_basico_interiores",
       "projeto_executivo_interiores"
     ],
-    "compreende_default": [
-      "c1",
-      "c2",
-      "c3",
-      "c4",
-      "c5",
-      "c6",
-      "c7"
-    ],
-    "nao_compreende_default": [
-      "n1",
-      "n2",
-      "n3",
-      "n4",
-      "n5",
-      "n6",
-      "n7",
-      "n8",
-      "n9",
-      "n10",
-      "n11",
-      "n12",
-      "n13",
-      "n14",
-      "n15",
-      "n16",
-      "n17",
-      "n18",
-      "n19",
-      "n20",
-      "n21",
-      "n22",
-      "n23"
-    ],
     "macro_categorias": [
       "HabitacionalMultifamiliar",
       "HabitaçõesEspeciais"
     ],
-    "intervencoes_permitidas": [
-      "Nova Edificação"
+    "modificadores": [
+      {
+        "nome": "Nova Edificação",
+        "valor": 1.0
+      }
     ]
   },
   {
     "id": "laudos",
     "nome": "Laudos e Regularização Técnica",
     "ic_preset": {
-      "empenho_porte": "baixo",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "baixo",
-      "grau_detalhamento": "baixo",
       "grau_resp_civil": "medio",
       "grau_intervencao_cliente": "baixo",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "baixo",
       "indefinicao_escopo": "baixo",
-      "indefinicao_prazo": "baixo"
+      "indefinicao_prazo": "baixo",
+      "demanda_midia": "baixo"
     },
     "etapas_default": [],
-    "compreende_default": [
-      "c10"
-    ],
-    "nao_compreende_default": [
-      "n9"
-    ],
     "macro_categorias": [],
-    "intervencoes_permitidas": [
-      "Levantamento Arquitetônico"
+    "modificadores": [
+      {
+        "nome": "Laudos e Regularização Técnica",
+        "valor": 0.15
+      }
     ]
   },
   {
     "id": "consultoria_remota",
     "nome": "Consultoria Remota",
     "ic_preset": {
-      "empenho_porte": "baixo",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "baixo",
-      "grau_detalhamento": "baixo",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "medio",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "baixo",
       "indefinicao_escopo": "medio",
-      "indefinicao_prazo": "medio"
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "baixo"
     },
     "etapas_default": [],
-    "compreende_default": [
-      "c14"
-    ],
-    "nao_compreende_default": [
-      "n9",
-      "n14",
-      "n15",
-      "n16"
-    ],
     "macro_categorias": [],
-    "intervencoes_permitidas": [
-      "Decoração"
+    "modificadores": [
+      {
+        "nome": "Consultoria Remota",
+        "valor": 0.15
+      }
     ]
   },
   {
     "id": "interiores",
     "nome": "Projeto de Interiores e Ambientação",
     "ic_preset": {
-      "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
       "qtd_aprovacoes": "baixo",
-      "grau_detalhamento": "alto",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "alto",
       "expectativa_plastica": "medio",
       "grau_controle_custo": "medio",
       "indefinicao_escopo": "medio",
-      "indefinicao_prazo": "medio"
+      "indefinicao_prazo": "medio",
+      "demanda_midia": "medio"
     },
     "etapas_default": [
       "estudo_basico_interiores",
       "projeto_executivo_interiores"
     ],
-    "compreende_default": [
-      "c12",
-      "c13"
-    ],
-    "nao_compreende_default": [
-      "n9",
-      "n14",
-      "n15",
-      "n16"
-    ],
     "macro_categorias": [],
-    "intervencoes_permitidas": [
-      "Interiores"
+    "modificadores": [
+      {
+        "nome": "Projeto de Interiores",
+        "valor": 1.5
+      },
+      {
+        "nome": "Ambientação",
+        "valor": 0.75
+      }
     ]
   }
 ]

@@ -374,6 +374,16 @@ a { color: inherit; }
 .check-row input:focus-visible ~ .check-row__box { outline: 2px solid var(--copper-strong); outline-offset: 2px; }
 
 .check-row--sub { padding-left: 6px; }
+
+.subitens-list {
+  padding: 4px 0 10px 30px;
+  display: flex;
+  flex-direction: column;
+}
+.subitens-list .check-row { padding: 6px 0; }
+.subitens-list .check-row + .check-row { border-top: none; }
+.subitens-list .check-row__box { width: 15px; height: 15px; }
+.check-row__text.small { font-size: 0.8rem; color: var(--paper-dim); }
 .check-row__meta { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
 .check-row__meta input[type="number"] {
   width: 84px; background: var(--ink); border: 1px solid var(--line-strong);

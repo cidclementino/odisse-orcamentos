@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Como funciona o cálculo</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topbar">
+    <div class="topbar__mark">ODISSE</div>
+    <nav class="topbar__nav-center">
+      <a href="index.html">Orçamentos</a>
+      <a href="historico.html">Histórico</a>
+      <a href="cub.html">CUB</a>
+      <a href="precificacao.html" class="is-current">Como funciona o cálculo</a>
+    </nav>
+    <div class="topbar__meta">
+      <span id="rail-user"></span>
+      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__col" style="max-width: 760px">
+      <p class="step__eyebrow">Referência</p>
+      <h1 class="step__title">Como funciona o cálculo</h1>
+      <p class="step__desc">Um resumo de como o honorário é calculado — útil pra tirar dúvidas na hora de preencher um orçamento.</p>
+
+      <div class="card">
+        <div class="card__title">A fórmula, passo a passo</div>
+        <div class="data-row"><span class="data-row__label">1. Base de Honorários (BH)</span><span class="data-row__value">CUB vigente × Fator de Adequação</span></div>
+        <div class="data-row"><span class="data-row__label">2. Custo Estimado da Obra (CEO)</span><span class="data-row__value">BH × Área Edificada Prevista</span></div>
+        <div class="data-row"><span class="data-row__label">3. Fator Percentual (fp)</span><span class="data-row__value">Tabela por faixa de área × categoria</span></div>
+        <div class="data-row"><span class="data-row__label">4. Índice de Complexidade (IC)</span><span class="data-row__value">Média de 11 critérios</span></div>
+        <div class="data-row"><span class="data-row__label">5. Valor de tabela (CAU)</span><span class="data-row__value">CEO × fp × IC</span></div>
+        <div class="data-row"><span class="data-row__label">6. Ajustes de repetição/projeção</span><span class="data-row__value">× Redutor de Repetição × R</span></div>
+        <div class="data-row"><span class="data-row__label">7. Modificador do serviço</span><span class="data-row__value">× Modificador (ver tabela abaixo)</span></div>
+        <div class="data-row"><span class="data-row__label">8. Ajuste de mercado</span><span class="data-row__value">÷ Fator de Ajuste (1 / 1,25 / 2,25 / outro)</span></div>
+        <div class="data-row"><span class="data-row__label">9. Honorário Final</span><span class="data-row__value"><strong>× % do Escopo de Contratação</strong></span></div>
+      </div>
+      <p class="field__hint" style="margin-bottom: 28px">Área do imóvel/terreno, teto orçamentário e prazo esperado do cliente não entram nessa conta — servem só para os alertas comparativos na barra lateral.</p>
+
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:8px">Modificador por Serviço Odisse</h2>
+      <p class="step__desc">Cada serviço já carrega seu próprio modificador — não depende mais de escolher um "tipo de intervenção" à parte. Só "Projeto de Interiores e Ambientação" deixa escolher entre duas opções.</p>
+      <div class="card">
+        <div class="card__title">Modificadores</div>
+        <div id="tabela-modificadores"></div>
+      </div>
+
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Índice de Complexidade</h2>
+      <p class="step__desc">Média aritmética de 11 critérios, cada um avaliado como Baixo (0,7) / Médio (1,0) / Alto (1,3). Dois deles não são mais preenchidos manualmente — são calculados a partir das etapas e do escopo marcados na página "Etapas & Cronograma".</p>
+      <div class="card">
+        <div class="card__title">Onde cada critério é preenchido</div>
+        <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte</span><span class="data-row__value">Calculado (Etapas & Cronograma)</span></div>
+        <div class="data-row"><span class="data-row__label">Quantidade de especialistas</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Quantidade de aprovações</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Grau de detalhamento</span><span class="data-row__value">Calculado (Etapas & Cronograma)</span></div>
+        <div class="data-row"><span class="data-row__label">Grau de responsabilidade civil</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Grau de intervenção do cliente</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Expectativa plástica</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Grau de controle de custo</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Indefinição do escopo</span><span class="data-row__value">Manual (Classificação do Serviço)</span></div>
+        <div class="data-row"><span class="data-row__label">Indefinição do prazo</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+        <div class="data-row"><span class="data-row__label">Demanda de material para mídias</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Como os dois indicadores calculados funcionam</div>
+        <p class="field__hint" style="margin-bottom:10px"><strong>Grau de Detalhamento</strong> — Alto se "Detalhamento Executivo Complementar" estiver marcado; Médio se alguma etapa de Projeto Executivo estiver marcada (sem o Detalhamento); Baixo se nenhuma etapa executiva for contratada.</p>
+        <p class="field__hint">
+<strong>Empenho ao Projeto vs Porte</strong> — soma quantos subitens de escopo estão marcados no total (etapas + Assessoramento): até 3 = Baixo, de 4 a 6 = Médio, 7 ou mais = Alto.
+        </p>
+      </div>
+
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Escopo do serviço</h2>
+      <p class="step__desc">Não existe mais uma página separada de escopo. Cada etapa do cronograma (Programação Projetual, Concepção Esquemática, etc.) tem seus próprios subitens — ao marcar a etapa, você refina quais desses subitens realmente fazem parte da proposta. O que fica marcado vira "compreende o serviço" no PDF; o que não é marcado (mesmo de etapas que nem foram contratadas) vira "não compreende".</p>
+      <p class="step__desc">Existe também um bloco à parte, <strong>Assessoramento</strong> — acompanhamento de obra e suporte técnico ao cliente/fornecedores — que não faz parte do cronograma nem soma semanas de prazo.</p>
+
+      <p class="field__hint" style="margin: 24px 0 40px">Dúvidas sobre algum valor específico? Fala com o Cid — essa página é só um resumo de leitura rápida, o registro completo de cada decisão fica em <code>PRICING.md</code>, no repositório.</p>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js"></script>
+<script>
+  async function iniciar() {
+    document.getElementById('app').hidden = false;
+    document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
+    document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
+
+    const data = await OdisseData.load();
+    const box = document.getElementById('tabela-modificadores');
+    box.innerHTML = data.servicosOdisse.map(s => `
+      <div class="data-row">
+        <span class="data-row__label">${s.nome}</span>
+        <span class="data-row__value">${(s.modificadores || []).map(m => `${m.nome} (${m.valor.toFixed(2)})`).join(' ou ') || '—'}</span>
+      </div>
+    `).join('');
+  }
+  iniciar();
+</script>
+</body>
+</html>

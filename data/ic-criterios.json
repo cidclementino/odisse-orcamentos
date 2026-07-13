@@ -58,5 +58,11 @@
     "baixo": "Prazo previsto e cumprível com segurança",
     "medio": "Prazo reavaliável em cada entrega de etapa do projeto",
     "alto": "Prazo previsto com risco de não cumprimento e/ou interrupções por motivos técnicos, legais ou comerciais"
+  },
+  {
+    "criterio": "Demanda de material para mídias",
+    "baixo": "Sem necessidade de material fotográfico/audiovisual voltado à divulgação",
+    "medio": "Registro fotográfico padrão das etapas e do resultado final, para portfólio",
+    "alto": "Produção de conteúdo dedicado (vídeo, ensaio fotográfico, making-of) para uso em mídias e redes sociais"
   }
 ]
