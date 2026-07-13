@@ -880,7 +880,10 @@ STEPS.push({
       };
     }
     const btn = el.querySelector('#btn-gerar-pdf');
-    if (btn) btn.onclick = () => OdissePdf.gerar(state, data);
+    if (btn) btn.onclick = () => {
+      OdissePdf.gerar(state, data);
+      if (typeof limparRascunho === 'function') limparRascunho();
+    };
   },
   validate() { return true; }
 });
