@@ -7,6 +7,47 @@ let STATE = null;
 let DATA = null;
 let currentStepIndex = 0;
 
+const RASCUNHO_KEY = 'odisse-orcamento-rascunho';
+
+function salvarRascunho() {
+  try {
+    localStorage.setItem(RASCUNHO_KEY, JSON.stringify({ state: STATE, currentStepIndex }));
+  } catch (_) { /* localStorage indisponível ou cheio — segue sem salvar */ }
+}
+
+function carregarRascunho() {
+  try {
+    const bruto = localStorage.getItem(RASCUNHO_KEY);
+    if (!bruto) return null;
+    return JSON.parse(bruto);
+  } catch (_) {
+    return null;
+  }
+}
+
+function limparRascunho() {
+  try { localStorage.removeItem(RASCUNHO_KEY); } catch (_) { /* ignora */ }
+}
+
+// Mescla o rascunho salvo por cima de um estado inicial fresco, para que
+// campos novos adicionados depois de salvo o rascunho (ex: numa atualização
+// da ferramenta) sempre tenham um valor padrão em vez de "undefined".
+function mesclarComPadrao(base, salvo) {
+  if (!salvo || typeof salvo !== 'object') return base;
+  const resultado = { ...base };
+  for (const chave of Object.keys(salvo)) {
+    const valorBase = base[chave];
+    const valorSalvo = salvo[chave];
+    if (valorBase && typeof valorBase === 'object' && !Array.isArray(valorBase) &&
+        valorSalvo && typeof valorSalvo === 'object' && !Array.isArray(valorSalvo)) {
+      resultado[chave] = { ...valorBase, ...valorSalvo };
+    } else {
+      resultado[chave] = valorSalvo;
+    }
+  }
+  return resultado;
+}
+
 function estadoInicial() {
   return {
     cliente: {
@@ -162,6 +203,7 @@ function renderSidebar() {
       const i = parseInt(btn.dataset.step, 10);
       if (i <= STATE._maxUnlocked) {
         currentStepIndex = i;
+        salvarRascunho();
         renderStep();
       }
     };
@@ -189,6 +231,7 @@ function renderStep() {
 
   window.scrollTo(0, 0);
   updateTicket();
+  salvarRascunho();
 }
 
 function goNext() {
@@ -201,6 +244,7 @@ function goNext() {
   if (currentStepIndex < STEPS.length - 1) {
     currentStepIndex++;
     STATE._maxUnlocked = Math.max(STATE._maxUnlocked, currentStepIndex);
+    salvarRascunho();
     renderStep();
   }
 }
@@ -208,6 +252,7 @@ function goNext() {
 function goPrev() {
   if (currentStepIndex > 0) {
     currentStepIndex--;
+    salvarRascunho();
     renderStep();
   }
 }
@@ -227,13 +272,25 @@ async function initApp() {
       STATE = estadoInicial();
       STATE._userName = nome;
       currentStepIndex = 0;
+      limparRascunho();
       renderStep();
     }
   };
 
   DATA = await OdisseData.load();
-  STATE = estadoInicial();
+
+  const rascunho = carregarRascunho();
+  STATE = mesclarComPadrao(estadoInicial(), rascunho ? rascunho.state : null);
   STATE._userName = getUserName();
+  if (rascunho && Number.isInteger(rascunho.currentStepIndex)) {
+    currentStepIndex = Math.max(0, Math.min(rascunho.currentStepIndex, STEPS.length - 1));
+  }
+
+  // Salva o progresso automaticamente a cada campo preenchido (o formulário
+  // continua de onde parou se a pessoa trocar de página) — só é apagado ao
+  // clicar em Recomeçar ou ao gerar o PDF final.
+  document.getElementById('step-container').addEventListener('input', salvarRascunho);
+  document.getElementById('step-container').addEventListener('change', salvarRascunho);
 
   renderStep();
 }
