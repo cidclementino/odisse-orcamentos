@@ -10,6 +10,14 @@
 //   4. Corpo do texto         — normal
 //   5. Rodapé (texto normal)  — normal, pequeno
 //   6. Rodapé (texto negrito) — negrito, pequeno
+//
+// Quebra de página: NENHUM ponto do documento desenha texto/tabela sem
+// primeiro checar se cabe no espaço restante da página. Isso não é uma
+// disciplina que cada trecho do código precisa lembrar de aplicar — está
+// embutido nas próprias funções de desenho (tituloSecao, paragrafo,
+// linhaTexto, listaBullets) e nas margens passadas a toda chamada de
+// autoTable. Ao adicionar uma seção nova, use sempre essas funções em vez
+// de doc.text()/doc.autoTable() diretamente, para manter essa garantia.
 // ==========================================================================
 
 const OdissePdf = (() => {
@@ -29,6 +37,7 @@ const OdissePdf = (() => {
   const TOPO_CONTEUDO = 118;   // onde o corpo do texto pode começar, abaixo do cabeçalho
   const FUNDO_LIMITE = 700;    // limite antes de quebrar página — deixa espaço livre até o rodapé
   const RODAPE_Y = 725;
+  const MARGEM_TABELA = { top: TOPO_CONTEUDO, bottom: PAGE_H - RODAPE_Y + 6, left: LEFT, right: RIGHT };
 
   function garantirFonteInter(doc) {
     if (typeof INTER_REGULAR_B64 === 'undefined') return; // fallback: segue com a fonte padrão do jsPDF
@@ -39,7 +48,7 @@ const OdissePdf = (() => {
     doc.setFont('Inter', 'normal');
   }
 
-  // ---------- estilos (tamanhos aumentados — corpo passa de 10 para 12) ----------
+  // ---------- estilos ----------
   function estiloNomeCliente(doc) { doc.setFont('Inter', 'bold'); doc.setFontSize(14); doc.setTextColor(...PRETO); }
   function estiloNumero(doc) { doc.setFont('Inter', 'bold'); doc.setFontSize(11.5); doc.setTextColor(...PRETO); }
   function estiloTitulo(doc) { doc.setFont('Inter', 'bold'); doc.setFontSize(11.5); doc.setTextColor(...PRETO); }
@@ -91,6 +100,7 @@ const OdissePdf = (() => {
     doc.text('www.odisse.com.br', MARGIN_HF, ly);
   }
 
+  // ---------- primitiva base de quebra de página ----------
   function checarQuebra(doc, cursorY, alturaNecessaria) {
     if (cursorY + alturaNecessaria > FUNDO_LIMITE) {
       novaFolha(doc);
@@ -99,14 +109,34 @@ const OdissePdf = (() => {
     return cursorY;
   }
 
+  // ---------- funções de desenho — todas se protegem sozinhas ----------
+
+  // Parágrafo (várias linhas). Sempre verifica se o bloco inteiro cabe antes
+  // de desenhar; se não couber, quebra a página primeiro.
   function paragrafo(doc, texto, x, y, largura, tamanho = 11) {
     estiloCorpo(doc, tamanho);
     const linhas = doc.splitTextToSize(texto, largura);
+    const altura = linhas.length * (tamanho * 1.35);
+    y = checarQuebra(doc, y, altura);
     doc.text(linhas, x, y);
-    return y + linhas.length * (tamanho * 1.35);
+    return y + altura;
   }
 
+  // Linha única solta (rótulos como "Cartão de crédito:", "Cordialmente,").
+  // Substitui doc.text() direto em qualquer lugar do documento — nunca
+  // chamar doc.text() sem passar por aqui (ou por paragrafo/tituloSecao).
+  function linhaTexto(doc, texto, x, y, { tamanho = 11, negrito = false } = {}) {
+    if (negrito) estiloCorpoBold(doc, tamanho); else estiloCorpo(doc, tamanho);
+    y = checarQuebra(doc, y, tamanho * 1.6);
+    doc.text(texto, x, y);
+    return y;
+  }
+
+  // Título de seção (negrito sublinhado). Já reserva espaço mínimo pra não
+  // ficar órfão no fim da página — quem chama não precisa mais lembrar de
+  // checar isso antes.
   function tituloSecao(doc, texto, y) {
+    y = checarQuebra(doc, y, 34);
     estiloTitulo(doc);
     doc.text(texto, LEFT, y);
     const largura = doc.getTextWidth(texto);
@@ -116,6 +146,7 @@ const OdissePdf = (() => {
     return y + 20;
   }
 
+  // Lista de marcadores — cada item já checa individualmente se cabe.
   function listaBullets(doc, itens, y) {
     estiloCorpo(doc);
     for (const item of itens) {
@@ -125,6 +156,16 @@ const OdissePdf = (() => {
       y += linhas.length * 13 + 2;
     }
     return y + 8;
+  }
+
+  // Envelope para autoTable: garante uma folga mínima antes de começar
+  // (evita cabeçalho de tabela órfão sozinho no fim da página) e já aplica
+  // a margem de topo/rodapé em toda tabela, sem precisar repetir em cada
+  // chamada.
+  function tabela(doc, y, opcoes) {
+    y = checarQuebra(doc, y, 60);
+    doc.autoTable({ startY: y, margin: MARGEM_TABELA, ...opcoes });
+    return doc.lastAutoTable.finalY;
   }
 
   // Estilo de tabela com grade fina (todas as bordas), sem zebra — usado no
@@ -177,21 +218,17 @@ const OdissePdf = (() => {
     const dataFmt = hoje.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
     let y = TOPO_CONTEUDO;
-    estiloCorpo(doc);
-    doc.text(`João Pessoa, ${dataFmt}`, LEFT, y);
+    y = linhaTexto(doc, `João Pessoa, ${dataFmt}`, LEFT, y, {});
 
     y += 30;
-    estiloCorpo(doc);
-    doc.text('Proposta Comercial', LEFT, y);
+    y = linhaTexto(doc, 'Proposta Comercial', LEFT, y, {});
     if (state.numeroProposta) {
       y += 17;
-      estiloNumero(doc);
-      doc.text(state.numeroProposta, LEFT, y);
+      y = linhaTexto(doc, state.numeroProposta, LEFT, y, { tamanho: 11.5, negrito: true });
     }
 
     y += 30;
-    estiloNomeCliente(doc);
-    doc.text(`${state.cliente.nome},`, LEFT, y);
+    y = linhaTexto(doc, `${state.cliente.nome},`, LEFT, y, { tamanho: 14, negrito: true });
 
     y += 22;
     const intro = `Agradecemos o interesse em trabalhar com o Odisse Arquitetos, e a consequente oportunidade de apresentar-lhe nossa proposta comercial. Abaixo, detalhamos nosso entendimento do escopo dos serviços solicitados, assim como cronograma e honorários propostos.`;
@@ -221,37 +258,28 @@ const OdissePdf = (() => {
       (marcado ? compreendeTextos : naoCompreendeTextos).push(si.texto_curto);
     });
 
-    y = checarQuebra(doc, y, 60);
     y += 16;
     y = tituloSecao(doc, 'Escopo', y);
-    estiloCorpoBold(doc, 11);
-    doc.text('Compreende o serviço:', LEFT, y);
+    y = linhaTexto(doc, 'Compreende o serviço:', LEFT, y, { negrito: true });
     y += 16;
     y = listaBullets(doc, compreendeTextos.length ? compreendeTextos : ['—'], y);
 
-    y = checarQuebra(doc, y, 40);
-    estiloCorpoBold(doc, 11);
-    doc.text('O escopo desta proposta não inclui:', LEFT, y);
+    y = linhaTexto(doc, 'O escopo desta proposta não inclui:', LEFT, y, { negrito: true });
     y += 16;
     y = listaBullets(doc, naoCompreendeTextos.length ? naoCompreendeTextos : ['—'], y);
 
     // ---- Etapas de desenvolvimento ----
     const etapasSel = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id));
-    y = checarQuebra(doc, y, 60);
     y += 10;
     y = tituloSecao(doc, 'Etapas de Desenvolvimento do Projeto', y);
     let faseAtual = null;
     for (const etapa of etapasSel) {
       if (etapa.fase !== faseAtual) {
         faseAtual = etapa.fase;
-        y = checarQuebra(doc, y, 30);
-        estiloCorpoBold(doc, 10.5);
-        doc.text(faseAtual, LEFT, y);
+        y = linhaTexto(doc, faseAtual, LEFT, y, { tamanho: 10.5, negrito: true });
         y += 16;
       }
-      y = checarQuebra(doc, y, 40);
-      estiloCorpoBold(doc, 11);
-      doc.text(etapa.nome + ':', LEFT + 8, y);
+      y = linhaTexto(doc, etapa.nome + ':', LEFT + 8, y, { negrito: true });
       y += 13;
       y = paragrafo(doc, etapa.descricao, LEFT + 8, y, CONTENT_W - 8, 10.5);
       y += 4;
@@ -261,39 +289,31 @@ const OdissePdf = (() => {
     if (state.dataInicio && etapasSel.length) {
       const selComSemanas = etapasSel.map(e => ({ ...e, semanas: state.etapasSemanas[e.id] }));
       const linhas = OdisseCalc.montarCronograma(state.dataInicio, selComSemanas);
-      novaFolha(doc);
-      y = TOPO_CONTEUDO;
+      y += 10;
       y = tituloSecao(doc, 'Cronograma', y);
       y = paragrafo(doc, 'A prestação do serviço ocorrerá em acordo com o planejamento preliminar abaixo:', LEFT, y, CONTENT_W);
       y += 10;
-      doc.autoTable({
-        startY: y,
-        margin: { left: LEFT, right: RIGHT },
+      y = tabela(doc, y, {
         head: [['Fase', 'Etapa', 'Início', 'Fim', 'Duração']],
         body: agruparPorFase(linhas),
         ...ESTILO_TABELA_GRADE,
         columnStyles: { 0: { cellWidth: 62 } }
       });
-      y = doc.lastAutoTable.finalY + 18;
-      y = checarQuebra(doc, y, 60);
+      y += 18;
       y = paragrafo(doc, '*A etapa de Projeto Executivo de Arquitetura e suas etapas subsequentes apenas poderão ter datas confirmadas após aprovação do projeto legal junto aos órgãos competentes.', LEFT, y, CONTENT_W, 10.5);
       y += 12;
-      y = checarQuebra(doc, y, 60);
       y = paragrafo(doc, 'O serviço apenas se inicia após assinatura de contrato e pagamento da 1ª parcela dos honorários. Assim sendo, as datas acima descritas estão sujeitas à alteração.', LEFT, y, CONTENT_W);
       y += 24;
     }
 
     // ---- Honorários ----
-    y = checarQuebra(doc, y, 100);
     y += 8;
     y = tituloSecao(doc, 'Honorários', y);
     if (r) {
       y = paragrafo(doc, 'Como remuneração pelos serviços profissionais objetos desta proposta, segue:', LEFT, y, CONTENT_W, 10.5);
       y += 10;
       const distrib = OdisseCalc.distribuirPorEtapa(r.valorFinal, etapasSel.map(e => ({ nome: e.nome, semanas: state.etapasSemanas[e.id] })));
-      doc.autoTable({
-        startY: y,
-        margin: { left: LEFT, right: RIGHT },
+      y = tabela(doc, y, {
         body: [
           ...distrib.map(d => [d.nome, OdisseCalc.fmtMoeda(d.valor)]),
           ['TOTAL', OdisseCalc.fmtMoeda(r.valorFinal)]
@@ -304,9 +324,8 @@ const OdissePdf = (() => {
           if (d.row.index === distrib.length) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fontSize = 14; }
         }
       });
-      y = doc.lastAutoTable.finalY + 20;
+      y += 20;
 
-      y = checarQuebra(doc, y, 140);
       y = tituloSecao(doc, 'Formas de Pagamento', y);
 
       const plano = OdisseCalc.planoPagamento(r.valorFinal, data, { descontoAvista: state.descontoAvista, pctEntrada: state.pctEntrada });
@@ -319,12 +338,9 @@ const OdissePdf = (() => {
       y = paragrafo(doc, `À vista: ${OdisseCalc.fmtMoeda(plano.avista)} (desconto de ${Math.round((state.descontoAvista || 0) * 100)}%)`, LEFT, y, CONTENT_W, 10.5);
       y += 10;
 
-      estiloCorpoBold(doc, 10.5);
-      doc.text(`Entrada + boletos (entrada de ${OdisseCalc.fmtMoeda(plano.entrada)}):`, LEFT, y);
-      y += 4;
-      doc.autoTable({
-        startY: y + 6,
-        margin: { left: LEFT, right: RIGHT },
+      y = linhaTexto(doc, `Entrada + boletos (entrada de ${OdisseCalc.fmtMoeda(plano.entrada)}):`, LEFT, y, { tamanho: 10.5, negrito: true });
+      y += 10;
+      y = tabela(doc, y, {
         head: [['Parcelas restantes', 'Valor da parcela']],
         body: plano.entradaBoletos.map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.valorParcela)]),
         ...ESTILO_TABELA_GRADE,
@@ -332,14 +348,11 @@ const OdissePdf = (() => {
           if (d.section === 'body' && d.column.index === 1) d.cell.styles.fontStyle = 'bold';
         }
       });
-      y = doc.lastAutoTable.finalY + 18;
+      y += 18;
 
-      y = checarQuebra(doc, y, 120);
-      estiloCorpoBold(doc, 10.5);
-      doc.text('Cartão de crédito:', LEFT, y);
-      doc.autoTable({
-        startY: y + 6,
-        margin: { left: LEFT, right: RIGHT },
+      y = linhaTexto(doc, 'Cartão de crédito:', LEFT, y, { tamanho: 10.5, negrito: true });
+      y += 10;
+      y = tabela(doc, y, {
         head: [['Parcelas', 'Valor total', 'Valor da parcela']],
         body: plano.cartao.slice(0, 8).map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.total), OdisseCalc.fmtMoeda(p.valorParcela)]),
         ...ESTILO_TABELA_GRADE,
@@ -347,12 +360,11 @@ const OdissePdf = (() => {
           if (d.section === 'body' && d.column.index === 2) d.cell.styles.fontStyle = 'bold';
         }
       });
-      y = doc.lastAutoTable.finalY + 20;
+      y += 20;
     }
 
     // ---- Despesas reembolsáveis ----
     if (state.incluirDespesasReembolsaveis) {
-      y = checarQuebra(doc, y, 100);
       y += 8;
       y = tituloSecao(doc, 'Despesas Reembolsáveis', y);
       y = listaBullets(doc, [
@@ -366,7 +378,6 @@ const OdissePdf = (() => {
     // ---- Assessoramento (bloco independente, texto por subitem marcado) ----
     const assessSelecionados = data.assessoramento.subitens.filter(si => (state.assessoramentoSelecionados || []).includes(si.id));
     if (assessSelecionados.length) {
-      y = checarQuebra(doc, y, 90);
       y += 16;
       y = tituloSecao(doc, data.assessoramento.titulo, y);
       y = paragrafo(doc, data.assessoramento.descricao_abertura, LEFT, y, CONTENT_W, 10.5);
@@ -375,30 +386,23 @@ const OdissePdf = (() => {
     }
 
     // ---- Informações adicionais ----
-    y = checarQuebra(doc, y, 110);
     y += 16;
     y = tituloSecao(doc, 'Informações Adicionais', y);
     y = paragrafo(doc, 'Todo o material gráfico eventualmente produzido não tem como objetivo atender a critérios de marketing — sua produção objetiva servir como material de apoio ao cliente, visando sua melhor compreensão do projeto arquitetônico nas suas diversas etapas. Uma vez entregue ao cliente, este poderá fazer uso do material com fins de marketing, tendo desde já o consentimento do Odisse Arquitetos. Eventuais solicitações de revisão do material gráfico sob critérios de marketing não serão atendidas — recomendamos, para tanto, a contratação de uma equipe especializada.', LEFT, y, CONTENT_W, 10.5);
     y += 10;
-    estiloCorpoBold(doc, 10.5);
-    doc.text('Esta proposta tem validade de 30 dias.', LEFT, y);
+    y = linhaTexto(doc, 'Esta proposta tem validade de 30 dias.', LEFT, y, { tamanho: 10.5, negrito: true });
 
     y += 40;
-    y = checarQuebra(doc, y, 70);
-    estiloCorpo(doc, 12);
-    doc.text('Cordialmente,', LEFT, y);
+    y = linhaTexto(doc, 'Cordialmente,', LEFT, y, {});
     y += 30;
     if (state.responsavelNome) {
-      estiloCorpoBold(doc, 11);
       const linhaNome = state.responsavelCau ? `${state.responsavelNome}, ${state.responsavelCau}` : state.responsavelNome;
-      doc.text(linhaNome, LEFT, y);
+      y = linhaTexto(doc, linhaNome, LEFT, y, { negrito: true });
       y += 13;
-      estiloCorpo(doc, 12);
-      doc.text('Arquiteto(a),', LEFT, y);
+      y = linhaTexto(doc, 'Arquiteto(a),', LEFT, y, {});
       y += 13;
     }
-    estiloCorpoBold(doc, 11);
-    doc.text('Odisse Arquitetos', LEFT, y);
+    y = linhaTexto(doc, 'Odisse Arquitetos', LEFT, y, { negrito: true });
 
     // ---- Cabeçalho e rodapé em todas as páginas ----
     const totalPaginas = doc.internal.getNumberOfPages();
