@@ -340,6 +340,12 @@ STEPS.push({
         Object.entries(servico.ic_preset).forEach(([k, v]) => { icNum[k] = IC_LABELS[v]; });
         state.icValores = icNum;
         state.etapasSelecionadas = [...servico.etapas_default];
+        state.etapasSemanas = {};
+        const icCalc = OdisseCalc.mediaIC(state.icValores);
+        servico.etapas_default.forEach(id => {
+          const etapa = data.etapas.find(x => x.id === id);
+          if (etapa) state.etapasSemanas[id] = semanasDefault(etapa, icCalc);
+        });
         state.compreendeSelecionados = [...servico.compreende_default];
         state.naoCompreendeSelecionados = [...servico.nao_compreende_default];
         const permitidas = servico.intervencoes_permitidas || [];
