@@ -39,7 +39,7 @@ export default {
         const atual = parseInt((await env.ODISSE_KV.get('contador')) || '0', 10);
         const novo = atual + 1;
         await env.ODISSE_KV.put('contador', String(novo));
-        const numeroFormatado = `PC${String(novo).padStart(3, '0')}/${ano}`;
+        const numeroFormatado = `PC-${String(novo).padStart(4, '0')}-${ano}`;
         return json({ numero: novo, numeroFormatado });
       }
 

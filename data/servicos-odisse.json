@@ -1,7 +1,7 @@
 [
   {
     "id": "residencial",
-    "nome": "Residencial",
+    "nome": "Projeto Residencial",
     "ic_preset": {
       "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
@@ -9,7 +9,7 @@
       "grau_detalhamento": "alto",
       "grau_resp_civil": "medio",
       "grau_intervencao_cliente": "alto",
-      "expectativa_plastica": "alto",
+      "expectativa_plastica": "medio",
       "grau_controle_custo": "medio",
       "indefinicao_escopo": "medio",
       "indefinicao_prazo": "medio"
@@ -46,11 +46,14 @@
     ],
     "macro_categorias": [
       "HabitacionalUnifamiliar"
+    ],
+    "intervencoes_permitidas": [
+      "Nova Edificação"
     ]
   },
   {
     "id": "reforma",
-    "nome": "Reforma",
+    "nome": "Projeto de Reforma",
     "ic_preset": {
       "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
@@ -82,7 +85,11 @@
       "n16",
       "n23"
     ],
-    "macro_categorias": []
+    "macro_categorias": [],
+    "intervencoes_permitidas": [
+      "Reforma",
+      "Adequação de Acessibilidade"
+    ]
   },
   {
     "id": "viabilidade",
@@ -94,7 +101,7 @@
       "grau_detalhamento": "baixo",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "medio",
-      "expectativa_plastica": "baixo",
+      "expectativa_plastica": "medio",
       "grau_controle_custo": "alto",
       "indefinicao_escopo": "alto",
       "indefinicao_prazo": "medio"
@@ -112,11 +119,12 @@
       "n10",
       "n11"
     ],
-    "macro_categorias": []
+    "macro_categorias": [],
+    "intervencoes_permitidas": []
   },
   {
     "id": "institucional",
-    "nome": "Projetos Institucionais",
+    "nome": "Projeto Institucional",
     "ic_preset": {
       "empenho_porte": "alto",
       "qtd_especialistas": "alto",
@@ -165,11 +173,14 @@
       "Esportes",
       "Lazer",
       "Cultura"
+    ],
+    "intervencoes_permitidas": [
+      "Nova Edificação"
     ]
   },
   {
     "id": "comercial",
-    "nome": "Projetos Comerciais",
+    "nome": "Projeto Comercial",
     "ic_preset": {
       "empenho_porte": "medio",
       "qtd_especialistas": "medio",
@@ -209,11 +220,14 @@
       "Comércio",
       "Serviços",
       "Diversos"
+    ],
+    "intervencoes_permitidas": [
+      "Nova Edificação"
     ]
   },
   {
     "id": "edificios_mistos",
-    "nome": "Edifícios Mistos e Multifamiliares",
+    "nome": "Edifício Misto e Multifamiliar",
     "ic_preset": {
       "empenho_porte": "medio",
       "qtd_especialistas": "alto",
@@ -274,6 +288,9 @@
     "macro_categorias": [
       "HabitacionalMultifamiliar",
       "HabitaçõesEspeciais"
+    ],
+    "intervencoes_permitidas": [
+      "Nova Edificação"
     ]
   },
   {
@@ -286,7 +303,7 @@
       "grau_detalhamento": "baixo",
       "grau_resp_civil": "medio",
       "grau_intervencao_cliente": "baixo",
-      "expectativa_plastica": "baixo",
+      "expectativa_plastica": "medio",
       "grau_controle_custo": "baixo",
       "indefinicao_escopo": "baixo",
       "indefinicao_prazo": "baixo"
@@ -298,7 +315,10 @@
     "nao_compreende_default": [
       "n9"
     ],
-    "macro_categorias": []
+    "macro_categorias": [],
+    "intervencoes_permitidas": [
+      "Levantamento Arquitetônico"
+    ]
   },
   {
     "id": "consultoria_remota",
@@ -310,7 +330,7 @@
       "grau_detalhamento": "baixo",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "medio",
-      "expectativa_plastica": "baixo",
+      "expectativa_plastica": "medio",
       "grau_controle_custo": "baixo",
       "indefinicao_escopo": "medio",
       "indefinicao_prazo": "medio"
@@ -325,11 +345,14 @@
       "n15",
       "n16"
     ],
-    "macro_categorias": []
+    "macro_categorias": [],
+    "intervencoes_permitidas": [
+      "Decoração"
+    ]
   },
   {
     "id": "interiores",
-    "nome": "Design de Interiores e Ambientação",
+    "nome": "Projeto de Interiores e Ambientação",
     "ic_preset": {
       "empenho_porte": "medio",
       "qtd_especialistas": "baixo",
@@ -337,7 +360,7 @@
       "grau_detalhamento": "alto",
       "grau_resp_civil": "baixo",
       "grau_intervencao_cliente": "alto",
-      "expectativa_plastica": "alto",
+      "expectativa_plastica": "medio",
       "grau_controle_custo": "medio",
       "indefinicao_escopo": "medio",
       "indefinicao_prazo": "medio"
@@ -356,6 +379,9 @@
       "n15",
       "n16"
     ],
-    "macro_categorias": []
+    "macro_categorias": [],
+    "intervencoes_permitidas": [
+      "Interiores"
+    ]
   }
 ]

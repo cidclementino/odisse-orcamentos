@@ -14,7 +14,10 @@ const OdisseStore = (() => {
 
     if (temWorker()) {
       try {
-        const res = await fetch(`${CONFIG.workerUrl}/proximo-numero`, { method: 'POST' });
+        const controlador = new AbortController();
+        const timeout = setTimeout(() => controlador.abort(), 8000);
+        const res = await fetch(`${CONFIG.workerUrl}/proximo-numero`, { method: 'POST', signal: controlador.signal });
+        clearTimeout(timeout);
         if (!res.ok) throw new Error(`API respondeu ${res.status}`);
         const dados = await res.json();
         return { ...dados, fonte: 'worker' };
@@ -31,7 +34,7 @@ const OdisseStore = (() => {
     const ultimo = parseInt(localStorage.getItem(chave) || '0', 10);
     const novo = ultimo + 1;
     localStorage.setItem(chave, String(novo));
-    return { numero: novo, numeroFormatado: `PC${String(novo).padStart(3, '0')}/${ano}`, fonte: 'local', aviso };
+    return { numero: novo, numeroFormatado: `PC-${String(novo).padStart(4, '0')}-${ano}`, fonte: 'local', aviso };
   }
 
   // Salva o snapshot completo da proposta — só funciona com o Worker configurado.

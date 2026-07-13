@@ -15,11 +15,10 @@
 <!-- ================= APP ================= -->
 <div id="app" class="app" hidden>
 
-  <header class="rail">
-    <div class="rail__mark">ODISSE</div>
-    <div class="rail__title">Orçamentos</div>
-    <nav class="rail__steps" id="rail-steps"></nav>
-    <div class="rail__meta">
+  <header class="topbar">
+    <div class="topbar__mark">ODISSE</div>
+    <div class="topbar__title">Orçamentos</div>
+    <div class="topbar__meta">
       <span id="rail-user"></span>
       <a class="rail__reset" href="historico.html">Histórico</a>
       <button class="rail__reset" id="btn-reset" type="button">Recomeçar</button>
@@ -27,14 +26,22 @@
     </div>
   </header>
 
+  <nav class="sidebar" id="sidebar-steps"></nav>
+
   <main class="stage">
     <div class="stage__col" id="step-container"></div>
   </main>
 
   <footer class="ticket" id="ticket">
     <div class="ticket__totals">
-      <span class="ticket__label">Honorário estimado</span>
-      <span class="ticket__value" id="ticket-total">R$ 0,00</span>
+      <div class="ticket__block">
+        <span class="ticket__label">Honorário estimado</span>
+        <span class="ticket__value" id="ticket-total">R$ 0,00</span>
+      </div>
+      <div class="ticket__block">
+        <span class="ticket__label">Prazo total</span>
+        <span class="ticket__value ticket__value--small" id="ticket-prazo">—</span>
+      </div>
       <div class="ticket__sub" id="ticket-sub">Preencha a classificação do serviço para iniciar o cálculo</div>
     </div>
     <div class="ticket__nav">

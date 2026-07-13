@@ -9,5 +9,5 @@ const CONFIG = {
   // URL do Worker do Cloudflare que guarda a numeração e o histórico de
   // propostas (ver worker/README.md para colocar no ar). Deixe vazio
   // ('') para usar um contador local, sem histórico compartilhado.
-  workerUrl: ''
+  workerUrl: 'https://odisse-orcamentos-api.reservaprojectbasework.workers.dev'
 };
