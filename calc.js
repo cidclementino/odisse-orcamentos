@@ -58,6 +58,10 @@ const OdisseCalc = (() => {
   // adequação da tipologia — nunca a partir de um valor congelado — assim
   // a atualização mensal do CUB (ver scripts/update_cub.py) se reflete
   // automaticamente no cálculo, sem precisar regravar tipologias.json.
+  function tabelaCubAtiva(cub) {
+    return cub.regioes[cub.regiao_ativa].tabela;
+  }
+
   function bhAtual(tipologia, cubTabela) {
     const cubItem = cubTabela[tipologia.categoria_cub];
     const cubValor = cubItem ? cubItem.honerado : tipologia.cub;
@@ -90,7 +94,7 @@ const OdisseCalc = (() => {
     const areaTotalProjetada = areaConstruida + (areaExterna || 0) * 0.25;
     const R = areaConstruida > 0 ? areaTotalProjetada / areaConstruida : 1;
 
-    const bh = bhAtual(tipologia, tabelas.cub.tabela);
+    const bh = bhAtual(tipologia, tabelaCubAtiva(tabelas.cub));
     const ceo = bh * areaConstruida;
     const { valor: fp, faixa: faixaFp } = lookupFatorPercentual(tabelas.fatorPercentual, areaConstruida, tipologia.categoria);
     const ic = mediaIC(icValores);
@@ -161,5 +165,5 @@ const OdisseCalc = (() => {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  return { calcular, planoPagamento, distribuirPorEtapa, montarCronograma, fmtMoeda, fmtData, mediaIC, bhAtual };
+  return { calcular, planoPagamento, distribuirPorEtapa, montarCronograma, fmtMoeda, fmtData, mediaIC, bhAtual, tabelaCubAtiva };
 })();

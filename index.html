@@ -17,11 +17,13 @@
 
   <header class="topbar">
     <div class="topbar__mark">ODISSE</div>
-    <div class="topbar__title">Orçamentos</div>
+    <nav class="topbar__nav-center">
+      <a href="index.html" class="is-current">Orçamentos</a>
+      <a href="historico.html">Histórico</a>
+      <a href="cub.html">CUB</a>
+    </nav>
     <div class="topbar__meta">
       <span id="rail-user"></span>
-      <a class="rail__reset" href="historico.html">Histórico</a>
-      <button class="rail__reset" id="btn-reset" type="button">Recomeçar</button>
       <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
     </div>
   </header>
@@ -35,12 +37,14 @@
       </div>
       <div class="ticket__block">
         <span class="ticket__label">Prazo total</span>
-        <span class="ticket__value ticket__value--small" id="ticket-prazo">—</span>
+        <span class="ticket__value ticket__value--small" id="ticket-prazo-duracao">—</span>
+        <span class="ticket__value ticket__value--dates" id="ticket-prazo-datas"></span>
       </div>
       <div class="ticket__sub" id="ticket-sub">Preencha a classificação do serviço para iniciar o cálculo</div>
       <div class="ticket__nav">
         <button class="btn btn--primary" id="btn-next" type="button">Continuar</button>
         <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
+        <button class="btn btn--ghost" id="btn-reset" type="button">Recomeçar</button>
       </div>
     </div>
   </nav>

@@ -143,9 +143,9 @@ a { color: inherit; }
 .app {
   min-height: 100vh;
   padding-top: var(--rail-h);
-  padding-left: var(--sidebar-w);
+  padding-right: var(--sidebar-w);
 }
-.app--no-sidebar { padding-left: 0; }
+.app--no-sidebar { padding-right: 0; }
 
 .topbar {
   position: fixed;
@@ -168,20 +168,34 @@ a { color: inherit; }
   text-transform: uppercase;
   white-space: nowrap;
 }
-.topbar__title { color: var(--paper-dim); font-size: 0.78rem; white-space: nowrap; display: none; flex: 1; }
+.topbar__title { color: var(--paper-dim); font-size: 0.78rem; white-space: nowrap; display: none; }
 @media (min-width: 720px) { .topbar__title { display: block; } }
-.topbar__meta { display: flex; align-items: center; gap: 16px; white-space: nowrap; margin-left: auto; }
+.topbar__nav-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.topbar__nav-center a {
+  color: var(--paper-faint);
+  font-size: 0.78rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.topbar__nav-center a:hover { color: var(--paper); }
+.topbar__nav-center a.is-current { color: var(--paper); font-weight: 700; }
+.topbar__meta { display: flex; align-items: center; gap: 16px; white-space: nowrap; }
 .topbar__meta span { color: var(--paper-faint); font-size: 0.72rem; }
 .rail__reset { background: none; border: none; color: var(--paper-faint); font-size: 0.72rem; text-decoration: underline; cursor: pointer; }
 .rail__reset:hover { color: var(--paper); }
 
-/* ---------- sidebar (lista de etapas + ficha de valores) ---------- */
+/* ---------- sidebar (lista de etapas + ficha de valores), na direita ---------- */
 .sidebar {
   position: fixed;
-  top: var(--rail-h); bottom: 0; left: 0;
+  top: var(--rail-h); bottom: 0; right: 0;
   width: var(--sidebar-w);
   z-index: 30;
-  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   background: rgba(20,20,20,0.7);
   display: flex;
   flex-direction: column;
@@ -226,9 +240,10 @@ a { color: inherit; }
 
 @media (max-width: 860px) {
   :root { --sidebar-w: 0px; }
-  .sidebar { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; height: auto; border-right: none; border-top: 1px solid var(--copper); }
+  .sidebar { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; height: auto; border-left: none; border-top: 1px solid var(--copper); }
   .sidebar__steps { display: none; }
-  .app { padding-left: 0; padding-bottom: var(--ticket-h); }
+  .app { padding-right: 0; padding-bottom: var(--ticket-h); }
+  .topbar__nav-center { display: none; }
 }
 
 /* ---------- stage (conteúdo central) ---------- */
@@ -372,7 +387,7 @@ a { color: inherit; }
 }
 .etapa-row + .etapa-row { border-top: 1px solid var(--line); }
 .etapa-row .check-row__toggle {
-  display: flex; align-items: flex-start; gap: 12px; cursor: pointer; flex: 1; min-width: 0;
+  display: flex; align-items: flex-start; gap: 12px; cursor: pointer; flex: 1; min-width: 0; padding: 0;
 }
 .etapa-row select.etapa-semanas {
   flex-shrink: 0; width: 84px; background: var(--ink); border: 1px solid var(--line-strong);
@@ -429,6 +444,7 @@ a { color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .ticket__value--small { font-size: 0.85rem; font-weight: 700; }
+.ticket__value--dates { font-size: 0.72rem; font-weight: 500; color: var(--paper-dim); font-variant-numeric: tabular-nums; }
 .ticket__sub {
   font-size: 0.72rem; color: var(--paper-faint); margin: 4px 0 14px; line-height: 1.4;
 }
@@ -446,6 +462,7 @@ a { color: inherit; }
   .ticket__sub { display: none; }
   .ticket__nav { flex-direction: row; margin-left: auto; }
   .ticket__nav .btn { width: auto; min-width: 120px; }
+  .ticket__nav #btn-reset { display: none; }
 }
 
 /* ---------- utilitários de texto ---------- */

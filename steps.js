@@ -81,7 +81,7 @@ const STEPS = [];
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'cliente',
-  eyebrow: 'Etapa 1 de 8',
+  eyebrow: 'Etapa 1 de 7',
   title: 'Cliente & projeto',
   desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
@@ -240,7 +240,7 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'classificacao',
-  eyebrow: 'Etapa 2 de 8',
+  eyebrow: 'Etapa 2 de 7',
   title: 'Classificação do serviço',
   desc: 'Define a base de honorários (CUB/tipologia), o entendimento do projeto e o porte do trabalho.',
   render(state, data) {
@@ -295,18 +295,18 @@ STEPS.push({
       <div class="field-group">
         <div class="row-2">
           <div class="field">
-            <label class="field__label">Área Edificada Prevista (m²)</label>
-            <input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}">
+            <label class="field__label">Área do imóvel ou terreno (m²)</label>
+            <input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}">
           </div>
           <div class="field">
-            <label class="field__label">Área Externa de Intervenção (m²)</label>
-            <input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}">
+            <label class="field__label">Área Edificada Prevista (m²)</label>
+            <input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}">
           </div>
         </div>
         <div class="row-2">
           <div class="field">
-            <label class="field__label">Área do imóvel ou terreno (m²)</label>
-            <input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}">
+            <label class="field__label">Área Externa de Intervenção (m²)</label>
+            <input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}">
           </div>
           <div class="field">
             <label class="field__label">Contagem de repetições</label>
@@ -316,8 +316,6 @@ STEPS.push({
             <p class="field__hint">Unidades/áreas que se repetem integralmente no mesmo projeto.</p>
           </div>
         </div>
-      </div>
-      <div class="field-group">
         <div class="field">
           <label class="field__label">${critEscopo.criterio}</label>
           ${segmented('ic-indefinicao_escopo', [
@@ -398,7 +396,7 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'complexidade',
-  eyebrow: 'Etapa 3 de 8',
+  eyebrow: 'Etapa 3 de 7',
   title: 'Índice de complexidade',
   desc: 'Padrão pré-carregado a partir do serviço escolhido. Ajuste qualquer critério se o padrão não refletir o projeto.',
   render(state, data) {
@@ -441,55 +439,6 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 4. Ajuste de mercado
-// -------------------------------------------------------------------------
-STEPS.push({
-  id: 'ajuste',
-  eyebrow: 'Etapa 4 de 8',
-  title: 'Ajuste de mercado',
-  desc: 'O valor de tabela (CAU) costuma precisar de um ajuste de mercado antes de virar a proposta final.',
-  render(state) {
-    const fatorAtual = state.fatorAjuste || 1.25;
-    return `
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Fator de ajuste de mercado</label>
-          <div class="segmented" data-seg="fator-preset">
-            ${[1, 1.25, 2.25].map(v => `
-              <input type="radio" name="fator-preset" id="fator-${v}" value="${v}" ${fatorAtual === v ? 'checked' : ''}>
-              <label for="fator-${v}">${v === 1 ? 'Sem ajuste' : '÷ ' + v}</label>
-            `).join('')}
-            <input type="radio" name="fator-preset" id="fator-custom" value="custom" ${![1, 1.25, 2.25].includes(fatorAtual) ? 'checked' : ''}>
-            <label for="fator-custom">Outro</label>
-          </div>
-          <input type="number" step="0.01" min="1" id="f-fator-custom" value="${fatorAtual}" style="margin-top:10px" ${[1, 1.25, 2.25].includes(fatorAtual) ? 'hidden' : ''}>
-          <p class="field__hint">O valor calculado pela tabela CAU é dividido por este fator. 1.25 e 2.25 refletem os dois patamares que a Odisse já costuma praticar.</p>
-        </div>
-      </div>
-    `;
-  },
-  bind(el, state, data, ctx) {
-    el.querySelectorAll('input[name="fator-preset"]').forEach(r => {
-      r.onchange = e => {
-        const custom = el.querySelector('#f-fator-custom');
-        if (e.target.value === 'custom') {
-          custom.hidden = false;
-        } else {
-          custom.hidden = true;
-          state.fatorAjuste = parseFloat(e.target.value);
-          ctx.updateTicket();
-        }
-      };
-    });
-    el.querySelector('#f-fator-custom').oninput = e => {
-      state.fatorAjuste = parseFloat(e.target.value) || 1;
-      ctx.updateTicket();
-    };
-  },
-  validate() { return true; }
-});
-
-// -------------------------------------------------------------------------
 // 5. Escopo do serviço (checkboxes)
 // -------------------------------------------------------------------------
 function renderCheckList(items, selectedIds, name) {
@@ -506,7 +455,7 @@ function renderCheckList(items, selectedIds, name) {
 
 STEPS.push({
   id: 'escopo',
-  eyebrow: 'Etapa 5 de 8',
+  eyebrow: 'Etapa 4 de 7',
   title: 'Escopo do serviço',
   desc: 'Marque o que compreende e o que não compreende esta proposta. A lista vem pré-marcada pelo serviço escolhido — ajuste livremente.',
   render(state, data) {
@@ -571,7 +520,7 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'etapas',
-  eyebrow: 'Etapa 6 de 8',
+  eyebrow: 'Etapa 5 de 7',
   title: 'Etapas & cronograma',
   desc: 'Escolha o escopo de contratação (ele já marca as etapas correspondentes) e ajuste o cronograma. As semanas definem só o cronograma/documento — não afetam o valor.',
   render(state, data) {
@@ -599,7 +548,7 @@ STEPS.push({
             const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
             return `
               <div class="etapa-row">
-                <label class="check-row__toggle">
+                <label class="check-row check-row__toggle">
                   <input type="checkbox" data-etapa="${etapa.id}" ${selecionada ? 'checked' : ''}>
                   <span class="check-row__box">${checkSvg()}</span>
                   <span class="check-row__text">${etapa.nome}<span class="timeline__fase">${etapa.fase}</span></span>
@@ -717,15 +666,42 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 7. Condições de pagamento
+// 6. Ajuste de mercado & condições de pagamento
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'pagamento',
-  eyebrow: 'Etapa 7 de 8',
-  title: 'Condições de pagamento',
-  desc: 'Parâmetros usados para gerar as opções de parcelamento no documento final.',
-  render(state) {
+  eyebrow: 'Etapa 6 de 7',
+  title: 'Ajuste de mercado & pagamento',
+  desc: 'Ajuste o valor final e defina as condições de pagamento — o preview abaixo atualiza a cada mudança.',
+  render(state, data) {
+    const fatorAtual = state.fatorAjuste || 1.25;
+    const r = state._calcResult;
+    const previewHtml = r ? `
+      <div class="card">
+        <div class="card__title">Honorário final (preview)</div>
+        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorCau)}</span></div>
+        <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorMercado)}</span></div>
+        <div class="data-row"><span class="data-row__label">Escopo de contratação (${Math.round(state.reducaoEscopoPercentual * 100)}%)</span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
+      </div>
+    ` : `<p class="muted">Complete a classificação do serviço para ver o preview do honorário.</p>`;
+
     return `
+      ${previewHtml}
+      <div class="field-group">
+        <div class="field">
+          <label class="field__label">Fator de ajuste de mercado</label>
+          <div class="segmented" data-seg="fator-preset">
+            ${[1, 1.25, 2.25].map(v => `
+              <input type="radio" name="fator-preset" id="fator-${v}" value="${v}" ${fatorAtual === v ? 'checked' : ''}>
+              <label for="fator-${v}">${v === 1 ? 'Sem ajuste' : '÷ ' + v}</label>
+            `).join('')}
+            <input type="radio" name="fator-preset" id="fator-custom" value="custom" ${![1, 1.25, 2.25].includes(fatorAtual) ? 'checked' : ''}>
+            <label for="fator-custom">Outro</label>
+          </div>
+          <input type="number" step="0.01" min="1" id="f-fator-custom" value="${fatorAtual}" style="margin-top:10px" ${[1, 1.25, 2.25].includes(fatorAtual) ? 'hidden' : ''}>
+          <p class="field__hint">O valor calculado pela tabela CAU é dividido por este fator. 1.25 e 2.25 refletem os dois patamares que a Odisse já costuma praticar.</p>
+        </div>
+      </div>
       <div class="field-group">
         <div class="row-2">
           <div class="field">
@@ -763,6 +739,24 @@ STEPS.push({
     `;
   },
   bind(el, state, data, ctx) {
+    el.querySelectorAll('input[name="fator-preset"]').forEach(r => {
+      r.onchange = e => {
+        const custom = el.querySelector('#f-fator-custom');
+        if (e.target.value === 'custom') {
+          custom.hidden = false;
+        } else {
+          custom.hidden = true;
+          state.fatorAjuste = parseFloat(e.target.value);
+          ctx.updateTicket();
+          ctx.rerender();
+        }
+      };
+    });
+    el.querySelector('#f-fator-custom').oninput = e => {
+      state.fatorAjuste = parseFloat(e.target.value) || 1;
+      ctx.updateTicket();
+    };
+    el.querySelector('#f-fator-custom').onchange = () => ctx.rerender();
     el.querySelector('#f-desconto').oninput = e => { state.descontoAvista = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-acompanhamento').onchange = e => state.incluirAcompanhamentoObra = e.target.checked;
@@ -776,16 +770,16 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'revisao',
-  eyebrow: 'Etapa 8 de 8',
+  eyebrow: 'Etapa 7 de 7',
   title: 'Revisão & geração do PDF',
-  desc: 'Confira os valores calculados antes de gerar o documento final.',
+  desc: 'Confira os valores calculados. Finalize o orçamento para gerar o número da proposta e liberar o PDF.',
   render(state, data) {
     const r = state._calcResult;
     if (!r) return `<p class="muted">Complete as etapas anteriores para ver o resumo do cálculo.</p>`;
 
     const numeroBloco = state.numeroProposta
       ? `<div class="data-row"><span class="data-row__label">Nº da proposta</span><span class="data-row__value tabular">${state.numeroProposta}</span></div>`
-      : `<p class="field__hint" style="margin-bottom:16px">${state.numeroPropostaStatus === 'erro' ? 'Não consegui gerar o número — tentando de novo…' : 'Gerando número da proposta…'}</p>`;
+      : `<p class="field__hint" style="margin-bottom:16px">${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : state.numeroPropostaStatus === 'erro' ? 'Não consegui gerar o número — tente novamente.' : 'O número da proposta ainda não foi gerado.'}</p>`;
 
     return `
       ${numeroBloco}
@@ -802,14 +796,19 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Escopo de contratação</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
-      <button class="btn btn--primary" id="btn-gerar-pdf" type="button" style="width:100%" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
-      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — os únicos dados enviados a um servidor são o número e um resumo da proposta, salvos na API de histórico.</p>
+      <div class="row-2">
+        <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
+        <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
+      </div>
+      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — os únicos dados enviados a um servidor são o número e um resumo da proposta, salvos na API de histórico, gravados só ao finalizar.</p>
     `;
   },
   bind(el, state, data, ctx) {
-    if (!state.numeroProposta && state.numeroPropostaStatus !== 'gerando') {
-      state.numeroPropostaStatus = 'gerando';
-      (async () => {
+    const btnFinalizar = el.querySelector('#btn-finalizar');
+    if (btnFinalizar) {
+      btnFinalizar.onclick = async () => {
+        state.numeroPropostaStatus = 'gerando';
+        ctx.rerender();
         try {
           const resultado = await OdisseStore.proximoNumero();
           state.numeroProposta = resultado.numeroFormatado;
@@ -821,7 +820,7 @@ STEPS.push({
           console.error(e);
         }
         ctx.rerender();
-      })();
+      };
     }
     const btn = el.querySelector('#btn-gerar-pdf');
     if (btn) btn.onclick = () => OdissePdf.gerar(state, data);

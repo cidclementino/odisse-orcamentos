@@ -98,13 +98,14 @@ def main():
             return
 
         cub_atual = json.loads(CUB_JSON.read_text(encoding="utf-8"))
+        regiao = cub_atual["regioes"][cub_atual["regiao_ativa"]]
         for codigo, vals in valores.items():
-            if codigo in cub_atual["tabela"]:
-                cub_atual["tabela"][codigo]["honerado"] = vals["honerado"]
-                cub_atual["tabela"][codigo]["desonerado"] = vals["desonerado"]
-        cub_atual["fonte"] = "Sinduscon-JP"
-        cub_atual["competencia_referencia"] = f"Atualizado automaticamente em {datetime.now(timezone.utc).date().isoformat()}"
-        cub_atual["pdf_origem"] = pdf_url
+            if codigo in regiao["tabela"]:
+                regiao["tabela"][codigo]["honerado"] = vals["honerado"]
+                regiao["tabela"][codigo]["desonerado"] = vals["desonerado"]
+        regiao["fonte"] = "Sinduscon-JP"
+        regiao["competencia_referencia"] = f"Atualizado automaticamente em {datetime.now(timezone.utc).date().isoformat()}"
+        regiao["pdf_origem"] = pdf_url
 
         CUB_JSON.write_text(json.dumps(cub_atual, ensure_ascii=False, indent=2), encoding="utf-8")
         escrever_status(True, f"CUB atualizado com sucesso a partir de {pdf_url}", {"codigos_atualizados": list(valores.keys())})

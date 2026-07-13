@@ -67,7 +67,8 @@ function updateTicket() {
   const stepData = STEPS[currentStepIndex];
   const ticketTotal = document.getElementById('ticket-total');
   const ticketSub = document.getElementById('ticket-sub');
-  const ticketPrazo = document.getElementById('ticket-prazo');
+  const ticketDuracao = document.getElementById('ticket-prazo-duracao');
+  const ticketDatas = document.getElementById('ticket-prazo-datas');
 
   if (STATE.tipologiaItem && STATE.areaConstruida > 0) {
     const resultado = OdisseCalc.calcular({
@@ -96,17 +97,18 @@ function updateTicket() {
       .map(e => ({ ...e, semanas: STATE.etapasSemanas[e.id] || 0 })));
     const fim = linhas.length ? linhas[linhas.length - 1].fim : null;
     const inicio = new Date(STATE.dataInicio + 'T00:00:00');
-    ticketPrazo.textContent = fim
-      ? `${totalSemanas} sem. · ${OdisseCalc.fmtData(inicio)} – ${OdisseCalc.fmtData(fim)}`
-      : `${totalSemanas} semanas`;
+    ticketDuracao.textContent = `${totalSemanas} semana${totalSemanas === 1 ? '' : 's'}`;
+    ticketDatas.textContent = fim ? `${OdisseCalc.fmtData(inicio)} – ${OdisseCalc.fmtData(fim)}` : '';
   } else if (totalSemanas > 0) {
-    ticketPrazo.textContent = `${totalSemanas} semanas`;
+    ticketDuracao.textContent = `${totalSemanas} semana${totalSemanas === 1 ? '' : 's'}`;
+    ticketDatas.textContent = '';
   } else {
-    ticketPrazo.textContent = '—';
+    ticketDuracao.textContent = '—';
+    ticketDatas.textContent = '';
   }
 
-  // se a etapa de revisão estiver ativa, re-renderiza o resumo com o valor novo
-  if (stepData && stepData.id === 'revisao') renderStep();
+  // se a etapa de revisão ou pagamento estiver ativa, re-renderiza para refletir o valor novo
+  if (stepData && (stepData.id === 'revisao' || stepData.id === 'pagamento')) renderStep();
 }
 
 function renderSidebar() {

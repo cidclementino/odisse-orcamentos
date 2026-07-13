@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Dados do CUB</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topbar">
+    <div class="topbar__mark">ODISSE</div>
+    <nav class="topbar__nav-center">
+      <a href="index.html">Orçamentos</a>
+      <a href="historico.html">Histórico</a>
+      <a href="cub.html" class="is-current">CUB</a>
+    </nav>
+    <div class="topbar__meta">
+      <span id="rail-user"></span>
+      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__col" style="max-width: 760px">
+      <p class="step__eyebrow">Referência</p>
+      <h1 class="step__title">Dados do CUB</h1>
+      <p class="step__desc">Valores usados como Base de Honorários no cálculo de orçamentos. Confira aqui se a ferramenta está operando com a tabela certa.</p>
+
+      <div class="field-group">
+        <div class="field">
+          <label class="field__label">Região</label>
+          <select id="f-regiao"></select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Fonte & competência</div>
+        <div class="data-row"><span class="data-row__label">Fonte</span><span class="data-row__value" id="cub-fonte">—</span></div>
+        <div class="data-row"><span class="data-row__label">Competência de referência</span><span class="data-row__value" id="cub-competencia">—</span></div>
+        <div class="data-row" id="cub-pdf-row" hidden><span class="data-row__label">PDF de origem</span><span class="data-row__value"><a id="cub-pdf-link" href="#" target="_blank" rel="noopener">abrir</a></span></div>
+      </div>
+
+      <div id="cub-tabela"></div>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js"></script>
+<script>
+  async function iniciar() {
+    document.getElementById('app').hidden = false;
+    document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
+    document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
+
+    const data = await OdisseData.load();
+    const cub = data.cub;
+    const regioesNomes = Object.keys(cub.regioes);
+
+    const sel = document.getElementById('f-regiao');
+    sel.innerHTML = regioesNomes.map(nome => `<option value="${nome}" ${nome === cub.regiao_ativa ? 'selected' : ''}>${nome}${nome === cub.regiao_ativa ? ' (em uso)' : ''}</option>`).join('');
+
+    function render(nomeRegiao) {
+      const regiao = cub.regioes[nomeRegiao];
+      document.getElementById('cub-fonte').textContent = regiao.fonte || '—';
+      document.getElementById('cub-competencia').textContent = regiao.competencia_referencia || '—';
+      const pdfRow = document.getElementById('cub-pdf-row');
+      if (regiao.pdf_origem) {
+        pdfRow.hidden = false;
+        document.getElementById('cub-pdf-link').href = regiao.pdf_origem;
+      } else {
+        pdfRow.hidden = true;
+      }
+
+      const linhas = Object.entries(regiao.tabela).map(([codigo, v]) => `
+        <div class="data-row">
+          <span class="data-row__label">${codigo}${v.padrao ? ' — ' + v.padrao : ''}</span>
+          <span class="data-row__value tabular">${v.honerado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+        </div>
+      `).join('');
+      document.getElementById('cub-tabela').innerHTML = `
+        <div class="card">
+          <div class="card__title">Valores por categoria (CUB honerado, R$/m²)</div>
+          ${linhas}
+        </div>
+      `;
+    }
+
+    render(cub.regiao_ativa);
+    sel.onchange = e => render(e.target.value);
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
