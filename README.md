@@ -9,16 +9,6 @@ Este é o terceiro repositório da Odisse, ao lado de:
 - `portfolio-odisse` — site institucional
 - `projetos-odisse` — landing pages de venda
 
-## Lógica de precificação — documentação completa
-
-Todas as decisões sobre a fórmula de cálculo (modificadores por serviço,
-critérios de complexidade, unificação de escopo/etapas, etc.) estão registradas
-em detalhe no [`PRICING.md`](./PRICING.md) — inclusive o *porquê* de cada
-escolha, não só o *como*. A ferramenta também tem uma página própria
-(`precificacao.html`, link "Como funciona o cálculo" no menu) com um resumo
-dessa mesma lógica, pensado para quem está preenchendo um orçamento e quer
-tirar uma dúvida rápida.
-
 ## ⚠️ Antes de publicar
 
 **Este repositório está público enquanto está sendo construído.** A senha
