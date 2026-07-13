@@ -656,7 +656,7 @@ STEPS.push({
       </div>
       <button class="btn btn--primary" id="btn-gerar-pdf" type="button" style="width:100%" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
       ${state.numeroProposta ? '' : '<p class="field__hint" style="margin-top:8px">Gere o número da proposta acima antes de baixar o PDF.</p>'}
-      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — nenhum dado é enviado a um servidor além do GitHub, e só para registrar o número da proposta.</p>
+      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — os únicos dados enviados a um servidor são o número e um resumo da proposta, salvos na API de histórico.</p>
     `;
   },
   bind(el, state, data, ctx) {
@@ -666,11 +666,11 @@ STEPS.push({
         state.numeroPropostaStatus = 'gerando';
         ctx.rerender();
         try {
-          const resultado = await OdisseGithubStore.proximoNumero();
+          const resultado = await OdisseStore.proximoNumero();
           state.numeroProposta = resultado.numeroFormatado;
           state.numeroPropostaStatus = 'ok';
           if (resultado.aviso) console.warn(resultado.aviso);
-          await OdisseGithubStore.salvarRegistro(resultado.numeroFormatado, state);
+          await OdisseStore.salvarRegistro(resultado.numeroFormatado, state);
         } catch (e) {
           state.numeroPropostaStatus = 'erro';
           alert('Não consegui gerar o número da proposta: ' + e.message);

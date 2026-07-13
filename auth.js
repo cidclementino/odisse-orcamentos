@@ -7,7 +7,6 @@
 
 const AUTH_FLAG_KEY = 'odisse-auth-ok';
 const AUTH_NAME_KEY = 'odisse-auth-nome';
-const AUTH_TOKEN_KEY = 'odisse-github-token';
 
 async function sha256(text) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -22,14 +21,9 @@ function getUserName() {
   return localStorage.getItem(AUTH_NAME_KEY) || '';
 }
 
-function getGithubToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY) || '';
-}
-
-function setAuthenticated(nome, githubToken) {
+function setAuthenticated(nome) {
   localStorage.setItem(AUTH_FLAG_KEY, 'ok');
   localStorage.setItem(AUTH_NAME_KEY, nome || '');
-  if (githubToken) localStorage.setItem(AUTH_TOKEN_KEY, githubToken);
 
   // Registro local de acesso (apenas neste navegador — ver README sobre
   // como ligar isso a um registro compartilhado de verdade, se necessário).

@@ -25,19 +25,6 @@
         <span>Seu nome</span>
         <input type="text" id="gate-name" placeholder="Quem está preenchendo" required>
       </label>
-      <details class="gate__advanced">
-        <summary>Numeração automática de propostas (opcional)</summary>
-        <label class="gate__field">
-          <span>Token do GitHub</span>
-          <input type="password" id="gate-token" placeholder="ghp_… (fine-grained, só este repo)" value="">
-        </label>
-        <p class="gate__hint">
-          Sem isso, a numeração das propostas fica só neste navegador. Com um
-          token, o número e uma cópia de cada proposta ficam salvos direto no
-          repositório. Veja README.md → "Numeração automática" para gerar um
-          token com o mínimo de permissão necessária.
-        </p>
-      </details>
       <button type="submit" class="btn btn--primary">Entrar</button>
       <p class="gate__error" id="gate-error" hidden>Senha incorreta. Tente novamente.</p>
     </form>
@@ -54,7 +41,6 @@
     e.preventDefault();
     const pass = document.getElementById('gate-password').value;
     const name = document.getElementById('gate-name').value.trim();
-    const token = document.getElementById('gate-token').value.trim();
     const hash = await sha256(pass);
     const errEl = document.getElementById('gate-error');
 
@@ -63,7 +49,7 @@
       return;
     }
     errEl.hidden = true;
-    setAuthenticated(name, token);
+    setAuthenticated(name);
     window.location.href = 'index.html';
   });
 </script>

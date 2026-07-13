@@ -17,14 +17,13 @@ do repositório consegue ler o código-fonte, a lógica de precificação e
 qualquer dado de cliente que for commitado. Enquanto isso:
 
 - **Não commite dados reais de clientes.** Use só dados fictícios para testar.
-  Isso vale também para a numeração automática: se você configurar um token
-  do GitHub antes de privar o repositório, cada proposta gerada grava um
-  arquivo em `propostas/` com os dados do cliente — não gere propostas reais
-  enquanto o repositório estiver público.
 - Assim que a ferramenta entrar em uso real, **assine o GitHub (Pro ou Team)
   e torne o repositório privado** em Settings → General → Danger Zone →
   Change visibility. O GitHub Pages continua funcionando normalmente em
   repositórios privados nos planos pagos.
+- Dados reais de clientes de propostas geradas ficam no Cloudflare (Workers
+  KV), não neste repositório — ver "Numeração automática" abaixo — então a
+  numeração pode ser usada com segurança mesmo com o repositório público.
 
 ## Como rodar localmente
 
@@ -62,32 +61,35 @@ formulário. Depois de entrar uma vez, o navegador lembra (via
 `localStorage`) e não pede de novo — até alguém clicar em **Sair**, no
 canto superior direito do app.
 
-## Numeração automática de propostas
+## Numeração automática de propostas & histórico
 
 O número da proposta (`PC0XX/AAAA`) é gerado automaticamente na etapa de
-revisão, e não mais digitado à mão. Duas formas de funcionar:
+revisão, e não mais digitado à mão. Isso funciona através de um pequeno
+Worker do Cloudflare (pasta `worker/`), que guarda o contador e uma cópia
+de cada proposta gerada — de graça, no plano gratuito do Cloudflare (ver
+`worker/README.md` para detalhes de custo).
 
-- **Com token do GitHub** (recomendado): configure um token na tela de
-  login (campo "Numeração automática de propostas"). A cada proposta
-  gerada, a ferramenta grava um contador (`propostas/contador.json`) e uma
-  cópia completa da proposta (`propostas/PC0XX-AAAA.json`) direto no
-  repositório — assim o número é compartilhado entre todo mundo que usa a
-  ferramenta, e fica um histórico versionado de cada orçamento gerado.
-- **Sem token**: a numeração cai para um contador local, salvo só no
-  navegador de quem está usando — funciona, mas cada pessoa/computador
-  tem sua própria contagem, sem sincronizar com o restante da equipe.
+- **Com o Worker configurado** (recomendado): siga `worker/README.md` para
+  colocá-lo no ar (leva uns 10 minutos, uma vez só) e cole a URL gerada em
+  `config.js` → `CONFIG.workerUrl`. A partir daí, o número é compartilhado
+  entre todo mundo que usa a ferramenta, e a página `historico.html` lista
+  todas as propostas geradas (número, data, cliente), com um botão para
+  baixar o PDF de novo a qualquer momento.
+- **Sem o Worker**: a numeração cai para um contador local, salvo só no
+  navegador de quem está usando — funciona, mas cada pessoa/computador tem
+  sua própria contagem, e a página de histórico fica vazia.
 
-### Como gerar o token do GitHub
+Nenhum token ou senha extra precisa ser digitado em lugar nenhum — a
+autorização fica só no Worker, configurada uma única vez por quem publica
+a ferramenta.
 
-1. Em github.com → **Settings** (da sua conta) → **Developer settings** →
-   **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
-2. **Repository access**: "Only select repositories" → escolha só o
-   `odisse-orcamentos`.
-3. **Permissions** → **Repository permissions** → **Contents**: `Read and write`.
-   Nenhuma outra permissão é necessária.
-4. Copie o token gerado (começa com `github_pat_...`) e cole no campo de
-   login. Ele fica salvo só no `localStorage` do navegador — nunca é
-   commitado no repositório.
+## Histórico de propostas (historico.html)
+
+Lista simples, não editável: número, data e cliente de cada proposta já
+gerada, com um botão "Baixar PDF" que reconstrói o documento na hora a
+partir dos dados salvos (não é o PDF em si que fica guardado, só os dados
+— o documento é remontado de forma idêntica ao original). Só funciona com
+o Worker do Cloudflare configurado (ver seção acima).
 
 ## Endereço com busca automática por CEP
 
@@ -103,17 +105,17 @@ bloco, etc.).
 ```
 login.html            → página de senha (separada do app)
 index.html          → shell do app (formulário)
-config.js             → senha (hash) e configuração do repositório GitHub
+historico.html         → lista de propostas já geradas, com botão de baixar de novo
+config.js             → senha (hash) e URL do Worker do Cloudflare
 auth.js                → autenticação (mantém a sessão entre visitas)
-github-store.js          → numeração automática + histórico de propostas via API do GitHub
+store.js                 → numeração automática + histórico, via o Worker do Cloudflare
 styles.css           → estilos (tema escuro, identidade Odisse)
 data-loader.js        → carrega os data/*.json
 calc.js                → motor de cálculo (ver "Como o cálculo funciona" abaixo)
 steps.js                → renderização e lógica de cada etapa do formulário
 pdf.js                    → gera o PDF final (jsPDF + autotable)
 app.js                     → orquestração geral (navegação, ficha de valores)
-propostas/                  → criada automaticamente pelo github-store.js —
-                               contador + histórico de cada proposta gerada
+worker/                     → Worker do Cloudflare (numeração + histórico) — ver worker/README.md
 data/
   tipologias.json          → tabela de tipologias × CUB × fator de adequação × BH
   cub.json                  → valores de CUB vigentes (atualizado mensalmente)

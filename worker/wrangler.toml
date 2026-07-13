@@ -1,0 +1,9 @@
+name = "odisse-orcamentos-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Depois de rodar `npx wrangler kv namespace create ODISSE_KV`, cole o "id"
+# retornado aqui no lugar de SEU_NAMESPACE_ID_AQUI.
+kv_namespaces = [
+  { binding = "ODISSE_KV", id = "SEU_NAMESPACE_ID_AQUI" }
+]

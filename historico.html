@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Histórico de propostas</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app" hidden>
+  <header class="rail">
+    <div class="rail__mark">ODISSE</div>
+    <div class="rail__title">Histórico de propostas</div>
+    <nav class="rail__steps"></nav>
+    <div class="rail__meta">
+      <span id="rail-user"></span>
+      <a class="rail__reset" href="index.html">Nova proposta</a>
+      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__col" style="max-width: 760px">
+      <p class="step__eyebrow">Histórico</p>
+      <h1 class="step__title">Propostas geradas</h1>
+      <p class="step__desc">Lista somente para consulta — clique em uma proposta para baixar o PDF novamente.</p>
+      <div id="lista"></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js"></script>
+<script src="store.js"></script>
+<script src="calc.js"></script>
+<script src="pdf.js"></script>
+<script>
+  function enderecoCompleto(cliente) {
+    const partes = [];
+    let linha1 = cliente.logradouro || '';
+    if (cliente.numero) linha1 += (linha1 ? ', ' : '') + cliente.numero;
+    if (cliente.complemento) linha1 += ' – ' + cliente.complemento;
+    if (linha1) partes.push(linha1);
+    if (cliente.bairro) partes.push(cliente.bairro);
+    if (cliente.cidadeUf) partes.push(cliente.cidadeUf);
+    if (cliente.cep) partes.push('CEP ' + cliente.cep);
+    return partes.join(' — ');
+  }
+
+  async function iniciar() {
+    document.getElementById('app').hidden = false;
+    document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
+    document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
+
+    const lista = document.getElementById('lista');
+
+    if (!OdisseStore.temWorker()) {
+      lista.innerHTML = `<div class="card"><p class="muted">Nenhum Worker configurado ainda — o histórico compartilhado não está disponível. Veja <code>worker/README.md</code> para ativar.</p></div>`;
+      return;
+    }
+
+    lista.innerHTML = `<p class="muted">Carregando…</p>`;
+    let resultado;
+    try {
+      resultado = await OdisseStore.listarPropostas();
+    } catch (e) {
+      lista.innerHTML = `<div class="card"><p class="muted">Não consegui carregar o histórico agora (${e.message}).</p></div>`;
+      return;
+    }
+
+    const propostas = resultado.propostas || [];
+    if (!propostas.length) {
+      lista.innerHTML = `<div class="card"><p class="muted">Nenhuma proposta gerada ainda.</p></div>`;
+      return;
+    }
+
+    const data = await OdisseData.load();
+
+    lista.innerHTML = `<div class="card" style="padding:0">` +
+      propostas.map(p => `
+        <button class="check-row" style="width:100%; text-align:left; background:none; border:none; cursor:pointer; padding:16px 20px" data-numero="${p.numero}">
+          <span style="flex:1">
+            <span class="check-row__text" style="font-weight:700">${p.numero}</span><br>
+            <span class="small muted">${p.cliente || '—'} · ${p.data ? new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span>
+          </span>
+          <span class="small" style="color:var(--copper-strong)">Baixar PDF →</span>
+        </button>
+      `).join('<div class="divider" style="margin:0"></div>') +
+      `</div>`;
+
+    lista.querySelectorAll('button[data-numero]').forEach(btn => {
+      btn.onclick = async () => {
+        const numeroOriginal = btn.dataset.numero;
+        btn.querySelector('span:last-child').textContent = 'Baixando…';
+        try {
+          const snapshot = await OdisseStore.buscarProposta(numeroOriginal);
+          OdissePdf.gerar(snapshot, data);
+          btn.querySelector('span:last-child').textContent = 'Baixar PDF →';
+        } catch (e) {
+          alert('Não consegui recuperar essa proposta: ' + e.message);
+          btn.querySelector('span:last-child').textContent = 'Baixar PDF →';
+        }
+      };
+    });
+  }
+
+  iniciar();
+</script>
+</body>
+</html>
