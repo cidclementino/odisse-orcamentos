@@ -62,6 +62,7 @@ function estadoInicial() {
     prazoEsperadoCliente: '',
     entendimentoProjeto: '',
     servicoId: '',
+    macroCategoriaSelecionada: '',
     tipologiaItem: null,
     modificadorIntervencao: 1,
     areaConstruida: 0,
