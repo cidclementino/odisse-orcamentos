@@ -202,9 +202,7 @@ function renderSidebar() {
     btn.onclick = () => {
       const i = parseInt(btn.dataset.step, 10);
       if (i <= STATE._maxUnlocked) {
-        currentStepIndex = i;
-        salvarRascunho();
-        renderStep();
+        irParaEtapa(i);
       }
     };
   });
@@ -231,6 +229,7 @@ function mostrarConfirmacao() {
     currentStepIndex = 0;
     document.querySelector('#ticket .ticket__nav').style.display = '';
     renderStep();
+    window.scrollTo(0, 0);
   };
   document.querySelector('#ticket .ticket__nav').style.display = 'none';
   renderSidebar();
@@ -255,9 +254,18 @@ function renderStep() {
   nextBtn.textContent = currentStepIndex === STEPS.length - 1 ? 'Concluído' : 'Continuar';
   nextBtn.style.display = currentStepIndex === STEPS.length - 1 ? 'none' : '';
 
-  window.scrollTo(0, 0);
   updateTicket();
   salvarRascunho();
+}
+
+// Rola pro topo só quando a pessoa efetivamente troca de etapa (Continuar,
+// Voltar, clique na barra lateral) — nunca em re-renderizações internas da
+// mesma etapa (ex: marcar uma checkbox), que antes causavam esse mesmo salto.
+function irParaEtapa(indice) {
+  currentStepIndex = indice;
+  salvarRascunho();
+  renderStep();
+  window.scrollTo(0, 0);
 }
 
 function goNext() {
@@ -268,18 +276,14 @@ function goNext() {
     return;
   }
   if (currentStepIndex < STEPS.length - 1) {
-    currentStepIndex++;
-    STATE._maxUnlocked = Math.max(STATE._maxUnlocked, currentStepIndex);
-    salvarRascunho();
-    renderStep();
+    STATE._maxUnlocked = Math.max(STATE._maxUnlocked, currentStepIndex + 1);
+    irParaEtapa(currentStepIndex + 1);
   }
 }
 
 function goPrev() {
   if (currentStepIndex > 0) {
-    currentStepIndex--;
-    salvarRascunho();
-    renderStep();
+    irParaEtapa(currentStepIndex - 1);
   }
 }
 
@@ -300,6 +304,7 @@ async function initApp() {
       currentStepIndex = 0;
       limparRascunho();
       renderStep();
+      window.scrollTo(0, 0);
     }
   };
 
