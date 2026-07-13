@@ -151,19 +151,96 @@ inteiro some do documento.
 
 ---
 
+## 4. Percentual do serviço por etapa (Base + Incremento)
+
+**Decisão:** o "Escopo de Contratação" (dropdown com combinações nomeadas —
+Projeto Completo, Até Estudo Preliminar, etc.) foi removido para os 5
+serviços com estrutura Conceitual/Legal/Executivo (Nova Edificação em
+suas 4 variações, e Reforma). Motivo: essas combinações nomeadas
+duplicavam a própria seleção de etapas — escolher "Até Projeto Legal" no
+dropdown e marcar as etapas de Conceitual+Legal na lista eram, na
+prática, duas formas de dizer a mesma coisa, e podiam dessincronizar (o
+dropdown não se atualizava se você editasse as etapas manualmente
+depois).
+
+**Confirmação de que Interiores é um serviço à parte:** durante essa
+discussão ficou confirmado que "Projeto de Interiores e Ambientação" não
+é um complemento de Nova Edificação/Reforma — é um orçamento próprio,
+com sua própria estrutura de etapas (Estudo Básico / Projeto Executivo
+de Interiores). As etapas de interiores foram removidas do
+`etapas_default` de "Edifício Misto e Multifamiliar" por causa disso.
+Isso generaliza a ideia antiga de "Tipo X vs Tipo Y" (item 2 das
+pendências abaixo) — na verdade são N estruturas, uma por família de
+serviço, e o campo `modificador` de cada serviço agora também funciona
+como a chave que decide isso.
+
+### Peso de cada etapa (soma 100% no Projeto Completo)
+
+| Fase | % da fase | Etapa | % da etapa (sobre os 100%) |
+|---|---|---|---|
+| Projeto Conceitual | 40% | Programação Projetual | 12% |
+| | | Concepção Esquemática | 12% |
+| | | Concepção Básica | 16% |
+| Projeto Legal | 20% | Projeto Básico/Legal | 20% |
+| Projeto Executivo | 40% | Pré-Executivo | 8% |
+| | | Projeto Executivo de Arquitetura | 16% |
+| | | Detalhamento Executivo Complementar | 16% |
+
+A primeira e a última fase pesam mais (40% cada) porque demandam mais
+esforço/tempo; dentro do Executivo, a etapa de Projeto Legal concentra
+boa parte da documentação técnica produzida do zero, por isso pesa mais
+por etapa do que as etapas de Conceitual, mesmo a fase Legal sendo menor
+no total.
+
+### A fórmula
+
+```
+Base       = soma do peso de cada etapa marcada
+Lacuna     = soma do peso de cada etapa NÃO marcada que vem antes de
+             alguma etapa marcada (cada uma conta uma única vez, mesmo
+             que fique "atrás" de mais de uma etapa contratada)
+Incremento = 50% da Lacuna
+Percentual = Base + Incremento
+```
+
+Prova informal de que isso nunca ultrapassa 100%: o incremento máximo
+possível é sempre metade do que falta, então o total satura em "base +
+metade do que falta", que só chega a 100% quando base já é 100% (Lacuna
+= 0). Não precisa de trava manual em nenhum cenário.
+
+### Exemplos testados e validados
+
+| Etapas contratadas | Base | Lacuna | Incremento | Percentual |
+|---|---|---|---|---|
+| Só Projeto Básico/Legal | 20% | 40% (Conceitual) | 20% | **40%** |
+| Legal + Executivo (sem Conceitual) | 60% | 40% (Conceitual) | 20% | **80%** |
+| Conceitual + Executivo (pulando o Legal) | 80% | 20% (Legal) | 10% | **90%** |
+| Todas as 7 etapas | 100% | 0% | 0% | **100%** |
+
+O terceiro exemplo é o caso que travava antes de fechar essa fórmula
+(uma tentativa anterior de "penalidade fixa de +30% ao pular qualquer
+etapa anterior" dava 110% nesse cenário, o que não fazia sentido).
+
+### Etapas desmarcadas ficam visíveis, só esmaecidas
+
+Todas as etapas vêm marcadas por padrão (contam no orçamento). Ao
+desmarcar uma etapa, ela não desaparece da lista — fica com opacidade
+reduzida, deixando claro que está fora do orçamento sem esconder a opção
+de marcar de volta.
+
 ## Pendências para revisão futura
 
 1. Recalibrar os cortes de "Empenho ao Projeto vs Porte" (3 / 4-6 / 7+)
    agora que a base de contagem mudou (subitens de etapas em vez da lista
    plana antiga).
-2. Formulário Tipo X vs Tipo Y — no futuro, separar dois fluxos de
-   preenchimento: um para serviços com documentação técnica extensiva
-   (Nova Edificação em suas variações, Reforma, Interiores) e outro mais
-   enxuto para serviços de consulta/reunião, sem tanto desenho (Consultoria
-   Remota, Estudo de Viabilidade, possivelmente Laudos). Motivo: esses
-   serviços "enxutos" não têm etapas de projeto reais para ancorar seu
-   escopo, e hoje ficam com listas de exclusão desproporcionalmente longas
-   no PDF.
+2. Estrutura própria por serviço — confirmado que não são só "Tipo X vs
+   Tipo Y", são N estruturas (uma por família de serviço — ver seção 4
+   acima). O campo `servico.formula_percentual_por_etapa` já resolve isso
+   para os 5 serviços com fases Conceitual/Legal/Executivo. Falta desenhar
+   a estrutura própria dos outros 4: Interiores (provavelmente 2 fases —
+   Estudo Básico / Executivo, com pesos próprios), e Consultoria Remota /
+   Estudo de Viabilidade / Laudos (provavelmente sem fases progressivas,
+   direto por escopo).
 3. Lista de escopo por serviço, ao invés de tudo-ou-nada — hoje, se um
    item não pertence a uma sub-lista "relevante" de um serviço, ele ainda
    aparece como exclusão explícita no PDF. Uma opção futura seria cada

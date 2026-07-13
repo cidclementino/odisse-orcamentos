@@ -112,6 +112,37 @@ const OdisseCalc = (() => {
     };
   }
 
+  // ---------------------------------------------------------------------
+  // Percentual do serviço a partir do peso de cada etapa (Base + Incremento)
+  // — só para os serviços com estrutura Conceitual/Legal/Executivo
+  // (servico.formula_percentual_por_etapa === true). Ver PRICING.md para a
+  // lógica completa por trás desta fórmula.
+  //
+  //   Base       = soma dos pesos das etapas selecionadas
+  //   Lacuna     = soma dos pesos das etapas NÃO selecionadas que vêm antes
+  //                de alguma etapa selecionada (cada uma contada uma única
+  //                vez, mesmo que "esteja atrás" de mais de uma selecionada)
+  //   Incremento = 50% da Lacuna
+  //   Percentual = Base + Incremento  (nunca ultrapassa 100%)
+  // ---------------------------------------------------------------------
+  function percentualPorEtapas(etapasSelecionadas, pesosEtapas) {
+    const ordem = Object.keys(pesosEtapas);
+    let base = 0;
+    ordem.forEach(id => { if (etapasSelecionadas.includes(id)) base += pesosEtapas[id]; });
+
+    let lacuna = 0;
+    for (let i = 0; i < ordem.length; i++) {
+      const id = ordem[i];
+      if (etapasSelecionadas.includes(id)) continue;
+      const temSelecionadaDepois = ordem.slice(i + 1).some(j => etapasSelecionadas.includes(j));
+      if (temSelecionadaDepois) lacuna += pesosEtapas[id];
+    }
+
+    const incremento = 0.5 * lacuna;
+    const percentual = Math.min(100, base + incremento) / 100;
+    return { base: base / 100, lacuna: lacuna / 100, incremento: incremento / 100, percentual };
+  }
+
   function planoPagamento(valorFinal, tabelas, { descontoAvista, pctEntrada }) {
     const avista = valorFinal * (1 - (descontoAvista != null ? descontoAvista : 0.08));
 
@@ -165,5 +196,5 @@ const OdisseCalc = (() => {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  return { calcular, planoPagamento, distribuirPorEtapa, montarCronograma, fmtMoeda, fmtData, mediaIC, bhAtual, tabelaCubAtiva };
+  return { calcular, planoPagamento, distribuirPorEtapa, montarCronograma, fmtMoeda, fmtData, mediaIC, bhAtual, tabelaCubAtiva, percentualPorEtapas };
 })();

@@ -211,7 +211,33 @@ function renderSidebar() {
   document.getElementById('rail-user').textContent = STATE._userName ? `Olá, ${STATE._userName}` : '';
 }
 
+function mostrarConfirmacao() {
+  const container = document.getElementById('step-container');
+  const nomeCliente = STATE.cliente.nome || 'cliente';
+  container.innerHTML = `
+    <p class="step__eyebrow">Concluído</p>
+    <h1 class="step__title">Orçamento gerado</h1>
+    <p class="step__desc">O orçamento de <strong>${nomeCliente}</strong> foi gerado com sucesso${STATE.numeroProposta ? ` — proposta <strong>${STATE.numeroProposta}</strong>` : ''}.</p>
+    <div class="row-2">
+      <button class="btn btn--ghost" id="btn-baixar-de-novo" type="button">Baixar PDF novamente</button>
+      <button class="btn btn--primary" id="btn-novo-orcamento" type="button">Gerar novo orçamento</button>
+    </div>
+  `;
+  document.getElementById('btn-baixar-de-novo').onclick = () => OdissePdf.gerar(STATE, DATA);
+  document.getElementById('btn-novo-orcamento').onclick = () => {
+    const nome = STATE._userName;
+    STATE = estadoInicial();
+    STATE._userName = nome;
+    currentStepIndex = 0;
+    document.querySelector('#ticket .ticket__nav').style.display = '';
+    renderStep();
+  };
+  document.querySelector('#ticket .ticket__nav').style.display = 'none';
+  renderSidebar();
+}
+
 function renderStep() {
+  document.querySelector('#ticket .ticket__nav').style.display = '';
   const step = STEPS[currentStepIndex];
   const container = document.getElementById('step-container');
   container.innerHTML = `

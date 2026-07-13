@@ -395,6 +395,8 @@ a { color: inherit; }
   padding: 11px 0;
 }
 .etapa-row + .etapa-row { border-top: 1px solid var(--line); }
+.etapa-row--off { opacity: 0.45; }
+.etapa-row--off:hover { opacity: 0.7; }
 .etapa-row .check-row__toggle {
   display: flex; align-items: flex-start; gap: 12px; cursor: pointer; flex: 1; min-width: 0; padding: 0;
 }

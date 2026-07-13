@@ -68,6 +68,11 @@ const REPETICOES_FAIXAS = [
 
 const ARQ_ETAPA_IDS = ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica', 'projeto_basico_legal', 'pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
 const ETAPAS_EXECUTIVAS_IDS = ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
+
+// Usado só pelos serviços que AINDA NÃO têm fórmula própria (ver
+// servico.formula_percentual_por_etapa) — atalho antigo de escopo de
+// contratação, mantido como provisório até esses serviços ganharem sua
+// própria estrutura.
 const ETAPAS_POR_ESCOPO = {
   'Projeto Completo': ARQ_ETAPA_IDS,
   'Até Estudo Preliminar': ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica'],
@@ -108,6 +113,17 @@ function recomputeIndicadores(state) {
   state.icValores.empenho_porte = IC_LABELS[computeEmpenhoPorte(countSubitensSelecionados(state))];
 }
 
+// Recalcula o percentual do serviço a partir das etapas marcadas, só para
+// os serviços com fórmula própria (Base + Incremento). Para os demais, não
+// mexe em state.reducaoEscopoPercentual (continua vindo do dropdown antigo).
+function recomputePercentualServico(state, data) {
+  const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
+  if (servico && servico.formula_percentual_por_etapa) {
+    const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
+    state.reducaoEscopoPercentual = r.percentual;
+  }
+}
+
 const PRAZO_CLIENTE_OPCOES = [
   { label: '30 dias', semanas: 4 },
   { label: '2 meses', semanas: 8 },
@@ -126,7 +142,7 @@ const STEPS = [];
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'cliente',
-  eyebrow: 'Etapa 1 de 6',
+  eyebrow: 'Etapa 1 de 7',
   title: 'Cliente & projeto',
   desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
@@ -299,7 +315,7 @@ STEPS.push({
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'classificacao',
-  eyebrow: 'Etapa 2 de 6',
+  eyebrow: 'Etapa 2 de 7',
   title: 'Classificação do serviço',
   desc: 'Define a base de honorários (CUB/tipologia), o entendimento do projeto e o porte do trabalho.',
   render(state, data) {
@@ -409,6 +425,7 @@ STEPS.push({
         const mods = servico.modificadores || [];
         state.modificadorIntervencao = mods.length ? mods[0].valor : 1;
         recomputeIndicadores(state);
+        recomputePercentualServico(state, data);
       }
       ctx.rerender();
     };
@@ -451,86 +468,54 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 3. Índice de complexidade (8 critérios manuais — indefinição de escopo
-//    fica na Classificação; empenho e detalhamento viraram indicadores
-//    calculados, exibidos em Etapas & Cronograma)
-// -------------------------------------------------------------------------
-STEPS.push({
-  id: 'complexidade',
-  eyebrow: 'Etapa 3 de 6',
-  title: 'Índice de complexidade',
-  desc: 'Padrão pré-carregado a partir do serviço escolhido. Ajuste qualquer critério se o padrão não refletir o projeto.',
-  render(state, data) {
-    return `
-      <div class="field-group">
-        ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
-          const i = IC_KEYS_ALL.indexOf(key);
-          const crit = data.icCriterios[i];
-          const current = state.icValores[key] != null ? state.icValores[key] : 1.0;
-          const currentLabel = current === 0.7 ? 'baixo' : current === 1.3 ? 'alto' : 'medio';
-          return `
-            <div class="field">
-              <label class="field__label">${crit.criterio}</label>
-              ${segmented('ic-' + key, [
-                { value: 'baixo', label: 'Baixo' },
-                { value: 'medio', label: 'Médio' },
-                { value: 'alto', label: 'Alto' }
-              ], currentLabel)}
-              <p class="field__hint" id="ic-hint-${key}">${crit[currentLabel]}</p>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir do escopo e das etapas selecionadas em "Etapas & Cronograma".</p>
-    `;
-  },
-  bind(el, state, data, ctx) {
-    MANUAL_COMPLEXIDADE_KEYS.forEach(key => {
-      const i = IC_KEYS_ALL.indexOf(key);
-      const crit = data.icCriterios[i];
-      el.querySelectorAll(`input[name="ic-${key}"]`).forEach(r => {
-        r.onchange = e => {
-          state.icValores[key] = IC_LABELS[e.target.value];
-          el.querySelector(`#ic-hint-${key}`).textContent = crit[e.target.value];
-          ctx.updateTicket();
-        };
-      });
-    });
-  },
-  validate() { return true; }
-});
-
-// -------------------------------------------------------------------------
-// 4. Etapas & cronograma (inclui escopo de contratação, os subitens de cada
-//    etapa — antigo "Escopo do Serviço" — e o bloco de Assessoramento)
+// 3. Etapas (escopo do serviço + assessoramento + duração de cada etapa).
+//    O percentual do honorário é calculado automaticamente pelas etapas
+//    marcadas, para os serviços com fórmula própria (Base + Incremento).
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'etapas',
-  eyebrow: 'Etapa 4 de 6',
-  title: 'Etapas & cronograma',
-  desc: 'Escolha o escopo de contratação, ajuste as etapas e refine cada uma com os subitens que se aplicam ao projeto.',
+  eyebrow: 'Etapa 3 de 7',
+  title: 'Etapas',
+  desc: 'Todas as etapas típicas do serviço já vêm marcadas. Desmarque o que não for contratado — o percentual do honorário se ajusta sozinho.',
   render(state, data) {
     const ic = OdisseCalc.mediaIC(state.icValores);
-    const reducaoOpts = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo];
-    let escopoAtualNome = 'Personalizado';
-    for (const r of reducaoOpts) { if (r.percentual === state.reducaoEscopoPercentual) { escopoAtualNome = r.nome; break; } }
-    const todasOpcoes = [...reducaoOpts, { nome: 'Personalizado' }];
+    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
+    const usaFormula = servico && servico.formula_percentual_por_etapa;
+
+    let escopoHtml;
+    if (usaFormula) {
+      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
+      escopoHtml = `
+        <div class="field-group">
+          <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong id="valor-percentual-etapas">${Math.round(r.percentual * 100)}%</strong></span></div>
+          <p class="field__hint" id="detalhe-percentual-etapas">Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.</p>
+        </div>
+      `;
+    } else {
+      const reducaoOpts = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo];
+      let escopoAtualNome = 'Personalizado';
+      for (const r of reducaoOpts) { if (r.percentual === state.reducaoEscopoPercentual) { escopoAtualNome = r.nome; break; } }
+      const todasOpcoes = [...reducaoOpts, { nome: 'Personalizado' }];
+      escopoHtml = `
+        <div class="field-group">
+          <div class="field">
+            <label class="field__label">Escopo de contratação</label>
+            <select id="f-escopo-contratacao">
+              ${todasOpcoes.map(r => `<option value="${r.nome}" ${escopoAtualNome === r.nome ? 'selected' : ''}>${r.nome}${r.percentual != null ? ' (' + Math.round(r.percentual * 100) + '%)' : ''}</option>`).join('')}
+            </select>
+            <input type="number" min="1" max="100" step="1" id="f-escopo-custom" value="${Math.round((state.reducaoEscopoPercentual || 1) * 100)}" style="margin-top:10px" ${escopoAtualNome === 'Personalizado' ? '' : 'hidden'}>
+            <p class="field__hint">Este serviço ainda usa o percentual fixo por escopo — a fórmula por etapa ainda não foi desenhada para ele.</p>
+          </div>
+        </div>
+      `;
+    }
 
     const grauDetalhamento = computeGrauDetalhamento(state.etapasSelecionadas);
     const empenhoPorte = computeEmpenhoPorte(countSubitensSelecionados(state));
     const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
     return `
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Escopo de contratação</label>
-          <select id="f-escopo-contratacao">
-            ${todasOpcoes.map(r => `<option value="${r.nome}" ${escopoAtualNome === r.nome ? 'selected' : ''}>${r.nome}${r.percentual != null ? ' (' + Math.round(r.percentual * 100) + '%)' : ''}</option>`).join('')}
-          </select>
-          <input type="number" min="1" max="100" step="1" id="f-escopo-custom" value="${Math.round((state.reducaoEscopoPercentual || 1) * 100)}" style="margin-top:10px" ${escopoAtualNome === 'Personalizado' ? '' : 'hidden'}>
-          <p class="field__hint">Define o percentual do honorário total cobrado, e já marca as etapas típicas correspondentes abaixo.</p>
-        </div>
-      </div>
+      ${escopoHtml}
       <div class="field-group">
         <div class="row-2">
           <div class="data-row"><span class="data-row__label">Grau de Detalhamento (calculado)</span><span class="data-row__value" id="badge-detalhamento">${labelCap(grauDetalhamento)}</span></div>
@@ -545,7 +530,7 @@ STEPS.push({
             const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
             const subitensSel = state.etapasSubitens[etapa.id] || [];
             return `
-              <div class="etapa-row">
+              <div class="etapa-row ${selecionada ? '' : 'etapa-row--off'}">
                 <label class="check-row check-row__toggle">
                   <input type="checkbox" data-etapa="${etapa.id}" ${selecionada ? 'checked' : ''}>
                   <span class="check-row__box">${checkSvg()}</span>
@@ -574,13 +559,6 @@ STEPS.push({
         <p class="field__hint" id="etapas-total" style="margin-top:12px"></p>
       </div>
       <div class="field-group">
-        <div class="field">
-          <label class="field__label">Data de início do serviço</label>
-          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}">
-        </div>
-      </div>
-      <div class="field-group" id="cronograma-preview"></div>
-      <div class="field-group">
         <div class="card__title" style="margin-bottom:6px">${data.assessoramento.titulo}</div>
         <p class="field__hint" style="margin-bottom:14px">Bloco independente — não entra no cronograma nem na soma de semanas.</p>
         <div class="check-list">
@@ -596,6 +574,10 @@ STEPS.push({
     `;
   },
   bind(el, state, data, ctx) {
+    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
+    const usaFormula = servico && servico.formula_percentual_por_etapa;
+    const ic = OdisseCalc.mediaIC(state.icValores);
+
     function atualizarBadges() {
       const detEl = el.querySelector('#badge-detalhamento');
       const empEl = el.querySelector('#badge-empenho');
@@ -603,32 +585,21 @@ STEPS.push({
       if (detEl) detEl.textContent = labelCap(computeGrauDetalhamento(state.etapasSelecionadas));
       if (empEl) empEl.textContent = labelCap(computeEmpenhoPorte(countSubitensSelecionados(state)));
     }
+    function atualizarPercentualEtapas() {
+      if (!usaFormula) return;
+      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
+      state.reducaoEscopoPercentual = r.percentual;
+      const valorEl = el.querySelector('#valor-percentual-etapas');
+      const detalheEl = el.querySelector('#detalhe-percentual-etapas');
+      if (valorEl) valorEl.textContent = `${Math.round(r.percentual * 100)}%`;
+      if (detalheEl) detalheEl.textContent = `Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.`;
+    }
     function atualizarTotal() {
       const total = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
         .reduce((s, e) => s + (state.etapasSemanas[e.id] || 0), 0);
       const totalEl = el.querySelector('#etapas-total');
       if (totalEl) totalEl.textContent = `Total: ${total} semana${total === 1 ? '' : 's'}`;
     }
-    function renderCronograma() {
-      const box = el.querySelector('#cronograma-preview');
-      const selecionadas = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
-        .map(e => ({ ...e, semanas: state.etapasSemanas[e.id] }));
-      if (!state.dataInicio || !selecionadas.length) { box.innerHTML = ''; return; }
-      const linhas = OdisseCalc.montarCronograma(state.dataInicio, selecionadas);
-      box.innerHTML = `<div class="card__title">Cronograma</div><div class="timeline">` +
-        linhas.map(l => `
-          <div class="timeline__row">
-            <div><div class="timeline__name">${l.nome}</div><span class="timeline__fase">${l.fase}</span></div>
-            <div class="timeline__weeks small muted">${l.semanas} sem.</div>
-            <div class="timeline__dates">${OdisseCalc.fmtData(l.inicio)} – ${OdisseCalc.fmtData(l.fim)}</div>
-          </div>
-        `).join('') + `</div>`;
-    }
-
-    const selectEscopo = el.querySelector('#f-escopo-contratacao');
-    const inputCustom = el.querySelector('#f-escopo-custom');
-    const ic = OdisseCalc.mediaIC(state.icValores);
-
     function garantirSubitens(id) {
       if (state.etapasSubitens[id] == null) {
         const etapa = data.etapas.find(x => x.id === id);
@@ -636,34 +607,38 @@ STEPS.push({
       }
     }
 
-    selectEscopo.onchange = e => {
-      const nome = e.target.value;
-      if (nome === 'Personalizado') {
-        inputCustom.hidden = false;
-        state.reducaoEscopoPercentual = (parseFloat(inputCustom.value) || 100) / 100;
-        ctx.updateTicket();
-        return;
-      }
-      inputCustom.hidden = true;
-      const opt = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo].find(r => r.nome === nome);
-      state.reducaoEscopoPercentual = opt.percentual;
-      const etapasArq = ETAPAS_POR_ESCOPO[nome] || [];
-      const outras = state.etapasSelecionadas.filter(id => !ARQ_ETAPA_IDS.includes(id));
-      state.etapasSelecionadas = [...new Set([...outras, ...etapasArq])];
-      etapasArq.forEach(id => {
-        if (state.etapasSemanas[id] == null) {
-          const etapa = data.etapas.find(x => x.id === id);
-          state.etapasSemanas[id] = semanasDefault(etapa, ic);
+    if (!usaFormula) {
+      const selectEscopo = el.querySelector('#f-escopo-contratacao');
+      const inputCustom = el.querySelector('#f-escopo-custom');
+      selectEscopo.onchange = e => {
+        const nome = e.target.value;
+        if (nome === 'Personalizado') {
+          inputCustom.hidden = false;
+          state.reducaoEscopoPercentual = (parseFloat(inputCustom.value) || 100) / 100;
+          ctx.updateTicket();
+          return;
         }
-        garantirSubitens(id);
-      });
-      recomputeIndicadores(state);
-      ctx.rerender();
-    };
-    inputCustom.oninput = e => {
-      state.reducaoEscopoPercentual = (parseFloat(e.target.value) || 0) / 100;
-      ctx.updateTicket();
-    };
+        inputCustom.hidden = true;
+        const opt = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo].find(r => r.nome === nome);
+        state.reducaoEscopoPercentual = opt.percentual;
+        const etapasArq = ETAPAS_POR_ESCOPO[nome] || [];
+        const outras = state.etapasSelecionadas.filter(id => !ARQ_ETAPA_IDS.includes(id));
+        state.etapasSelecionadas = [...new Set([...outras, ...etapasArq])];
+        etapasArq.forEach(id => {
+          if (state.etapasSemanas[id] == null) {
+            const etapa = data.etapas.find(x => x.id === id);
+            state.etapasSemanas[id] = semanasDefault(etapa, ic);
+          }
+          garantirSubitens(id);
+        });
+        recomputeIndicadores(state);
+        ctx.rerender();
+      };
+      inputCustom.oninput = e => {
+        state.reducaoEscopoPercentual = (parseFloat(e.target.value) || 0) / 100;
+        ctx.updateTicket();
+      };
+    }
 
     el.querySelectorAll('input[data-etapa]').forEach(cb => {
       cb.onchange = e => {
@@ -686,7 +661,6 @@ STEPS.push({
       sel.onchange = e => {
         state.etapasSemanas[e.target.dataset.semanas] = parseInt(e.target.value, 10) || 1;
         atualizarTotal();
-        renderCronograma();
         ctx.updateTicket();
       };
     });
@@ -718,27 +692,120 @@ STEPS.push({
         ctx.updateTicket();
       };
     });
+
+    atualizarTotal();
+    atualizarPercentualEtapas();
+  },
+  validate(state) {
+    if (!state.etapasSelecionadas.length) return 'Selecione ao menos uma etapa.';
+    return true;
+  }
+});
+
+// -------------------------------------------------------------------------
+// 4. Índice de complexidade (8 critérios manuais — indefinição de escopo
+//    fica na Classificação; empenho e detalhamento viraram indicadores
+//    calculados, exibidos em Etapas)
+// -------------------------------------------------------------------------
+STEPS.push({
+  id: 'complexidade',
+  eyebrow: 'Etapa 4 de 7',
+  title: 'Índice de complexidade',
+  desc: 'Padrão pré-carregado a partir do serviço escolhido. Ajuste qualquer critério se o padrão não refletir o projeto — refine por último, depois de fechar as etapas.',
+  render(state, data) {
+    return `
+      <div class="field-group">
+        ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
+          const i = IC_KEYS_ALL.indexOf(key);
+          const crit = data.icCriterios[i];
+          const current = state.icValores[key] != null ? state.icValores[key] : 1.0;
+          const currentLabel = current === 0.7 ? 'baixo' : current === 1.3 ? 'alto' : 'medio';
+          return `
+            <div class="field">
+              <label class="field__label">${crit.criterio}</label>
+              ${segmented('ic-' + key, [
+                { value: 'baixo', label: 'Baixo' },
+                { value: 'medio', label: 'Médio' },
+                { value: 'alto', label: 'Alto' }
+              ], currentLabel)}
+              <p class="field__hint" id="ic-hint-${key}">${crit[currentLabel]}</p>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir do escopo e das etapas selecionadas em "Etapas".</p>
+    `;
+  },
+  bind(el, state, data, ctx) {
+    MANUAL_COMPLEXIDADE_KEYS.forEach(key => {
+      const i = IC_KEYS_ALL.indexOf(key);
+      const crit = data.icCriterios[i];
+      el.querySelectorAll(`input[name="ic-${key}"]`).forEach(r => {
+        r.onchange = e => {
+          state.icValores[key] = IC_LABELS[e.target.value];
+          el.querySelector(`#ic-hint-${key}`).textContent = crit[e.target.value];
+          ctx.updateTicket();
+        };
+      });
+    });
+  },
+  validate() { return true; }
+});
+
+// -------------------------------------------------------------------------
+// 5. Cronograma (data de início + datas de cada etapa contratada)
+// -------------------------------------------------------------------------
+STEPS.push({
+  id: 'cronograma',
+  eyebrow: 'Etapa 5 de 7',
+  title: 'Cronograma',
+  desc: 'Defina a data de início do serviço — as datas de cada etapa contratada se ajustam automaticamente a partir dela.',
+  render(state) {
+    return `
+      <div class="field-group">
+        <div class="field">
+          <label class="field__label">Data de início do serviço</label>
+          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}">
+        </div>
+      </div>
+      <div class="field-group" id="cronograma-preview"></div>
+    `;
+  },
+  bind(el, state, data, ctx) {
+    function renderCronograma() {
+      const box = el.querySelector('#cronograma-preview');
+      const selecionadas = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
+        .map(e => ({ ...e, semanas: state.etapasSemanas[e.id] }));
+      if (!state.dataInicio || !selecionadas.length) { box.innerHTML = '<p class="muted">Preencha a etapa "Etapas" e a data acima para ver o cronograma.</p>'; return; }
+      const linhas = OdisseCalc.montarCronograma(state.dataInicio, selecionadas);
+      box.innerHTML = `<div class="card__title">Prévia do cronograma</div><div class="timeline">` +
+        linhas.map(l => `
+          <div class="timeline__row">
+            <div><div class="timeline__name">${l.nome}</div><span class="timeline__fase">${l.fase}</span></div>
+            <div class="timeline__weeks small muted">${l.semanas} sem.</div>
+            <div class="timeline__dates">${OdisseCalc.fmtData(l.inicio)} – ${OdisseCalc.fmtData(l.fim)}</div>
+          </div>
+        `).join('') + `</div>`;
+    }
     el.querySelector('#f-data-inicio').oninput = e => {
       state.dataInicio = e.target.value;
       renderCronograma();
       ctx.updateTicket();
     };
-    atualizarTotal();
     renderCronograma();
   },
   validate(state) {
-    if (!state.etapasSelecionadas.length) return 'Selecione ao menos uma etapa.';
     if (!state.dataInicio) return 'Informe a data de início.';
     return true;
   }
 });
 
 // -------------------------------------------------------------------------
-// 5. Ajuste de mercado & condições de pagamento
+// 6. Ajuste de mercado & condições de pagamento
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'pagamento',
-  eyebrow: 'Etapa 5 de 6',
+  eyebrow: 'Etapa 6 de 7',
   title: 'Ajuste de mercado & pagamento',
   desc: 'Ajuste o valor final e defina as condições de pagamento — o preview abaixo atualiza a cada mudança.',
   render(state, data) {
@@ -749,7 +816,7 @@ STEPS.push({
         <div class="card__title">Honorário final (preview)</div>
         <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorCau)}</span></div>
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorMercado)}</span></div>
-        <div class="data-row"><span class="data-row__label">Escopo de contratação (${Math.round(state.reducaoEscopoPercentual * 100)}%)</span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
+        <div class="data-row"><span class="data-row__label">Percentual do serviço (${Math.round(state.reducaoEscopoPercentual * 100)}%)</span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
     ` : `<p class="muted">Complete a classificação do serviço para ver o preview do honorário.</p>`;
 
@@ -823,11 +890,11 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 6. Revisão & download (número gerado só ao clicar em "Finalizar orçamento")
+// 7. Revisão & download (número gerado só ao clicar em "Finalizar orçamento")
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'revisao',
-  eyebrow: 'Etapa 6 de 6',
+  eyebrow: 'Etapa 7 de 7',
   title: 'Revisão & geração do PDF',
   desc: 'Confira os valores calculados. Finalize o orçamento para gerar o número da proposta e liberar o PDF.',
   render(state, data) {
@@ -850,7 +917,7 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Razão área projetada/construída (R)</span><span class="data-row__value tabular">${r.R.toFixed(3)}</span></div>
         <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorCau)}</span></div>
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorMercado)}</span></div>
-        <div class="data-row"><span class="data-row__label">Escopo de contratação</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
+        <div class="data-row"><span class="data-row__label">Percentual do serviço</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
       <div class="row-2">
@@ -883,6 +950,7 @@ STEPS.push({
     if (btn) btn.onclick = () => {
       OdissePdf.gerar(state, data);
       if (typeof limparRascunho === 'function') limparRascunho();
+      if (typeof mostrarConfirmacao === 'function') mostrarConfirmacao();
     };
   },
   validate() { return true; }

@@ -43,7 +43,7 @@
         <div class="data-row"><span class="data-row__label">6. Ajustes de repetição/projeção</span><span class="data-row__value">× Redutor de Repetição × R</span></div>
         <div class="data-row"><span class="data-row__label">7. Modificador do serviço</span><span class="data-row__value">× Modificador (ver tabela abaixo)</span></div>
         <div class="data-row"><span class="data-row__label">8. Ajuste de mercado</span><span class="data-row__value">÷ Fator de Ajuste (1 / 1,25 / 2,25 / outro)</span></div>
-        <div class="data-row"><span class="data-row__label">9. Honorário Final</span><span class="data-row__value"><strong>× % do Escopo de Contratação</strong></span></div>
+        <div class="data-row"><span class="data-row__label">9. Honorário Final</span><span class="data-row__value"><strong>× % do serviço (ver tabela de pesos abaixo)</strong></span></div>
       </div>
       <p class="field__hint" style="margin-bottom: 28px">Área do imóvel/terreno, teto orçamentário e prazo esperado do cliente não entram nessa conta — servem só para os alertas comparativos na barra lateral.</p>
 
@@ -54,14 +54,51 @@
         <div id="tabela-modificadores"></div>
       </div>
 
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Percentual do serviço, por etapa</h2>
+      <p class="step__desc">Vale para os 5 serviços com estrutura Conceitual/Legal/Executivo (Nova Edificação em suas 4 variações, e Reforma). Os outros 4 (Interiores, Consultoria Remota, Estudo de Viabilidade, Laudos) ainda usam o percentual fixo por escopo de contratação, até ganharem sua própria estrutura.</p>
+      <p class="step__desc">Cada etapa vale um peso fixo dentro dos 100% do serviço completo. Todas vêm marcadas por padrão — desmarcar uma etapa a exclui do orçamento.</p>
+      <div class="card">
+        <div class="card__title">Peso de cada etapa</div>
+        <div class="data-row"><span class="data-row__label">Programação Projetual</span><span class="data-row__value">12% <span class="muted">(Projeto Conceitual: 40%)</span></span></div>
+        <div class="data-row"><span class="data-row__label">Concepção Esquemática</span><span class="data-row__value">12%</span></div>
+        <div class="data-row"><span class="data-row__label">Concepção Básica</span><span class="data-row__value">16%</span></div>
+        <div class="data-row"><span class="data-row__label">Projeto Básico/Legal</span><span class="data-row__value">20% <span class="muted">(Projeto Legal: 20%)</span></span></div>
+        <div class="data-row"><span class="data-row__label">Pré-Executivo</span><span class="data-row__value">8% <span class="muted">(Projeto Executivo: 40%)</span></span></div>
+        <div class="data-row"><span class="data-row__label">Projeto Executivo de Arquitetura</span><span class="data-row__value">16%</span></div>
+        <div class="data-row"><span class="data-row__label">Detalhamento Executivo Complementar</span><span class="data-row__value">16%</span></div>
+        <div class="data-row"><span class="data-row__label"><strong>Total (Projeto Completo)</strong></span><span class="data-row__value"><strong>100%</strong></span></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">A fórmula: Base + Incremento</div>
+        <p class="field__hint" style="margin-bottom:10px">
+<strong>Base</strong> = soma do peso de cada etapa marcada.
+        </p>
+        <p class="field__hint" style="margin-bottom:10px">
+<strong>Lacuna</strong> = soma do peso de cada etapa <em>não marcada</em> que vem antes de alguma etapa marcada (cada uma conta só uma vez, mesmo que fique "atrás" de várias etapas contratadas).
+        </p>
+        <p class="field__hint" style="margin-bottom:10px">
+<strong>Incremento</strong> = 50% da Lacuna — contratar uma etapa pulando as anteriores custa mais, porque exige reconstruir o contexto que elas teriam resolvido.
+        </p>
+        <p class="field__hint"><strong>Percentual final = Base + Incremento</strong> (nunca ultrapassa 100%, mesmo pulando etapas do meio).</p>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Exemplos</div>
+        <div class="data-row"><span class="data-row__label">Só Projeto Básico/Legal</span><span class="data-row__value">20% (base) + 20% (metade do Conceitual, que ficou de fora) = <strong>40%</strong></span></div>
+        <div class="data-row"><span class="data-row__label">Legal + Executivo, sem Conceitual</span><span class="data-row__value">60% (base) + 20% = <strong>80%</strong></span></div>
+        <div class="data-row"><span class="data-row__label">Conceitual + Executivo, pulando o Legal</span><span class="data-row__value">80% (base) + 10% (metade dos 20% do Legal) = <strong>90%</strong></span></div>
+        <div class="data-row"><span class="data-row__label">Projeto Completo</span><span class="data-row__value">100% (sem lacunas) = <strong>100%</strong></span></div>
+      </div>
+
       <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Índice de Complexidade</h2>
-      <p class="step__desc">Média aritmética de 11 critérios, cada um avaliado como Baixo (0,7) / Médio (1,0) / Alto (1,3). Dois deles não são mais preenchidos manualmente — são calculados a partir das etapas e do escopo marcados na página "Etapas & Cronograma".</p>
+      <p class="step__desc">Média aritmética de 11 critérios, cada um avaliado como Baixo (0,7) / Médio (1,0) / Alto (1,3). Dois deles não são mais preenchidos manualmente — são calculados a partir das etapas marcadas, na página "Etapas".</p>
       <div class="card">
         <div class="card__title">Onde cada critério é preenchido</div>
-        <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte</span><span class="data-row__value">Calculado (Etapas & Cronograma)</span></div>
+        <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte</span><span class="data-row__value">Calculado (Etapas)</span></div>
         <div class="data-row"><span class="data-row__label">Quantidade de especialistas</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
         <div class="data-row"><span class="data-row__label">Quantidade de aprovações</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Grau de detalhamento</span><span class="data-row__value">Calculado (Etapas & Cronograma)</span></div>
+        <div class="data-row"><span class="data-row__label">Grau de detalhamento</span><span class="data-row__value">Calculado (Etapas)</span></div>
         <div class="data-row"><span class="data-row__label">Grau de responsabilidade civil</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
         <div class="data-row"><span class="data-row__label">Grau de intervenção do cliente</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
         <div class="data-row"><span class="data-row__label">Expectativa plástica</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
@@ -80,8 +117,8 @@
       </div>
 
       <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Escopo do serviço</h2>
-      <p class="step__desc">Não existe mais uma página separada de escopo. Cada etapa do cronograma (Programação Projetual, Concepção Esquemática, etc.) tem seus próprios subitens — ao marcar a etapa, você refina quais desses subitens realmente fazem parte da proposta. O que fica marcado vira "compreende o serviço" no PDF; o que não é marcado (mesmo de etapas que nem foram contratadas) vira "não compreende".</p>
-      <p class="step__desc">Existe também um bloco à parte, <strong>Assessoramento</strong> — acompanhamento de obra e suporte técnico ao cliente/fornecedores — que não faz parte do cronograma nem soma semanas de prazo.</p>
+      <p class="step__desc">Não existe mais uma página separada de escopo. Cada etapa (na página "Etapas") tem seus próprios subitens — ao marcar a etapa, você refina quais desses subitens realmente fazem parte da proposta. O que fica marcado vira "compreende o serviço" no PDF; o que não é marcado (mesmo de etapas que nem foram contratadas) vira "não compreende".</p>
+      <p class="step__desc">Existe também um bloco à parte, <strong>Assessoramento</strong> — acompanhamento de obra e suporte técnico ao cliente/fornecedores — que não faz parte do cronograma nem soma semanas de prazo, e não entra no peso das etapas.</p>
 
       <p class="field__hint" style="margin: 24px 0 40px">Dúvidas sobre algum valor específico? Fala com o Cid — essa página é só um resumo de leitura rápida, o registro completo de cada decisão fica em <code>PRICING.md</code>, no repositório.</p>
     </div>

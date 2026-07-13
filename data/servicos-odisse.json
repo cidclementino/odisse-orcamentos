@@ -30,7 +30,8 @@
         "nome": "Nova Edificação",
         "valor": 1.0
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": true
   },
   {
     "id": "reforma",
@@ -58,7 +59,8 @@
         "nome": "Reforma",
         "valor": 1.25
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": true
   },
   {
     "id": "viabilidade",
@@ -83,7 +85,8 @@
         "nome": "Estudo de Viabilidade",
         "valor": 0.2
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": false
   },
   {
     "id": "institucional",
@@ -120,7 +123,8 @@
         "nome": "Nova Edificação",
         "valor": 1.0
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": true
   },
   {
     "id": "comercial",
@@ -153,7 +157,8 @@
         "nome": "Nova Edificação",
         "valor": 1.0
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": true
   },
   {
     "id": "edificios_mistos",
@@ -176,9 +181,7 @@
       "projeto_basico_legal",
       "pre_executivo",
       "projeto_executivo_arquitetura",
-      "detalhamento_executivo",
-      "estudo_basico_interiores",
-      "projeto_executivo_interiores"
+      "detalhamento_executivo"
     ],
     "macro_categorias": [
       "HabitacionalMultifamiliar",
@@ -189,7 +192,8 @@
         "nome": "Nova Edificação",
         "valor": 1.0
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": true
   },
   {
     "id": "laudos",
@@ -212,7 +216,8 @@
         "nome": "Laudos e Regularização Técnica",
         "valor": 0.15
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": false
   },
   {
     "id": "consultoria_remota",
@@ -235,7 +240,8 @@
         "nome": "Consultoria Remota",
         "valor": 0.15
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": false
   },
   {
     "id": "interiores",
@@ -265,6 +271,7 @@
         "nome": "Ambientação",
         "valor": 0.75
       }
-    ]
+    ],
+    "formula_percentual_por_etapa": false
   }
 ]
