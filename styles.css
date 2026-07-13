@@ -104,6 +104,7 @@ a { color: inherit; }
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
+.gate__mark--center { text-align: center; margin-bottom: 28px; }
 .gate__label {
   color: var(--paper-dim);
   font-size: 0.82rem;
