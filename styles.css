@@ -143,7 +143,6 @@ a { color: inherit; }
 .app {
   min-height: 100vh;
   padding-top: var(--rail-h);
-  padding-right: var(--sidebar-w);
 }
 .app--no-sidebar { padding-right: 0; }
 
@@ -238,7 +237,7 @@ a { color: inherit; }
 .sidebar__step.is-done:hover { background: var(--ink-raised); color: var(--paper); }
 .sidebar__step.is-locked { opacity: 0.4; cursor: not-allowed; }
 
-@media (max-width: 860px) {
+@media (max-width: 1180px) {
   :root { --sidebar-w: 0px; }
   .sidebar { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; height: auto; border-left: none; border-top: 1px solid var(--copper); }
   .sidebar__steps { display: none; }
@@ -448,12 +447,16 @@ a { color: inherit; }
 .ticket__sub {
   font-size: 0.72rem; color: var(--paper-faint); margin: 4px 0 14px; line-height: 1.4;
 }
+.ticket__alerta {
+  font-size: 0.72rem; line-height: 1.4; margin: 8px 0 0; padding: 8px 10px;
+  border-radius: 4px; background: rgba(244,244,244,0.06);
+}
 .ticket__nav {
   display: flex; flex-direction: column; gap: 8px;
 }
 .ticket__nav .btn { width: 100%; }
 
-@media (max-width: 860px) {
+@media (max-width: 1180px) {
   .sidebar__ticket {
     display: flex; align-items: center; gap: 16px;
     padding: 12px clamp(16px, 4vw, 32px);
