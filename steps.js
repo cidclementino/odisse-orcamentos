@@ -48,6 +48,19 @@ function maskDocumento(v, tipo) {
 
 const IC_LABELS = { baixo: 0.7, medio: 1.0, alto: 1.3 };
 
+// input[type=date] em alguns navegadores deixa digitar mais de 4 dígitos no
+// ano momentaneamente (ex: "952026") antes de normalizar — isso sanitiza o
+// valor bruto (YYYY-MM-DD), descartando qualquer coisa com ano fora de uma
+// faixa razoável em vez de deixar passar pro estado.
+function dataValidaOuVazia(valor) {
+  if (!valor) return '';
+  const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(valor);
+  if (!m) return '';
+  const ano = parseInt(m[1], 10);
+  if (m[1].length !== 4 || ano < 2020 || ano > 2035) return '';
+  return valor;
+}
+
 // Ordem fixa dos 11 critérios — index casa com data/ic-criterios.json.
 // 'empenho_porte' e 'grau_detalhamento' NÃO são mais preenchidos manualmente:
 // são calculados a partir do escopo/etapas selecionados (ver recomputeIndicadores).
@@ -206,7 +219,7 @@ STEPS.push({
       <div class="field-group">
         <div class="field">
           <label class="field__label">Data da proposta</label>
-          <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}">
+          <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}" min="2020-01-01" max="2035-12-31">
         </div>
         <div class="row-2">
           <div class="field">
@@ -227,7 +240,11 @@ STEPS.push({
   bind(el, state) {
     el.querySelector('#f-nome').oninput = e => state.cliente.nome = e.target.value;
     el.querySelector('#f-email').oninput = e => state.cliente.email = e.target.value;
-    el.querySelector('#f-data-proposta').oninput = e => state.dataProposta = e.target.value;
+    el.querySelector('#f-data-proposta').oninput = e => {
+      const limpo = dataValidaOuVazia(e.target.value);
+      state.dataProposta = limpo;
+      if (!limpo && e.target.value) e.target.value = state.dataProposta;
+    };
 
     const telInput = el.querySelector('#f-telefone');
     telInput.oninput = e => {
@@ -514,6 +531,61 @@ STEPS.push({
     const empenhoPorte = computeEmpenhoPorte(countSubitensSelecionados(state));
     const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
+    const etapasAplicaveis = servico ? (servico.etapas_aplicaveis || []) : [];
+    const etapasVisiveis = data.etapas.filter(e => etapasAplicaveis.includes(e.id));
+    const fasesOrdem = [];
+    const etapasPorFase = {};
+    etapasVisiveis.forEach(e => {
+      if (!etapasPorFase[e.fase]) { etapasPorFase[e.fase] = []; fasesOrdem.push(e.fase); }
+      etapasPorFase[e.fase].push(e);
+    });
+
+    const listaEtapasHtml = fasesOrdem.length ? fasesOrdem.map(fase => {
+      const etapasDaFase = etapasPorFase[fase];
+      const todasMarcadas = etapasDaFase.every(e => state.etapasSelecionadas.includes(e.id));
+      return `
+        <div class="fase-group">
+          <label class="check-row check-row__toggle fase-toggle">
+            <input type="checkbox" data-fase="${fase}" ${todasMarcadas ? 'checked' : ''}>
+            <span class="check-row__box">${checkSvg()}</span>
+            <span class="check-row__text fase-toggle__text">${fase}</span>
+          </label>
+          <div class="fase-etapas">
+            ${etapasDaFase.map(etapa => {
+              const selecionada = state.etapasSelecionadas.includes(etapa.id);
+              const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
+              const subitensSel = state.etapasSubitens[etapa.id] || [];
+              return `
+                <div class="etapa-row ${selecionada ? '' : 'etapa-row--off'}">
+                  <label class="check-row check-row__toggle">
+                    <input type="checkbox" data-etapa="${etapa.id}" ${selecionada ? 'checked' : ''}>
+                    <span class="check-row__box">${checkSvg()}</span>
+                    <span class="check-row__text">${etapa.nome}</span>
+                  </label>
+                  ${selecionada ? `
+                    <select class="etapa-semanas" data-semanas="${etapa.id}">
+                      ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${semanasAtual === n ? 'selected' : ''}>${n} sem.</option>`).join('')}
+                    </select>
+                  ` : ''}
+                </div>
+                ${selecionada ? `
+                  <div class="subitens-list" data-subitens-de="${etapa.id}">
+                    ${etapa.subitens.map(si => `
+                      <label class="check-row check-row--sub">
+                        <input type="checkbox" data-subitem="${etapa.id}::${si.id}" ${subitensSel.includes(si.id) ? 'checked' : ''}>
+                        <span class="check-row__box">${checkSvg()}</span>
+                        <span class="check-row__text small">${si.texto}</span>
+                      </label>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }).join('') : `<p class="muted">Este serviço não usa etapas de projeto — o escopo é definido diretamente na proposta.</p>`;
+
     return `
       ${escopoHtml}
       <div class="field-group">
@@ -524,38 +596,7 @@ STEPS.push({
         <p class="field__hint">Atualizam sozinhos conforme as etapas e subitens marcados abaixo.</p>
       </div>
       <div class="field-group">
-        <div class="check-list">
-          ${data.etapas.map(etapa => {
-            const selecionada = state.etapasSelecionadas.includes(etapa.id);
-            const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
-            const subitensSel = state.etapasSubitens[etapa.id] || [];
-            return `
-              <div class="etapa-row ${selecionada ? '' : 'etapa-row--off'}">
-                <label class="check-row check-row__toggle">
-                  <input type="checkbox" data-etapa="${etapa.id}" ${selecionada ? 'checked' : ''}>
-                  <span class="check-row__box">${checkSvg()}</span>
-                  <span class="check-row__text">${etapa.nome}<span class="timeline__fase">${etapa.fase}</span></span>
-                </label>
-                ${selecionada ? `
-                  <select class="etapa-semanas" data-semanas="${etapa.id}">
-                    ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${semanasAtual === n ? 'selected' : ''}>${n} sem.</option>`).join('')}
-                  </select>
-                ` : ''}
-              </div>
-              ${selecionada ? `
-                <div class="subitens-list" data-subitens-de="${etapa.id}">
-                  ${etapa.subitens.map(si => `
-                    <label class="check-row check-row--sub">
-                      <input type="checkbox" data-subitem="${etapa.id}::${si.id}" ${subitensSel.includes(si.id) ? 'checked' : ''}>
-                      <span class="check-row__box">${checkSvg()}</span>
-                      <span class="check-row__text small">${si.texto}</span>
-                    </label>
-                  `).join('')}
-                </div>
-              ` : ''}
-            `;
-          }).join('')}
-        </div>
+        ${listaEtapasHtml}
         <p class="field__hint" id="etapas-total" style="margin-top:12px"></p>
       </div>
       <div class="field-group">
@@ -640,6 +681,24 @@ STEPS.push({
       };
     }
 
+    el.querySelectorAll('input[data-fase]').forEach(cb => {
+      cb.onchange = e => {
+        const fase = e.target.dataset.fase;
+        const etapasDaFase = data.etapas.filter(x => x.fase === fase && (servico.etapas_aplicaveis || []).includes(x.id));
+        etapasDaFase.forEach(etapa => {
+          const id = etapa.id;
+          if (e.target.checked) {
+            if (!state.etapasSelecionadas.includes(id)) state.etapasSelecionadas.push(id);
+            if (state.etapasSemanas[id] == null) state.etapasSemanas[id] = semanasDefault(etapa, ic);
+            garantirSubitens(id);
+          } else {
+            state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
+          }
+        });
+        recomputeIndicadores(state);
+        ctx.rerender();
+      };
+    });
     el.querySelectorAll('input[data-etapa]').forEach(cb => {
       cb.onchange = e => {
         const id = e.target.dataset.etapa;
@@ -765,7 +824,7 @@ STEPS.push({
       <div class="field-group">
         <div class="field">
           <label class="field__label">Data de início do serviço</label>
-          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}">
+          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}" min="2020-01-01" max="2035-12-31">
         </div>
       </div>
       <div class="field-group" id="cronograma-preview"></div>
@@ -788,7 +847,9 @@ STEPS.push({
         `).join('') + `</div>`;
     }
     el.querySelector('#f-data-inicio').oninput = e => {
-      state.dataInicio = e.target.value;
+      const limpo = dataValidaOuVazia(e.target.value);
+      state.dataInicio = limpo;
+      if (!limpo && e.target.value) e.target.value = state.dataInicio;
       renderCronograma();
       ctx.updateTicket();
     };
@@ -902,11 +963,10 @@ STEPS.push({
     if (!r) return `<p class="muted">Complete as etapas anteriores para ver o resumo do cálculo.</p>`;
 
     const numeroBloco = state.numeroProposta
-      ? `<div class="data-row"><span class="data-row__label">Nº da proposta</span><span class="data-row__value tabular">${state.numeroProposta}</span></div>`
-      : `<p class="field__hint" style="margin-bottom:16px">${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : state.numeroPropostaStatus === 'erro' ? 'Não consegui gerar o número — tente novamente.' : 'O número da proposta ainda não foi gerado.'}</p>`;
+      ? `<div class="numero-proposta"><span class="numero-proposta__label">Nº da proposta</span><span class="numero-proposta__valor">${state.numeroProposta}</span></div>`
+      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : state.numeroPropostaStatus === 'erro' ? 'Não consegui gerar o número — tente novamente.' : 'O número da proposta ainda não foi gerado.'}</p>`;
 
     return `
-      ${numeroBloco}
       <div class="card">
         <div class="card__title">Memória de cálculo</div>
         <div class="data-row"><span class="data-row__label">Base de Honorários (BH) — CUB vigente</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.bh)}/m²</span></div>
@@ -920,6 +980,7 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Percentual do serviço</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
+      ${numeroBloco}
       <div class="row-2">
         <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
         <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
