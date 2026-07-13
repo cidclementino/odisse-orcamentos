@@ -447,6 +447,10 @@ a { color: inherit; }
 .ticket__sub {
   font-size: 0.72rem; color: var(--paper-faint); margin: 4px 0 14px; line-height: 1.4;
 }
+.ticket__alerta {
+  font-size: 0.72rem; line-height: 1.4; margin: 8px 0 0; padding: 8px 10px;
+  border-radius: 4px; background: rgba(244,244,244,0.06);
+}
 .ticket__nav {
   display: flex; flex-direction: column; gap: 8px;
 }
