@@ -74,7 +74,7 @@ function estadoInicial() {
     reducaoEscopoPercentual: 1,
     etapasSelecionadas: [],
     etapasSemanas: {},
-    etapasSubitens: {},
+    etapasEntregaveis: {},
     assessoramentoSelecionados: [],
     dataInicio: '',
     descontoAvista: 0.08,

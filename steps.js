@@ -118,7 +118,7 @@ function semanasDefault(etapa, ic) {
 // ---------- Indicadores calculados (Grau de Detalhamento / Empenho ao Projeto vs Porte) ----------
 // NOTA: os cortes de contagem do Empenho (3 / 4-6 / 7+) foram definidos ainda com a lista
 // antiga de escopo (~14 itens) e ficaram pendentes de recalibração — a base de contagem
-// mudou (agora soma subitens de todas as etapas + assessoramento, tipicamente um número
+// mudou (agora soma entregáveis de todas as etapas + assessoramento, tipicamente um número
 // bem maior). Mantido assim por ora, por acordo explícito, até revisarmos os cortes.
 function computeGrauDetalhamento(etapasSelecionadas) {
   if (etapasSelecionadas.includes('detalhamento_executivo')) return 'alto';
@@ -126,8 +126,8 @@ function computeGrauDetalhamento(etapasSelecionadas) {
   return 'baixo';
 }
 
-function countSubitensSelecionados(state) {
-  const etapas = Object.values(state.etapasSubitens || {}).reduce((s, arr) => s + arr.length, 0);
+function countEntregaveisSelecionados(state) {
+  const etapas = Object.values(state.etapasEntregaveis || {}).reduce((s, arr) => s + arr.length, 0);
   const assess = (state.assessoramentoSelecionados || []).length;
   return etapas + assess;
 }
@@ -140,7 +140,7 @@ function computeEmpenhoPorte(total) {
 
 function recomputeIndicadores(state) {
   state.icValores.grau_detalhamento = IC_LABELS[computeGrauDetalhamento(state.etapasSelecionadas)];
-  state.icValores.empenho_porte = IC_LABELS[computeEmpenhoPorte(countSubitensSelecionados(state))];
+  state.icValores.empenho_porte = IC_LABELS[computeEmpenhoPorte(countEntregaveisSelecionados(state))];
 }
 
 // Recalcula o percentual do serviço a partir das etapas marcadas, só para
@@ -387,7 +387,7 @@ STEPS.push({
         <div class="field">
           <label class="field__label">Serviço Odisse</label>
           <select id="f-servico"><option value="">Selecione…</option>${servicoOpts}</select>
-          <p class="field__hint">Define os valores padrão de complexidade, escopo e etapas — tudo ajustável depois. As opções de tipologia abaixo também são filtradas por este serviço.</p>
+          <p class="field__hint">Define os valores padrão de complexidade, etapas e entregáveis — tudo ajustável depois. As opções de tipologia abaixo também são filtradas por este serviço.</p>
         </div>
       </div>
       <div class="field-group">
@@ -457,13 +457,13 @@ STEPS.push({
         state.icValores = { ...state.icValores, ...icNum };
         state.etapasSelecionadas = [...servico.etapas_default];
         state.etapasSemanas = {};
-        state.etapasSubitens = {};
+        state.etapasEntregaveis = {};
         const icCalc = OdisseCalc.mediaIC(state.icValores);
         servico.etapas_default.forEach(id => {
           const etapa = data.etapas.find(x => x.id === id);
           if (etapa) {
             state.etapasSemanas[id] = semanasDefault(etapa, icCalc);
-            state.etapasSubitens[id] = etapa.subitens.map(si => si.id);
+            state.etapasEntregaveis[id] = etapa.entregaveis.map(en => en.id);
           }
         });
         const mods = servico.modificadores || [];
@@ -520,7 +520,7 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 3. Etapas (escopo do serviço + assessoramento + duração de cada etapa).
+// 3. Etapas (entregáveis de cada etapa + assessoramento + duração).
 //    O percentual do honorário é calculado automaticamente pelas etapas
 //    marcadas, para os serviços com fórmula própria (Base + Incremento).
 // -------------------------------------------------------------------------
@@ -563,7 +563,7 @@ STEPS.push({
     }
 
     const grauDetalhamento = computeGrauDetalhamento(state.etapasSelecionadas);
-    const empenhoPorte = computeEmpenhoPorte(countSubitensSelecionados(state));
+    const empenhoPorte = computeEmpenhoPorte(countEntregaveisSelecionados(state));
     const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
     const etapasAplicaveis = servico ? (servico.etapas_aplicaveis || []) : [];
@@ -591,7 +591,7 @@ STEPS.push({
             ${etapasDaFase.map(etapa => {
               const selecionada = state.etapasSelecionadas.includes(etapa.id);
               const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
-              const subitensSel = state.etapasSubitens[etapa.id] || [];
+              const entregaveisSel = state.etapasEntregaveis[etapa.id] || [];
               return `
                 <div class="etapa-row ${selecionada ? '' : 'etapa-row--off'}">
                   <label class="check-row check-row__toggle">
@@ -606,12 +606,12 @@ STEPS.push({
                   ` : ''}
                 </div>
                 ${selecionada ? `
-                  <div class="subitens-list" data-subitens-de="${etapa.id}">
-                    ${etapa.subitens.map(si => `
+                  <div class="entregaveis-list" data-entregaveis-de="${etapa.id}">
+                    ${etapa.entregaveis.map(en => `
                       <label class="check-row check-row--sub">
-                        <input type="checkbox" data-subitem="${etapa.id}::${si.id}" ${subitensSel.includes(si.id) ? 'checked' : ''}>
+                        <input type="checkbox" data-entregavel="${etapa.id}::${en.id}" ${entregaveisSel.includes(en.id) ? 'checked' : ''}>
                         <span class="check-row__box">${checkSvg()}</span>
-                        <span class="check-row__text small">${si.texto}</span>
+                        <span class="check-row__text small">${en.texto}</span>
                       </label>
                     `).join('')}
                   </div>
@@ -641,7 +641,7 @@ STEPS.push({
             <span class="indicador-calculado__valor" id="badge-empenho">${labelCap(empenhoPorte)}</span>
           </div>
         </div>
-        <p class="field__hint">Calculados automaticamente a partir das fases, etapas e escopo marcados acima.</p>
+        <p class="field__hint">Calculados automaticamente a partir das fases, etapas e entregáveis marcados acima.</p>
       </div>
       <div class="field-group">
         <div class="card__title" style="margin-bottom:6px">${data.assessoramento.titulo}</div>
@@ -668,7 +668,7 @@ STEPS.push({
       const empEl = el.querySelector('#badge-empenho');
       const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
       if (detEl) detEl.textContent = labelCap(computeGrauDetalhamento(state.etapasSelecionadas));
-      if (empEl) empEl.textContent = labelCap(computeEmpenhoPorte(countSubitensSelecionados(state)));
+      if (empEl) empEl.textContent = labelCap(computeEmpenhoPorte(countEntregaveisSelecionados(state)));
     }
     function atualizarPercentualEtapas() {
       if (!usaFormula) return;
@@ -685,10 +685,10 @@ STEPS.push({
       const totalEl = el.querySelector('#etapas-total');
       if (totalEl) totalEl.textContent = `Total: ${total} semana${total === 1 ? '' : 's'}`;
     }
-    function garantirSubitens(id) {
-      if (state.etapasSubitens[id] == null) {
+    function garantirEntregaveis(id) {
+      if (state.etapasEntregaveis[id] == null) {
         const etapa = data.etapas.find(x => x.id === id);
-        state.etapasSubitens[id] = etapa.subitens.map(si => si.id);
+        state.etapasEntregaveis[id] = etapa.entregaveis.map(en => en.id);
       }
     }
 
@@ -714,7 +714,7 @@ STEPS.push({
             const etapa = data.etapas.find(x => x.id === id);
             state.etapasSemanas[id] = semanasDefault(etapa, ic);
           }
-          garantirSubitens(id);
+          garantirEntregaveis(id);
         });
         recomputeIndicadores(state);
         ctx.rerender();
@@ -734,7 +734,7 @@ STEPS.push({
           if (e.target.checked) {
             if (!state.etapasSelecionadas.includes(id)) state.etapasSelecionadas.push(id);
             if (state.etapasSemanas[id] == null) state.etapasSemanas[id] = semanasDefault(etapa, ic);
-            garantirSubitens(id);
+            garantirEntregaveis(id);
           } else {
             state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
           }
@@ -752,7 +752,7 @@ STEPS.push({
             const etapa = data.etapas.find(x => x.id === id);
             state.etapasSemanas[id] = semanasDefault(etapa, ic);
           }
-          garantirSubitens(id);
+          garantirEntregaveis(id);
         } else {
           state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
         }
@@ -767,14 +767,14 @@ STEPS.push({
         ctx.updateTicket();
       };
     });
-    el.querySelectorAll('input[data-subitem]').forEach(cb => {
+    el.querySelectorAll('input[data-entregavel]').forEach(cb => {
       cb.onchange = e => {
-        const [etapaId, subitemId] = e.target.dataset.subitem.split('::');
-        garantirSubitens(etapaId);
+        const [etapaId, entregavelId] = e.target.dataset.entregavel.split('::');
+        garantirEntregaveis(etapaId);
         if (e.target.checked) {
-          if (!state.etapasSubitens[etapaId].includes(subitemId)) state.etapasSubitens[etapaId].push(subitemId);
+          if (!state.etapasEntregaveis[etapaId].includes(entregavelId)) state.etapasEntregaveis[etapaId].push(entregavelId);
         } else {
-          state.etapasSubitens[etapaId] = state.etapasSubitens[etapaId].filter(x => x !== subitemId);
+          state.etapasEntregaveis[etapaId] = state.etapasEntregaveis[etapaId].filter(x => x !== entregavelId);
         }
         recomputeIndicadores(state);
         atualizarBadges();
@@ -836,7 +836,7 @@ STEPS.push({
           `;
         }).join('')}
       </div>
-      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir do escopo e das etapas selecionadas em "Etapas".</p>
+      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir das etapas e entregáveis selecionados em "Etapas".</p>
     `;
   },
   bind(el, state, data, ctx) {

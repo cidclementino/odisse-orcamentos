@@ -247,9 +247,9 @@ const OdissePdf = (() => {
     // ---- Escopo ----
     // "Compreende o serviço" agora é um resumo geral do arco do serviço,
     // derivado de quais fases/assessoramento foram contratados — não mais
-    // a lista granular de subitens (essa lista virou os bullets de cada
+    // a lista granular de entregáveis (essa lista virou os bullets de cada
     // etapa, lá embaixo em "Etapas de Desenvolvimento do Projeto").
-    // "Não compreende" continua específico: todo subitem NÃO marcado,
+    // "Não compreende" continua específico: todo entregável NÃO marcado,
     // de qualquer etapa (contratada ou não) + assessoramento.
     const temEtapa = id => state.etapasSelecionadas.includes(id);
     const temAssess = id => (state.assessoramentoSelecionados || []).includes(id);
@@ -288,9 +288,9 @@ const OdissePdf = (() => {
 
     const naoCompreendeTextos = [];
     data.etapas.forEach(etapa => {
-      const marcados = state.etapasSubitens[etapa.id] || [];
-      etapa.subitens.forEach(si => {
-        if (!marcados.includes(si.id)) naoCompreendeTextos.push(si.texto);
+      const marcados = state.etapasEntregaveis[etapa.id] || [];
+      etapa.entregaveis.forEach(en => {
+        if (!marcados.includes(en.id)) naoCompreendeTextos.push(en.texto);
       });
     });
     data.assessoramento.subitens.forEach(si => {
@@ -322,8 +322,8 @@ const OdissePdf = (() => {
       y += 13;
       y = paragrafo(doc, etapa.descricao, LEFT + 8, y, CONTENT_W - 8, 10.5);
       y += 6;
-      const subitensMarcados = (state.etapasSubitens[etapa.id] || []);
-      const bulletsEtapa = etapa.subitens.filter(si => subitensMarcados.includes(si.id)).map(si => si.texto);
+      const entregaveisMarcados = (state.etapasEntregaveis[etapa.id] || []);
+      const bulletsEtapa = etapa.entregaveis.filter(en => entregaveisMarcados.includes(en.id)).map(en => en.texto);
       if (bulletsEtapa.length) {
         y = listaBullets(doc, bulletsEtapa, y);
       } else {

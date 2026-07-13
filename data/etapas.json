@@ -5,7 +5,7 @@
     "nome": "Programação Projetual",
     "semanas_base": 2,
     "descricao": "Etapa de definição dos requisitos, objetivos e diretrizes que orientarão o desenvolvimento do projeto, levando em consideração as necessidades do cliente, as características do terreno e as regulamentações aplicáveis.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "programacao_projetual__1",
         "texto": "Análise de similares"
@@ -34,7 +34,7 @@
     "nome": "Concepção Esquemática",
     "semanas_base": 2,
     "descricao": "Etapa onde são desenvolvidos os primeiros ensaios de ocupação do terreno, assim como os primeiros volumes, soluções formais do projeto, definições de fluxos e a relação do edifício com seu entorno imediato e com as restrições legais impostas sobre ele.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "concepcao_esquematica__1",
         "texto": "Estudos volumétricos e de massas"
@@ -67,7 +67,7 @@
     "nome": "Concepção Básica",
     "semanas_base": 3,
     "descricao": "Etapa de consolidação de uma das alternativas de ocupação do terreno, com ampliação do grau de materialidade do projeto, trazendo primeiras propostas de solução estrutural e de materialidade do projeto.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "concepcao_basica__1",
         "texto": "Definição da linguagem estética e materialidade do projeto"
@@ -104,7 +104,7 @@
     "nome": "Projeto Básico/Legal",
     "semanas_base": 2,
     "descricao": "Etapa de consolidação do projeto arquitetônico, com desenvolvimento de documentação técnico-legal para solicitação de alvará de construção junto aos órgãos competentes.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "projeto_basico_legal__1",
         "texto": "Planta de implantação"
@@ -149,7 +149,7 @@
     "nome": "Pré-Executivo",
     "semanas_base": 8,
     "descricao": "Etapa de coordenação do projeto arquitetônico junto aos projetos de disciplinas complementares. Todos os materiais técnicos produzidos pelas equipes de projetos complementares serão analisados pela equipe do Odisse.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "pre_executivo__1",
         "texto": "Reuniões de coordenação e compatibilização de projetos"
@@ -182,7 +182,7 @@
     "nome": "Projeto Executivo de Arquitetura",
     "semanas_base": 8,
     "descricao": "Descrição completa e detalhada do projeto arquitetônico em plantas, cortes e elevações, assim como a consolidação da compatibilização e coordenação de projetos técnicos, de consultoria e de engenharia.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "projeto_executivo_arquitetura__1",
         "texto": "Planta de implantação, coberta e todos os pavimentos"
@@ -219,7 +219,7 @@
     "nome": "Detalhamento Executivo Complementar",
     "semanas_base": 4,
     "descricao": "Compreende a descrição detalhada e específica das soluções, junções, elementos, objetos e materiais propostos.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "detalhamento_executivo__1",
         "texto": "Ampliação de áreas molhadas"
@@ -252,7 +252,7 @@
     "nome": "Estudo Básico de Interiores (Áreas Comuns)",
     "semanas_base": 4,
     "descricao": "Etapa de desenvolvimento do conceito geral da decoração dos interiores das áreas comuns do projeto.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "estudo_basico_interiores__1",
         "texto": "Planta de layout com definições de mobiliário"
@@ -285,7 +285,7 @@
     "nome": "Projeto Executivo de Interiores (Áreas Comuns)",
     "semanas_base": 8,
     "descricao": "Descrição completa e detalhada em plantas, cortes e elevações do projeto de interiores das áreas comuns.",
-    "subitens": [
+    "entregaveis": [
       {
         "id": "projeto_executivo_interiores__1",
         "texto": "Ampliações das áreas comuns (plantas, layouts, elevações, forros, acabamentos)"

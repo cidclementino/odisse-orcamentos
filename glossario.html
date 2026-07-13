@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Glossário</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topbar">
+    <div class="topbar__mark">ODISSE</div>
+    <nav class="topbar__nav-center">
+      <a href="index.html">Orçamentos</a>
+      <a href="historico.html">Histórico</a>
+      <a href="cub.html">CUB</a>
+      <a href="precificacao.html">Como funciona o cálculo</a>
+      <a href="glossario.html" class="is-current">Glossário</a>
+    </nav>
+    <div class="topbar__meta">
+      <span id="rail-user"></span>
+      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="stage__col" style="max-width: 760px">
+      <p class="step__eyebrow">Referência</p>
+      <h1 class="step__title">Glossário</h1>
+      <p class="step__desc">O que cada Fase e Etapa do formulário significa na prática — pra ninguém ver um termo como "Pré-Executivo" pela primeira vez só quando o PDF da proposta já estiver pronto.</p>
+      <p class="field__hint" style="margin-bottom: 28px">Termos sobre o cálculo do honorário (CUB, Tipologia, Modificador, Índice de Complexidade, Percentual do serviço) estão explicados em <a href="precificacao.html">Como funciona o cálculo</a> — não repetidos aqui.</p>
+
+      <h2 class="step__title" style="font-size:1.3rem">Fases</h2>
+      <p class="step__desc">Cada Fase agrupa uma ou mais Etapas. Marcar uma Fase inteira no formulário marca todas as suas Etapas de uma vez.</p>
+      <div class="card">
+        <div class="card__title">Projeto Conceitual</div>
+        <p class="field__hint" style="margin-bottom:0">Fase inicial de definição do programa, das primeiras soluções formais e da concepção geral do projeto — do entendimento do terreno e das necessidades do cliente até a consolidação da proposta volumétrica.</p>
+      </div>
+      <div class="card">
+        <div class="card__title">Projeto Legal</div>
+        <p class="field__hint" style="margin-bottom:0">Fase de consolidação da documentação técnico-legal necessária para aprovação e obtenção do alvará de construção junto aos órgãos competentes.</p>
+      </div>
+      <div class="card">
+        <div class="card__title">Projeto Executivo</div>
+        <p class="field__hint" style="margin-bottom:0">Fase de detalhamento técnico completo do projeto arquitetônico, com a compatibilização junto às disciplinas complementares e o nível de detalhe necessário para a execução da obra.</p>
+      </div>
+      <div class="card">
+        <div class="card__title">Projeto de Decoração de Interiores</div>
+        <p class="field__hint" style="margin-bottom:0">Fase de desenvolvimento do projeto de interiores e ambientação, do conceito geral até o detalhamento executivo de mobiliário e acabamentos.</p>
+      </div>
+
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:32px">Etapas & Entregáveis</h2>
+      <p class="step__desc">Dentro de cada Fase, as Etapas com sua descrição completa e a lista de Entregáveis possíveis (os itens marcáveis que viram bullets na proposta).</p>
+      <div id="lista-etapas"></div>
+
+      <h2 class="step__title" style="font-size:1.3rem; margin-top:32px">Assessoramento</h2>
+      <p class="step__desc">Bloco independente — não faz parte de nenhuma Fase, não entra no cronograma nem na soma de semanas de prazo.</p>
+      <div class="card" id="card-assessoramento"></div>
+
+      <p class="field__hint" style="margin: 24px 0 40px">Alguma definição parece errada ou incompleta? Fala com o Cid — o registro completo de cada decisão de nomenclatura fica em <code>PRICING.md</code>, no repositório.</p>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js"></script>
+<script>
+  async function iniciar() {
+    document.getElementById('app').hidden = false;
+    document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
+    document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
+
+    const data = await OdisseData.load();
+
+    const fasesOrdem = [];
+    const etapasPorFase = {};
+    data.etapas.forEach(e => {
+      if (!etapasPorFase[e.fase]) { etapasPorFase[e.fase] = []; fasesOrdem.push(e.fase); }
+      etapasPorFase[e.fase].push(e);
+    });
+
+    document.getElementById('lista-etapas').innerHTML = fasesOrdem.map(fase => `
+      <div class="card">
+        <div class="card__title">${fase}</div>
+        ${etapasPorFase[fase].map(etapa => `
+          <div style="margin-bottom: 18px">
+            <p style="font-weight:700; margin-bottom:4px">${etapa.nome}</p>
+            <p class="field__hint" style="margin-bottom:8px">${etapa.descricao}</p>
+            <ul style="margin:0; padding-left:18px; color:var(--paper-dim); font-size:0.85rem; line-height:1.6">
+              ${etapa.entregaveis.map(en => `<li>${en.texto}</li>`).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+
+    document.getElementById('card-assessoramento').innerHTML = `
+      <div class="card__title">${data.assessoramento.titulo}</div>
+      <p class="field__hint" style="margin-bottom:10px">${data.assessoramento.descricao_abertura}</p>
+      <ul style="margin:0; padding-left:18px; color:var(--paper-dim); font-size:0.85rem; line-height:1.6">
+        ${data.assessoramento.subitens.map(si => `<li>${si.texto_curto}</li>`).join('')}
+      </ul>
+    `;
+  }
+  iniciar();
+</script>
+</body>
+</html>

@@ -88,15 +88,15 @@ Baixo: nenhuma etapa de "Projeto Executivo" selecionada
 
 ### Empenho ao Projeto vs Porte (calculado, exibido em "Etapas & Cronograma")
 ```
-Baixo:  até 3 subitens de escopo marcados (soma de todas as etapas + Assessoramento)
-Médio:  de 4 a 6 subitens marcados
-Alto:   7 ou mais subitens marcados
+Baixo:  até 3 entregáveis marcados (soma de todas as etapas + Assessoramento)
+Médio:  de 4 a 6 entregáveis marcados
+Alto:   7 ou mais entregáveis marcados
 ```
 
 Pendente de recalibração: os cortes 3 / 4-6 / 7+ foram definidos ainda
 com a lista antiga de escopo (~14 itens possíveis). Depois da unificação do
-escopo com os subitens das etapas (item 3 abaixo), a base de contagem mudou —
-agora soma subitens de todas as etapas selecionadas, tipicamente um número bem
+escopo com os entregáveis das etapas (item 3 abaixo), a base de contagem mudou —
+agora soma entregáveis de todas as etapas selecionadas, tipicamente um número bem
 maior. Os cortes continuam com esses valores por acordo explícito, mas devem
 ser revisados assim que houver uso real da ferramenta para calibrar.
 
@@ -118,21 +118,66 @@ ser revisados assim que houver uso real da ferramenta para calibrar.
 
 ---
 
-## 3. Unificação de Escopo + Etapas
+## 3. Unificação de Entregáveis + Etapas, e nomenclatura Fase/Etapa/Entregável
 
-**Decisão:** as duas listas separadas de escopo ("Compreende o serviço" /
-"Não compreende") deixaram de existir como página própria. Os itens de escopo
-agora são os subitens (entregáveis) de cada etapa — ao marcar uma etapa
-("Programação Projetual", por exemplo), seus subitens ficam disponíveis para
-refinar o que está incluso.
+**Decisão de nomenclatura:** a hierarquia interna do formulário passou a se
+chamar consistentemente **Fase → Etapa → Entregável** (ex: Fase "Projeto
+Conceitual" → Etapa "Programação Projetual" → Entregável "Análise de
+similares"). A palavra "Escopo" foi removida dessa hierarquia de propósito —
+fica reservada exclusivamente para a seção "Escopo" da proposta comercial,
+que é um conceito diferente (ver adiante). Dois usos correlatos que **não**
+mudaram de nome, por decisão explícita:
+- "Escopo de Contratação" (dropdown de percentual fixo, só nos 4 serviços
+  sem fórmula própria) — mantido, porque é sobre "quanto do contrato" está
+  sendo fechado, semanticamente alinhado com o uso do termo na proposta.
+- "Indefinição do Escopo" (um dos 11 critérios do Índice de Complexidade) —
+  mantido, é terminologia da própria metodologia CAU/AsBEA.
+
+**Decisão de unificação (histórico):** as duas listas separadas de escopo
+("Compreende o serviço" / "Não compreende") deixaram de existir como página
+própria. Os Entregáveis agora pertencem a cada Etapa — ao marcar uma Etapa
+("Programação Projetual", por exemplo), seus Entregáveis ficam disponíveis
+para refinar o que está incluso.
 
 - Cada etapa que entra no `etapas_default` de um serviço já vem com todos os
-  seus subitens pré-marcados — ajustável livremente depois.
-- No PDF: subitem marcado -> "Compreende o serviço". Subitem não marcado ->
-  "Não compreende esta proposta" — mesmo que pertença a uma etapa que nem foi
-  selecionada. Isso pode gerar uma lista de exclusão longa para serviços
+  seus Entregáveis pré-marcados — ajustável livremente depois.
+
+### Onde os Entregáveis aparecem no PDF (revisão desta decisão)
+
+A ideia original era que Entregável marcado virasse "Compreende o serviço" e
+Entregável não marcado virasse "Não compreende" — mas isso confundia dois
+conceitos diferentes (o "escopo" comercial da proposta vs. o detalhe técnico
+de cada etapa). Revisado para:
+
+- **Entregáveis marcados de cada etapa** → aparecem como bullets dentro da
+  própria etapa, na seção "Etapas de Desenvolvimento do Projeto" (logo após
+  a descrição fixa da etapa) — igual ao modelo original da Odisse.
+- **"Compreende o serviço"** (na seção "Escopo") → deixou de ser a lista
+  granular de Entregáveis. Virou um resumo geral do arco do serviço,
+  composto por frases-gatilho baseadas em quais Fases/Etapas/Assessoramento
+  foram contratados (ver tabela de gatilhos abaixo).
+- **"Não compreende"** → continua específico: todo Entregável NÃO marcado,
+  de qualquer etapa (contratada ou não) + subitens de Assessoramento não
+  marcados. Isso pode gerar uma lista de exclusão longa para serviços
   enxutos (ex: Consultoria Remota listando dezenas de itens não inclusos que
   nem fariam sentido cogitar). Aceito assim por ora — ver pendência abaixo.
+
+### Gatilhos de "Compreende o serviço" (frases gerais)
+
+| Frase | Gatilho |
+|---|---|
+| "Desenvolvimento de projeto arquitetônico desde o nível conceitual até sua documentação executiva" | Alguma etapa de Conceitual **+** alguma de Legal **+** alguma de Executivo |
+| "Desenvolvimento de projeto arquitetônico compreendendo [combinação parcial]" | Só algumas das 3 fases acima — frase montada dinamicamente (redação provisória, sem exemplo do modelo original) |
+| "Desenvolvimento de projeto de decoração das áreas comuns do empreendimento" | Qualquer etapa da fase "Projeto de Decoração de Interiores" |
+| "Acompanhamento do processo de aprovação do projeto junto à prefeitura municipal e demais órgãos competentes" | Etapa "Projeto Básico/Legal" |
+| "Compatibilização do projeto arquitetônico com outras disciplinas complementares" | Etapa "Pré-Executivo" (gatilho específico — poderia ser "qualquer etapa da fase Executivo", não confirmado) |
+| "Participação em reuniões de coordenação de projeto com disciplinas complementares" | Mesmo gatilho acima |
+| "Suporte técnico à construtora em todas as suas solicitações..." | Assessoramento: subitem "suporte ao cliente/construtora" |
+| "Suporte técnico à construtora durante as tratativas junto a fornecedores..." | Assessoramento: subitem "suporte a fornecedores" |
+
+Confirmado como satisfatório pelo Cid; os dois pontos sem exemplo do modelo
+original (combinação parcial, e o gatilho específico do Pré-Executivo)
+seguem sinalizados para eventual ajuste futuro.
 
 ### Bloco "Assessoramento" (independente)
 
@@ -145,9 +190,11 @@ semanas, sem entrar na soma de prazo total):
 - Suporte técnico ao cliente/construtora para esclarecimento do projeto
 - Suporte técnico em tratativas com fornecedores
 
-No PDF, o texto é montado dinamicamente: só entram a abertura fixa + as frases
-dos subitens efetivamente marcados. Se nenhum subitem for marcado, o bloco
-inteiro some do documento.
+No PDF, o texto da seção "Assessoramento" é montado dinamicamente: só entram
+a abertura fixa + as frases dos subitens efetivamente marcados. Se nenhum
+subitem for marcado, o bloco inteiro some do documento. ("Acompanhamento
+mensal da obra" propositalmente não gera frase em "Compreende o serviço" —
+já é coberto integralmente pela seção própria de Assessoramento.)
 
 ---
 
@@ -278,7 +325,7 @@ classificações diferentes.
 ## Pendências para revisão futura
 
 1. Recalibrar os cortes de "Empenho ao Projeto vs Porte" (3 / 4-6 / 7+)
-   agora que a base de contagem mudou (subitens de etapas em vez da lista
+   agora que a base de contagem mudou (entregáveis de etapas em vez da lista
    plana antiga).
 2. Estrutura própria por serviço — confirmado que não são só "Tipo X vs
    Tipo Y", são N estruturas (uma por família de serviço — ver seção 4
