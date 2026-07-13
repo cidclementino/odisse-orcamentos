@@ -48,6 +48,23 @@ function maskDocumento(v, tipo) {
 
 const IC_LABELS = { baixo: 0.7, medio: 1.0, alto: 1.3 };
 
+// Nomes de exibição das macro categorias (as chaves em data/tipologias.json
+// são identificadores sem espaço, ex: "HabitacionalUnifamiliar").
+const MACRO_CATEGORIA_LABELS = {
+  HabitacionalUnifamiliar: 'Habitacional Unifamiliar',
+  HabitacionalMultifamiliar: 'Habitacional Multifamiliar',
+  Hospedagem: 'Hospedagem',
+  HabitaçõesEspeciais: 'Habitações Especiais',
+  Comércio: 'Comércio',
+  Serviços: 'Serviços',
+  Educação: 'Educação',
+  Saúde: 'Saúde',
+  Esportes: 'Esportes',
+  Lazer: 'Lazer',
+  Cultura: 'Cultura',
+  Diversos: 'Diversos'
+};
+
 // input[type=date] em alguns navegadores deixa digitar mais de 4 dígitos no
 // ano momentaneamente (ex: "952026") antes de normalizar — isso sanitiza o
 // valor bruto (YYYY-MM-DD), descartando qualquer coisa com ano fora de uma
@@ -339,12 +356,17 @@ STEPS.push({
     const servicoOpts = data.servicosOdisse.map(s => `<option value="${s.id}" ${state.servicoId === s.id ? 'selected' : ''}>${s.nome}</option>`).join('');
     const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
     const macros = (servico && servico.macro_categorias.length) ? servico.macro_categorias : Object.keys(data.tipologias);
-    const tipoOpts = macros.map(macro => {
-      const itens = data.tipologias[macro] || [];
-      if (!itens.length) return '';
-      const opcoes = itens.map(t => `<option value="${macro}|||${t.item}" ${state.tipologiaItem && state.tipologiaItem.item === t.item ? 'selected' : ''}>${t.descricao}</option>`).join('');
-      return `<optgroup label="${macro}">${opcoes}</optgroup>`;
-    }).join('');
+
+    // Se só existe 1 macro categoria possível pro serviço, já deixa pré-selecionada.
+    if (servico && macros.length === 1 && !state.macroCategoriaSelecionada) {
+      state.macroCategoriaSelecionada = macros[0];
+    }
+    const macroAtual = macros.includes(state.macroCategoriaSelecionada) ? state.macroCategoriaSelecionada : '';
+
+    const macroOpts = macros.map(m => `<option value="${m}" ${macroAtual === m ? 'selected' : ''}>${MACRO_CATEGORIA_LABELS[m] || m}</option>`).join('');
+
+    const itensTipologia = macroAtual ? (data.tipologias[macroAtual] || []) : [];
+    const tipoOpts = itensTipologia.map(t => `<option value="${t.item}" ${state.tipologiaItem && state.tipologiaItem.item === t.item ? 'selected' : ''}>${t.descricao}</option>`).join('');
 
     let intervencaoHtml = '';
     if (servico && (servico.modificadores || []).length > 1) {
@@ -365,13 +387,17 @@ STEPS.push({
         <div class="field">
           <label class="field__label">Serviço Odisse</label>
           <select id="f-servico"><option value="">Selecione…</option>${servicoOpts}</select>
-          <p class="field__hint">Define os valores padrão de complexidade, escopo e etapas — tudo ajustável depois. A lista de tipologias abaixo também é filtrada por este serviço.</p>
+          <p class="field__hint">Define os valores padrão de complexidade, escopo e etapas — tudo ajustável depois. As opções de tipologia abaixo também são filtradas por este serviço.</p>
         </div>
       </div>
       <div class="field-group">
         <div class="field">
+          <label class="field__label">Macro categoria</label>
+          <select id="f-macro" ${servico ? '' : 'disabled'}><option value="">${servico ? 'Selecione…' : 'Escolha o serviço Odisse primeiro'}</option>${macroOpts}</select>
+        </div>
+        <div class="field">
           <label class="field__label">Tipologia específica</label>
-          <select id="f-tipo" ${servico ? '' : 'disabled'}><option value="">${servico ? 'Selecione…' : 'Escolha o serviço Odisse primeiro'}</option>${tipoOpts}</select>
+          <select id="f-tipo" ${macroAtual ? '' : 'disabled'}><option value="">${macroAtual ? 'Selecione…' : 'Escolha a macro categoria primeiro'}</option>${tipoOpts}</select>
         </div>
         ${intervencaoHtml}
       </div>
@@ -423,6 +449,7 @@ STEPS.push({
     servicoSel.onchange = e => {
       state.servicoId = e.target.value;
       state.tipologiaItem = null;
+      state.macroCategoriaSelecionada = '';
       const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
       if (servico) {
         const icNum = {};
@@ -447,12 +474,20 @@ STEPS.push({
       ctx.rerender();
     };
 
+    const macroSel = el.querySelector('#f-macro');
+    if (macroSel) {
+      macroSel.onchange = e => {
+        state.macroCategoriaSelecionada = e.target.value;
+        state.tipologiaItem = null;
+        ctx.rerender();
+      };
+    }
+
     const tipoSel = el.querySelector('#f-tipo');
     if (tipoSel) {
       tipoSel.onchange = e => {
-        const [macro, item] = e.target.value.split('|||');
-        const list = data.tipologias[macro] || [];
-        state.tipologiaItem = list.find(t => t.item === item) || null;
+        const list = data.tipologias[state.macroCategoriaSelecionada] || [];
+        state.tipologiaItem = list.find(t => t.item === e.target.value) || null;
         ctx.updateTicket();
       };
     }
