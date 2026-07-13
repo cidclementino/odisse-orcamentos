@@ -578,9 +578,11 @@ STEPS.push({
     const listaEtapasHtml = fasesOrdem.length ? fasesOrdem.map(fase => {
       const etapasDaFase = etapasPorFase[fase];
       const todasMarcadas = etapasDaFase.every(e => state.etapasSelecionadas.includes(e.id));
+      const algumaMarcada = etapasDaFase.some(e => state.etapasSelecionadas.includes(e.id));
+      const estadoFase = todasMarcadas ? '' : algumaMarcada ? 'fase-toggle--indeterminado' : '';
       return `
         <div class="fase-group">
-          <label class="check-row check-row__toggle fase-toggle">
+          <label class="check-row check-row__toggle fase-toggle ${estadoFase}">
             <input type="checkbox" data-fase="${fase}" ${todasMarcadas ? 'checked' : ''}>
             <span class="check-row__box">${checkSvg()}</span>
             <span class="check-row__text fase-toggle__text">${fase}</span>
@@ -624,15 +626,22 @@ STEPS.push({
     return `
       ${escopoHtml}
       <div class="field-group">
-        <div class="row-2">
-          <div class="data-row"><span class="data-row__label">Grau de Detalhamento (calculado)</span><span class="data-row__value" id="badge-detalhamento">${labelCap(grauDetalhamento)}</span></div>
-          <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte (calculado)</span><span class="data-row__value" id="badge-empenho">${labelCap(empenhoPorte)}</span></div>
-        </div>
-        <p class="field__hint">Atualizam sozinhos conforme as etapas e subitens marcados abaixo.</p>
-      </div>
-      <div class="field-group">
         ${listaEtapasHtml}
         <p class="field__hint" id="etapas-total" style="margin-top:12px"></p>
+      </div>
+      <div class="field-group">
+        <p class="card__title" style="margin-bottom:12px">Conferência de complexidade</p>
+        <div class="row-2">
+          <div class="indicador-calculado">
+            <span class="indicador-calculado__label">Grau de Detalhamento</span>
+            <span class="indicador-calculado__valor" id="badge-detalhamento">${labelCap(grauDetalhamento)}</span>
+          </div>
+          <div class="indicador-calculado">
+            <span class="indicador-calculado__label">Empenho ao Projeto vs Porte</span>
+            <span class="indicador-calculado__valor" id="badge-empenho">${labelCap(empenhoPorte)}</span>
+          </div>
+        </div>
+        <p class="field__hint">Calculados automaticamente a partir das fases, etapas e escopo marcados acima.</p>
       </div>
       <div class="field-group">
         <div class="card__title" style="margin-bottom:6px">${data.assessoramento.titulo}</div>
