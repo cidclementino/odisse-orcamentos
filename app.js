@@ -64,7 +64,6 @@ function duracaoTotalSemanas() {
 }
 
 function updateTicket() {
-  const stepData = STEPS[currentStepIndex];
   const ticketTotal = document.getElementById('ticket-total');
   const ticketSub = document.getElementById('ticket-sub');
   const ticketDuracao = document.getElementById('ticket-prazo-duracao');
@@ -106,9 +105,6 @@ function updateTicket() {
     ticketDuracao.textContent = '—';
     ticketDatas.textContent = '';
   }
-
-  // se a etapa de revisão ou pagamento estiver ativa, re-renderiza para refletir o valor novo
-  if (stepData && (stepData.id === 'revisao' || stepData.id === 'pagamento')) renderStep();
 }
 
 function renderSidebar() {
@@ -147,7 +143,7 @@ function renderStep() {
   renderSidebar();
 
   document.getElementById('btn-prev').disabled = currentStepIndex === 0;
-  document.getElementById('btn-prev').style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
+  document.getElementById('btn-prev').style.display = currentStepIndex === 0 ? 'none' : '';
   const nextBtn = document.getElementById('btn-next');
   nextBtn.textContent = currentStepIndex === STEPS.length - 1 ? 'Concluído' : 'Continuar';
   nextBtn.style.display = currentStepIndex === STEPS.length - 1 ? 'none' : '';
