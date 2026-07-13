@@ -74,6 +74,17 @@ function semanasDefault(etapa, ic) {
   return Math.max(1, Math.min(10, Math.round(etapa.semanas_base * ic)));
 }
 
+const PRAZO_CLIENTE_OPCOES = [
+  { label: '30 dias', semanas: 4 },
+  { label: '2 meses', semanas: 8 },
+  { label: '4 meses', semanas: 16 },
+  { label: '6 meses', semanas: 24 },
+  { label: '12 meses', semanas: 48 },
+  { label: '1 ano e 6 meses', semanas: 72 },
+  { label: '2 anos', semanas: 96 },
+  { label: 'Indefinido', semanas: null }
+];
+
 const STEPS = [];
 
 // -------------------------------------------------------------------------
@@ -147,9 +158,18 @@ STEPS.push({
           <label class="field__label">Data da proposta</label>
           <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}">
         </div>
-        <div class="field">
-          <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
-          <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
+        <div class="row-2">
+          <div class="field">
+            <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
+            <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
+          </div>
+          <div class="field">
+            <label class="field__label">Prazo esperado pelo cliente (opcional)</label>
+            <select id="f-prazo-cliente">
+              <option value="">Não informado</option>
+              ${PRAZO_CLIENTE_OPCOES.map(o => `<option value="${o.label}" ${state.prazoEsperadoCliente === o.label ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
         </div>
       </div>
     `;
@@ -222,11 +242,16 @@ STEPS.push({
     const tetoInput = el.querySelector('#f-teto');
     tetoInput.oninput = e => {
       const digits = e.target.value.replace(/\D/g, '');
-      if (!digits) { state.tetoOrcamentario = ''; e.target.value = ''; return; }
+      if (!digits) { state.tetoOrcamentario = ''; state.tetoOrcamentarioNumero = 0; e.target.value = ''; return; }
       const valor = parseInt(digits, 10) / 100;
       const formatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
       e.target.value = formatado;
       state.tetoOrcamentario = formatado;
+      state.tetoOrcamentarioNumero = valor;
+    };
+
+    el.querySelector('#f-prazo-cliente').onchange = e => {
+      state.prazoEsperadoCliente = e.target.value;
     };
   },
   validate(state) {
