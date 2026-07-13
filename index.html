@@ -26,14 +26,9 @@
     </div>
   </header>
 
-  <nav class="sidebar" id="sidebar-steps"></nav>
-
-  <main class="stage">
-    <div class="stage__col" id="step-container"></div>
-  </main>
-
-  <footer class="ticket" id="ticket">
-    <div class="ticket__totals">
+  <nav class="sidebar">
+    <div class="sidebar__steps" id="sidebar-steps"></div>
+    <div class="sidebar__ticket" id="ticket">
       <div class="ticket__block">
         <span class="ticket__label">Honorário estimado</span>
         <span class="ticket__value" id="ticket-total">R$ 0,00</span>
@@ -43,12 +38,16 @@
         <span class="ticket__value ticket__value--small" id="ticket-prazo">—</span>
       </div>
       <div class="ticket__sub" id="ticket-sub">Preencha a classificação do serviço para iniciar o cálculo</div>
+      <div class="ticket__nav">
+        <button class="btn btn--primary" id="btn-next" type="button">Continuar</button>
+        <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
+      </div>
     </div>
-    <div class="ticket__nav">
-      <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
-      <button class="btn btn--primary" id="btn-next" type="button">Continuar</button>
-    </div>
-  </footer>
+  </nav>
+
+  <main class="stage">
+    <div class="stage__col" id="step-container"></div>
+  </main>
 
 </div>
 
