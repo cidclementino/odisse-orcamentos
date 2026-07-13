@@ -228,6 +228,53 @@ desmarcar uma etapa, ela não desaparece da lista — fica com opacidade
 reduzida, deixando claro que está fora do orçamento sem esconder a opção
 de marcar de volta.
 
+## 5. As 4 camadas até o valor base (Serviço → Modificador → Tipologia → CUB)
+
+**Contexto:** revisão de como o Serviço Odisse, o Modificador, a Tipologia
+construtiva e o CUB se relacionam — nenhuma mudança de código aqui, só
+esclarecimento e auditoria da lógica existente (documentado porque valia a
+pena registrar e porque foi replicado na página `precificacao.html`).
+
+São 4 classificações de fontes diferentes, encadeadas:
+
+| # | Camada | Fonte | Quantidade | Entra na fórmula como |
+|---|---|---|---|---|
+| 1 | Serviço Odisse | Agrupamento comercial próprio | 9 | Escolhe o modificador (camada 2) |
+| 2 | Modificador | Planilha CAU, "Modificador de Fator Percentual" | 6 valores | `× modificadorIntervencao` |
+| 3 | Tipologia construtiva | Planilha CAU, tabela de enquadramento | 49 | `categoria` (1-4, define fp) + `fator_adequacao` |
+| 4 | CUB | Sinduscon-JP, mensal | 19 códigos | Preço bruto de construção (R$/m²) |
+
+**A Tipologia não deriva do CUB — ela referencia um dos 19 códigos.** É uma
+relação de muitos-para-um (ex: 13 das 49 tipologias apontam pro mesmo
+código `CSL-16-N`). A Tipologia usa esse valor bruto e ajusta com seu
+próprio Fator de Adequação: `BH = CUB vigente × Fator de Adequação`.
+
+**Auditoria da correspondência Tipologia ↔ CUB:** conferida tipologia por
+tipologia contra o significado oficial de cada código de CUB (nomenclatura
+NBR 12.721/ABNT). Resultado: a correspondência está correta — inclusive
+casos exatos (ex: "Projeto habitacional de Interesse Social" → código
+`PIS`) e aproximações sensatas onde não existe código dedicado (ex:
+hotéis usam códigos residenciais multifamiliares, já que não existe
+código de CUB específico pra hotelaria). Único ponto que chamou atenção,
+sem ser erro: "Presídios e penitenciárias" usa `R-8-N` (residência
+multifamiliar) como referência de custo — estranho conceitualmente, mas
+não existe alternativa melhor entre os 19 códigos, e a categoria de
+complexidade já compensa isso (fica no nível 4, o máximo).
+
+**Filtro de Tipologia por Serviço (`macro_categorias`):** só os 4 serviços
+de Nova Edificação restringem quais macro categorias/tipologias aparecem
+no formulário — faz sentido, cada um corresponde a um tipo de edificação
+específico. Os outros 5 (Reforma, Estudo de Viabilidade, Laudos,
+Consultoria Remota, Interiores) deixam as 12 macro categorias e 49
+tipologias completas abertas, porque esses serviços podem se aplicar a
+qualquer tipo de imóvel.
+
+**Mudança de interface decorrente:** o campo único "Tipologia específica"
+virou dois dropdowns em cascata — Macro Categoria (filtrada pelo Serviço)
+e, dentro dela, a Tipologia — em vez de uma lista longa com `<optgroup>`.
+Reduz a lista visível em cada passo e deixa mais claro que são duas
+classificações diferentes.
+
 ## Pendências para revisão futura
 
 1. Recalibrar os cortes de "Empenho ao Projeto vs Porte" (3 / 4-6 / 7+)
