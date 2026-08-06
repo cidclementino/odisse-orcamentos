@@ -76,14 +76,24 @@ function estadoInicial() {
     etapasSemanas: {},
     etapasEntregaveis: {},
     assessoramentoSelecionados: [],
-    dataInicio: '',
+    dataInicio: hojeISO(),
     descontoAvista: 0.08,
     pctEntrada: 0.35,
+    maxParcelasCartao: 8,
+    maxParcelasBoleto: 8,
     incluirDespesasReembolsaveis: true,
     _calcResult: null,
     _userName: '',
     _maxUnlocked: 0
   };
+}
+
+function hojeISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function enderecoCompleto(cliente) {
