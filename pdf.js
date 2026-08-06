@@ -253,11 +253,15 @@ const OdissePdf = (() => {
     // de qualquer etapa (contratada ou não) + assessoramento.
     const temEtapa = id => state.etapasSelecionadas.includes(id);
     const temAssess = id => (state.assessoramentoSelecionados || []).includes(id);
+    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
+    const etapasDoServico = servico && servico.etapas_aplicaveis
+      ? data.etapas.filter(e => servico.etapas_aplicaveis.includes(e.id))
+      : data.etapas;
 
     const temConceitual = ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica'].some(temEtapa);
     const temLegal = temEtapa('projeto_basico_legal');
     const temExecutivo = ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'].some(temEtapa);
-    const temInteriores = ['estudo_basico_interiores', 'projeto_executivo_interiores'].some(temEtapa);
+    const temInteriores = ['programacao_projetual_interiores', 'concepcao_esquematica_interiores', 'concepcao_basica_interiores', 'pre_executivo_interiores', 'projeto_executivo_interiores'].some(temEtapa);
 
     const compreendeGeral = [];
     if (temConceitual && temLegal && temExecutivo) {
@@ -287,7 +291,7 @@ const OdissePdf = (() => {
     }
 
     const naoCompreendeTextos = [];
-    data.etapas.forEach(etapa => {
+    etapasDoServico.forEach(etapa => {
       const marcados = state.etapasEntregaveis[etapa.id] || [];
       etapa.entregaveis.forEach(en => {
         if (!marcados.includes(en.id)) naoCompreendeTextos.push(en.texto);
