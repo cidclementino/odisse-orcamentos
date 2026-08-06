@@ -93,7 +93,10 @@
       "demanda_midia": "medio"
     },
     "etapas_default": [
-      "estudo_basico_interiores",
+      "programacao_projetual_interiores",
+      "concepcao_esquematica_interiores",
+      "concepcao_basica_interiores",
+      "pre_executivo_interiores",
       "projeto_executivo_interiores"
     ],
     "macro_categorias": [],
@@ -107,9 +110,12 @@
         "valor": 0.75
       }
     ],
-    "formula_percentual_por_etapa": false,
+    "formula_percentual_por_etapa": true,
     "etapas_aplicaveis": [
-      "estudo_basico_interiores",
+      "programacao_projetual_interiores",
+      "concepcao_esquematica_interiores",
+      "concepcao_basica_interiores",
+      "pre_executivo_interiores",
       "projeto_executivo_interiores"
     ]
   },
