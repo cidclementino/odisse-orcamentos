@@ -82,6 +82,7 @@ function estadoInicial() {
     maxParcelasCartao: 8,
     maxParcelasBoleto: 8,
     incluirDespesasReembolsaveis: true,
+    despesasReembolsaveisSelecionadas: (DATA && DATA.despesasReembolsaveis) ? DATA.despesasReembolsaveis.map(d => d.id) : [],
     _calcResult: null,
     _userName: '',
     _maxUnlocked: 0
