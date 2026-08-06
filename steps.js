@@ -551,6 +551,7 @@ STEPS.push({
     let escopoHtml;
     if (usaFormula) {
       const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
+      escopoHtml = `
         <div class="field-group">
           <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong id="valor-percentual-etapas">${Math.round(r.percentual * 100)}%</strong></span></div>
           <p class="field__hint" id="detalhe-percentual-etapas">Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.</p>
@@ -988,12 +989,21 @@ STEPS.push({
         <div class="switch-row">
           <div class="switch-row__text">
             <div class="switch-row__title">Incluir cláusula de despesas reembolsáveis</div>
-            <div class="switch-row__hint">Plotagem, viagens fora da região metropolitana, taxas e certidões</div>
+            <div class="switch-row__hint">Desmarque os itens abaixo que não devem entrar na cláusula desta proposta</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="f-reembolsaveis" ${state.incluirDespesasReembolsaveis !== false ? 'checked' : ''}>
             <span class="switch__track"></span><span class="switch__thumb"></span>
           </label>
+        </div>
+        <div class="entregaveis-list" id="despesas-reembolsaveis-lista" ${state.incluirDespesasReembolsaveis === false ? 'hidden' : ''} style="margin-top:10px">
+          ${(data.despesasReembolsaveis || []).map(dr => `
+            <label class="check-row check-row--sub">
+              <input type="checkbox" data-despesa="${dr.id}" ${(state.despesasReembolsaveisSelecionadas || []).includes(dr.id) ? 'checked' : ''}>
+              <span class="check-row__box">${checkSvg()}</span>
+              <span class="check-row__text small">${dr.texto}</span>
+            </label>
+          `).join('')}
         </div>
       </div>
     `;
@@ -1021,7 +1031,19 @@ STEPS.push({
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-max-parcelas-cartao').onchange = e => { state.maxParcelasCartao = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
     el.querySelector('#f-max-parcelas-boleto').onchange = e => { state.maxParcelasBoleto = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
-    el.querySelector('#f-reembolsaveis').onchange = e => state.incluirDespesasReembolsaveis = e.target.checked;
+    el.querySelector('#f-reembolsaveis').onchange = e => {
+      state.incluirDespesasReembolsaveis = e.target.checked;
+      const lista = el.querySelector('#despesas-reembolsaveis-lista');
+      if (lista) lista.hidden = !e.target.checked;
+    };
+    el.querySelectorAll('#despesas-reembolsaveis-lista input[data-despesa]').forEach(cb => {
+      cb.onchange = e => {
+        const id = e.target.getAttribute('data-despesa');
+        const atual = new Set(state.despesasReembolsaveisSelecionadas || []);
+        if (e.target.checked) atual.add(id); else atual.delete(id);
+        state.despesasReembolsaveisSelecionadas = Array.from(atual);
+      };
+    });
   },
   validate() { return true; }
 });
