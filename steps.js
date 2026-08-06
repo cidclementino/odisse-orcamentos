@@ -955,6 +955,23 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
+        <div class="row-2">
+          <div class="field">
+            <label class="field__label">Qtd. de parcelas disponibilizadas — cartão</label>
+            <select id="f-max-parcelas-cartao">
+              ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${(state.maxParcelasCartao || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label">Qtd. de parcelas disponibilizadas — boleto</label>
+            <select id="f-max-parcelas-boleto">
+              ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${(state.maxParcelasBoleto || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <p class="field__hint">Controla quantas opções de parcelamento aparecem no PDF da proposta, tanto no plano cartão quanto no plano entrada + boletos.</p>
+      </div>
+      <div class="field-group">
         <div class="switch-row">
           <div class="switch-row__text">
             <div class="switch-row__title">Incluir cláusula de despesas reembolsáveis</div>
@@ -989,6 +1006,8 @@ STEPS.push({
     el.querySelector('#f-fator-custom').onchange = () => ctx.rerender();
     el.querySelector('#f-desconto').oninput = e => { state.descontoAvista = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
+    el.querySelector('#f-max-parcelas-cartao').onchange = e => { state.maxParcelasCartao = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
+    el.querySelector('#f-max-parcelas-boleto').onchange = e => { state.maxParcelasBoleto = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
     el.querySelector('#f-reembolsaveis').onchange = e => state.incluirDespesasReembolsaveis = e.target.checked;
   },
   validate() { return true; }
