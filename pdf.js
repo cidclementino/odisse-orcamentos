@@ -413,14 +413,12 @@ const OdissePdf = (() => {
     }
 
     // ---- Despesas reembolsáveis ----
-    if (state.incluirDespesasReembolsaveis) {
+    const despesasSelecionadas = (data.despesasReembolsaveis || [])
+      .filter(dr => (state.despesasReembolsaveisSelecionadas || []).includes(dr.id));
+    if (state.incluirDespesasReembolsaveis && despesasSelecionadas.length) {
       y += 8;
       y = tituloSecao(doc, 'Despesas Reembolsáveis', y);
-      y = listaBullets(doc, [
-        'Impressão (plotagem) de material gráfico para aprovação do projeto junto a órgãos competentes e/ou suporte técnico à execução da obra.',
-        'Viagens cujo destino esteja fora da área metropolitana de João Pessoa – PB, incluindo combustível, passagens e hospedagem.',
-        'Taxas e similares referentes a certidões, alvarás e afins junto aos órgãos competentes.'
-      ], y);
+      y = listaBullets(doc, despesasSelecionadas.map(dr => dr.texto), y);
       y = paragrafo(doc, 'O cliente deverá providenciar o reembolso em até 30 dias, contados do recebimento dos respectivos comprovantes.', LEFT, y, CONTENT_W, 10.5);
     }
 
