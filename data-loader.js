@@ -12,7 +12,8 @@ const OdisseData = (() => {
     etapas: 'data/etapas.json',
     pesosEtapas: 'data/pesos-etapas.json',
     assessoramento: 'data/assessoramento.json',
-    servicosOdisse: 'data/servicos-odisse.json'
+    servicosOdisse: 'data/servicos-odisse.json',
+    despesasReembolsaveis: 'data/despesas-reembolsaveis.json'
   };
 
   let cache = null;
