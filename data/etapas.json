@@ -247,44 +247,79 @@
     ]
   },
   {
-    "id": "estudo_basico_interiores",
-    "fase": "Projeto de Decoração de Interiores",
-    "nome": "Estudo Básico de Interiores (Áreas Comuns)",
-    "semanas_base": 4,
-    "descricao": "Etapa de desenvolvimento do conceito geral da decoração dos interiores das áreas comuns do projeto.",
+    "id": "programacao_projetual_interiores",
+    "fase": "Estudo Básico de Interiores",
+    "nome": "Programação Projetual de Interiores",
+    "semanas_base": 2,
+    "descricao": "Etapa de definição dos requisitos, objetivos e diretrizes que orientarão o desenvolvimento do projeto de interiores, levando em consideração as necessidades e o perfil de uso do cliente.",
     "entregaveis": [
       {
-        "id": "estudo_basico_interiores__1",
+        "id": "programacao_projetual_interiores__1",
+        "texto": "Lista preliminar de mobiliários e artigos de decoração"
+      }
+    ]
+  },
+  {
+    "id": "concepcao_esquematica_interiores",
+    "fase": "Estudo Básico de Interiores",
+    "nome": "Concepção Esquemática de Interiores",
+    "semanas_base": 2,
+    "descricao": "Etapa onde são desenvolvidos os primeiros ensaios de layout e ocupação dos ambientes, com as primeiras soluções de disposição de mobiliário e fluxos.",
+    "entregaveis": [
+      {
+        "id": "concepcao_esquematica_interiores__1",
         "texto": "Planta de layout com definições de mobiliário"
       },
       {
-        "id": "estudo_basico_interiores__2",
+        "id": "concepcao_esquematica_interiores__2",
         "texto": "Ilustrações dos interiores"
-      },
+      }
+    ]
+  },
+  {
+    "id": "concepcao_basica_interiores",
+    "fase": "Estudo Básico de Interiores",
+    "nome": "Concepção Básica de Interiores",
+    "semanas_base": 3,
+    "descricao": "Etapa de consolidação do conceito de decoração, com definição da linguagem estética, materialidade e primeiras propostas de marcenaria e acabamentos.",
+    "entregaveis": [
       {
-        "id": "estudo_basico_interiores__3",
+        "id": "concepcao_basica_interiores__1",
         "texto": "Estudos das marcenarias fixas"
       },
       {
-        "id": "estudo_basico_interiores__4",
+        "id": "concepcao_basica_interiores__2",
         "texto": "Prancha de amostras dos acabamentos"
       },
       {
-        "id": "estudo_basico_interiores__5",
-        "texto": "Lista preliminar de mobiliários e artigos de decoração"
-      },
-      {
-        "id": "estudo_basico_interiores__6",
+        "id": "concepcao_basica_interiores__3",
         "texto": "Planilha orçamentária preliminar"
       }
     ]
   },
   {
-    "id": "projeto_executivo_interiores",
-    "fase": "Projeto de Decoração de Interiores",
-    "nome": "Projeto Executivo de Interiores (Áreas Comuns)",
+    "id": "pre_executivo_interiores",
+    "fase": "Projeto Executivo de Interiores",
+    "nome": "Pré-Executivo de Interiores",
     "semanas_base": 8,
-    "descricao": "Descrição completa e detalhada em plantas, cortes e elevações do projeto de interiores das áreas comuns.",
+    "descricao": "Etapa de coordenação do projeto de interiores junto a fornecedores e marcenaria, com análise dos materiais técnicos necessários antes do detalhamento final.",
+    "entregaveis": [
+      {
+        "id": "pre_executivo_interiores__1",
+        "texto": "Reuniões de coordenação com fornecedores e marcenaria"
+      },
+      {
+        "id": "pre_executivo_interiores__2",
+        "texto": "Análise dos desenhos e amostras dos fornecedores"
+      }
+    ]
+  },
+  {
+    "id": "projeto_executivo_interiores",
+    "fase": "Projeto Executivo de Interiores",
+    "nome": "Projeto Executivo de Interiores",
+    "semanas_base": 8,
+    "descricao": "Descrição completa e detalhada em plantas, cortes e elevações do projeto de interiores.",
     "entregaveis": [
       {
         "id": "projeto_executivo_interiores__1",
@@ -305,10 +340,6 @@
       {
         "id": "projeto_executivo_interiores__5",
         "texto": "Planilha orçamentária consolidada"
-      },
-      {
-        "id": "projeto_executivo_interiores__6",
-        "texto": "Análise dos desenhos e amostras dos fornecedores"
       }
     ]
   }
