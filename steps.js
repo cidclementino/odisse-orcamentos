@@ -115,6 +115,20 @@ function semanasDefault(etapa, ic) {
   return Math.max(1, Math.min(10, Math.round(etapa.semanas_base * ic)));
 }
 
+// Filtra/ordena os pesos só pelas etapas aplicáveis ao serviço atual — sem
+// isso, percentualPorEtapas() usaria as chaves do arquivo pesos-etapas.json
+// inteiro (todas as etapas de todos os serviços), tratando as etapas de
+// OUTRO serviço como "lacuna" (etapa anterior não contratada) e inflando o
+// incremento indevidamente.
+function pesosDoServico(servico, pesosEtapas) {
+  if (!servico || !servico.etapas_aplicaveis) return pesosEtapas;
+  const filtrado = {};
+  servico.etapas_aplicaveis.forEach(id => {
+    if (pesosEtapas[id] != null) filtrado[id] = pesosEtapas[id];
+  });
+  return filtrado;
+}
+
 // ---------- Indicadores calculados (Grau de Detalhamento / Empenho ao Projeto vs Porte) ----------
 // NOTA: os cortes de contagem do Empenho (3 / 4-6 / 7+) foram definidos ainda com a lista
 // antiga de escopo (~14 itens) e ficaram pendentes de recalibração — a base de contagem
@@ -149,7 +163,7 @@ function recomputeIndicadores(state) {
 function recomputePercentualServico(state, data) {
   const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
   if (servico && servico.formula_percentual_por_etapa) {
-    const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
+    const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
     state.reducaoEscopoPercentual = r.percentual;
   }
 }
@@ -536,8 +550,7 @@ STEPS.push({
 
     let escopoHtml;
     if (usaFormula) {
-      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
-      escopoHtml = `
+      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
         <div class="field-group">
           <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong id="valor-percentual-etapas">${Math.round(r.percentual * 100)}%</strong></span></div>
           <p class="field__hint" id="detalhe-percentual-etapas">Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.</p>
@@ -672,7 +685,7 @@ STEPS.push({
     }
     function atualizarPercentualEtapas() {
       if (!usaFormula) return;
-      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, data.pesosEtapas);
+      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
       state.reducaoEscopoPercentual = r.percentual;
       const valorEl = el.querySelector('#valor-percentual-etapas');
       const detalheEl = el.querySelector('#detalhe-percentual-etapas');
