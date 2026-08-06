@@ -375,10 +375,13 @@ const OdissePdf = (() => {
       y = tituloSecao(doc, 'Formas de Pagamento', y);
 
       const plano = OdisseCalc.planoPagamento(r.valorFinal, data, { descontoAvista: state.descontoAvista, pctEntrada: state.pctEntrada });
+      const boletoOpcoes = plano.entradaBoletos.slice(0, state.maxParcelasBoleto || 8);
+      const cartaoOpcoes = plano.cartao.slice(0, state.maxParcelasCartao || 8);
+      const maxParcelaBoleto = boletoOpcoes.length ? boletoOpcoes[boletoOpcoes.length - 1].parcelas : 0;
 
       y = paragrafo(doc, 'A cobrança dos valores é feita preferencialmente por meio de boleto bancário, parcelado conforme detalhado abaixo — mas, caso seja mais conveniente, o pagamento no cartão de crédito também está disponível como alternativa.', LEFT, y, CONTENT_W);
       y += 12;
-      y = paragrafo(doc, 'Os honorários poderão ser pagos em até 10 parcelas iguais, vencendo a primeira no ato de assinatura do contrato, com carência de até 3 dias para sua quitação.', LEFT, y, CONTENT_W);
+      y = paragrafo(doc, `Os honorários poderão ser pagos em até ${maxParcelaBoleto} parcelas iguais, vencendo a primeira no ato de assinatura do contrato, com carência de até 3 dias para sua quitação.`, LEFT, y, CONTENT_W);
       y += 12;
 
       y = paragrafo(doc, `À vista: ${OdisseCalc.fmtMoeda(plano.avista)} (desconto de ${Math.round((state.descontoAvista || 0) * 100)}%)`, LEFT, y, CONTENT_W, 10.5);
@@ -388,7 +391,7 @@ const OdissePdf = (() => {
       y += 10;
       y = tabela(doc, y, {
         head: [['Parcelas restantes', 'Valor da parcela']],
-        body: plano.entradaBoletos.map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.valorParcela)]),
+        body: boletoOpcoes.map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.valorParcela)]),
         ...ESTILO_TABELA_GRADE,
         didParseCell: (d) => {
           if (d.section === 'body' && d.column.index === 1) d.cell.styles.fontStyle = 'bold';
@@ -400,7 +403,7 @@ const OdissePdf = (() => {
       y += 10;
       y = tabela(doc, y, {
         head: [['Parcelas', 'Valor total', 'Valor da parcela']],
-        body: plano.cartao.slice(0, 8).map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.total), OdisseCalc.fmtMoeda(p.valorParcela)]),
+        body: cartaoOpcoes.map(p => [`${p.parcelas}x`, OdisseCalc.fmtMoeda(p.total), OdisseCalc.fmtMoeda(p.valorParcela)]),
         ...ESTILO_TABELA_GRADE,
         didParseCell: (d) => {
           if (d.section === 'body' && d.column.index === 2) d.cell.styles.fontStyle = 'bold';
