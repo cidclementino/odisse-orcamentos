@@ -60,5 +60,12 @@ jobs:
       - name: Conferir
         run: |
           URL="https://odisse-orcamentos-api.reservaprojectbasework.workers.dev"
-
+          # a versão nova leva alguns segundos para chegar a todos os servidores
+          for i in $(seq 1 12); do
+            sem=$(curl -s -o /dev/null -w '%{http_code}' "$URL/listar-propostas")
+            com=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $VENDAS_SENHA" "$URL/estado")
+            [ "$sem" = "401" ] && [ "$com" = "200" ] && break
+            sleep 5
+          done
+          echo "Sem senha: $sem (esperado 401) · com senha: $com (esperado 200)"
           if [ "$sem" != "401" ] || [ "$com" != "200" ]; then echo "::error::A API não respondeu como esperado."; exit 1; fi
