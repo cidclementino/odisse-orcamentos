@@ -40,15 +40,20 @@
     e.preventDefault();
     const pass = document.getElementById('gate-password').value;
     const name = document.getElementById('gate-name').value.trim();
-    const hash = await sha256(pass);
     const errEl = document.getElementById('gate-error');
-
-    if (hash !== CONFIG.passwordHash) {
+    const botao = e.target.querySelector('button');
+    botao.disabled = true;
+    const r = await conferirSenha(pass);
+    botao.disabled = false;
+    if (r !== 'ok') {
+      errEl.textContent = r === 'senha'
+        ? 'Senha incorreta. Tente novamente.'
+        : 'Não consegui falar com o servidor. Confira a internet e tente de novo.';
       errEl.hidden = false;
       return;
     }
     errEl.hidden = true;
-    setAuthenticated(name);
+    setAuthenticated(name, pass);
     window.location.href = 'index.html';
   });
 </script>

@@ -9,6 +9,16 @@ const OdisseStore = (() => {
     return !!(CONFIG.workerUrl && CONFIG.workerUrl.trim());
   }
 
+  // fetch ao Worker com a senha; se ela for recusada, volta ao login.
+  async function chamar(caminho, opcoes = {}) {
+    const res = await fetch(`${CONFIG.workerUrl}${caminho}`, { ...opcoes, headers: cabecalhosAuth(opcoes.headers) });
+    if (res.status === 401) {
+      senhaRecusada();
+      throw new Error('senha recusada');
+    }
+    return res;
+  }
+
   async function proximoNumero() {
     const ano = new Date().getFullYear();
 
@@ -16,7 +26,7 @@ const OdisseStore = (() => {
       try {
         const controlador = new AbortController();
         const timeout = setTimeout(() => controlador.abort(), 8000);
-        const res = await fetch(`${CONFIG.workerUrl}/proximo-numero`, { method: 'POST', signal: controlador.signal });
+        const res = await chamar('/proximo-numero', { method: 'POST', signal: controlador.signal });
         clearTimeout(timeout);
         if (!res.ok) throw new Error(`API respondeu ${res.status}`);
         const dados = await res.json();
@@ -42,7 +52,7 @@ const OdisseStore = (() => {
     if (!temWorker()) return { ok: false, motivo: 'sem-worker' };
     try {
       const resumo = { data: snapshot.dataProposta, cliente: snapshot.cliente.nome };
-      const res = await fetch(`${CONFIG.workerUrl}/salvar-proposta`, {
+      const res = await chamar('/salvar-proposta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ numeroFormatado, snapshot, resumo })
@@ -57,13 +67,13 @@ const OdisseStore = (() => {
 
   async function listarPropostas() {
     if (!temWorker()) return { propostas: [], semWorker: true };
-    const res = await fetch(`${CONFIG.workerUrl}/listar-propostas`);
+    const res = await chamar('/listar-propostas');
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return await res.json();
   }
 
   async function buscarProposta(numero) {
-    const res = await fetch(`${CONFIG.workerUrl}/proposta?numero=${encodeURIComponent(numero)}`);
+    const res = await chamar(`/proposta?numero=${encodeURIComponent(numero)}`);
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     const dados = await res.json();
     return dados.snapshot;

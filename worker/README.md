@@ -4,23 +4,20 @@ Guarda a numeração e o histórico de propostas no Workers KV (plano gratuito
 da Cloudflare), para que a numeração seja compartilhada entre todo mundo que
 usa a ferramenta, sem precisar de nenhum token no navegador.
 
-## Deploy (uma vez só)
+## Deploy
 
-Precisa do Node instalado. Rode estes comandos dentro desta pasta (`worker/`):
+Automático pelo GitHub Actions (`.github/workflows/worker.yml`) a cada mudança
+em `worker/`, ou à mão em Actions → "Publicar API do vendas" → Run workflow.
 
-```bash
-npm install -g wrangler
-wrangler login                     # abre o navegador para autorizar
+Secrets necessários no repositório (Settings → Secrets and variables → Actions):
 
-wrangler kv namespace create ODISSE_KV
-# ⬆ isto imprime algo como:
-#   { binding = "ODISSE_KV", id = "abcd1234..." }
-# Copie o "id" e cole em wrangler.toml, no lugar de SEU_NAMESPACE_ID_AQUI
+- `CLOUDFLARE_API_TOKEN`: token próprio deste repositório (modelo "Edit
+  Cloudflare Workers"), separado dos tokens das outras ferramentas.
+- `CLOUDFLARE_ACCOUNT_ID`: id da conta da Cloudflare.
+- `VENDAS_SENHA`: a senha de acesso da ferramenta.
 
-wrangler deploy
-# ⬆ isto imprime a URL do Worker, algo como:
-#   https://odisse-orcamentos-api.SEU-USUARIO.workers.dev
-```
+O workflow acha o namespace KV `ODISSE_KV` já existente pelo nome (nunca cria
+um novo, para não esvaziar o histórico), grava a senha no Worker e publica.
 
 ## Conectar com a ferramenta
 
