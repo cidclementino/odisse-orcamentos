@@ -90,6 +90,8 @@ function estadoInicial() {
     _propostaId: null,       // ppt_… depois de finalizar
     _revisaoDe: null,        // ppt_… quando este orçamento é revisão de outra proposta
     _revisaoDeCodigo: null,
+    _revisaoDeSimulacao: false,
+    _simulacao: false,       // orçamento sem cliente: numera, PDF marcado, fora do funil
     _pdfCongelado: false,
     _erroFinalizar: '',
     _userName: '',
@@ -231,7 +233,7 @@ function renderSidebar() {
 
 function mostrarConfirmacao() {
   const container = document.getElementById('step-container');
-  const nomeCliente = STATE.cliente.nome || 'cliente';
+  const nomeCliente = STATE.cliente.nome || (STATE._simulacao ? 'simulação' : 'cliente');
   container.innerHTML = `
     <p class="step__eyebrow">Concluído</p>
     <h1 class="step__title">Orçamento gerado</h1>

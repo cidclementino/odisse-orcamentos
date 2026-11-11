@@ -34,6 +34,7 @@
       <h1>Funil</h1>
       <input type="search" id="filtro" placeholder="Filtrar por título, cliente ou origem">
       <select id="filtro-nucleo"><option value="">Todos os núcleos</option></select>
+      <button class="btn btn--ghost btn--small" id="btn-duplicados" type="button" hidden>Possíveis duplicados</button>
       <button class="btn btn--primary btn--small" id="btn-nova" type="button">Nova oportunidade</button>
     </div>
     <div id="aviso"></div>
@@ -169,7 +170,19 @@ function avisar(texto, tipo = 'erro') {
   document.getElementById('aviso').innerHTML = texto ? `<div class="aviso aviso--${tipo}">${escHtml(texto)}</div>` : '';
 }
 
+let PENDENTES = [];
+async function carregarDuplicados() {
+  try {
+    PENDENTES = (await Universo.listar('revisoes', { situacao: 'pendente', limite: 200 })).itens
+      .filter(r => r.tipo === 'duplicado_contato');
+  } catch (_) { PENDENTES = []; }
+  const b = document.getElementById('btn-duplicados');
+  b.hidden = !PENDENTES.length;
+  b.textContent = `Possíveis duplicados (${PENDENTES.length})`;
+}
+
 async function carregar() {
+  carregarDuplicados();
   try {
     const r = await Universo.painel();
     ITENS = r.itens;
@@ -510,6 +523,85 @@ function abrirNova() {
   };
 }
 
+// ---- possíveis duplicados (fila de revisão do Universo)
+// O Universo não junta cadastros sozinho quando algo bate (nome, e-mail, telefone) mas outro
+// dado conflita: cria os dois e pede uma decisão aqui.
+const CAMPOS_CONTATO = [
+  ['nome', 'Nome'], ['email', 'E-mail'], ['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'],
+  ['instagram', 'Instagram'], ['cnpj', 'CNPJ'], ['razao_social', 'Razão social'], ['cidade', 'Cidade'], ['observacoes', 'Observações']
+];
+
+async function abrirDuplicados() {
+  const painel = abrirPainel(`
+    <div class="painel__topo">
+      <div><p class="small muted" style="margin:0 0 4px">Cadastros parecidos que o Universo não juntou sozinho</p><h2>Possíveis duplicados</h2></div>
+      <button class="painel__fechar" aria-label="Fechar">×</button>
+    </div>
+    <p class="small muted">Para cada par, diga se é a mesma pessoa (ou empresa). Se for, escolha qual cadastro fica: ele é completado com o que só o outro tinha, e oportunidades, propostas, interações e dados pessoais passam para ele; o outro é arquivado (nada se apaga).</p>
+    <div id="dup-aviso"></div>
+    <div id="dup-lista"><p class="muted">Carregando…</p></div>`);
+  const lista = painel.querySelector('#dup-lista');
+  const aviso = (t, tipo = 'erro') => { painel.querySelector('#dup-aviso').innerHTML = t ? `<div class="aviso aviso--${tipo}">${escHtml(t)}</div>` : ''; };
+
+  async function desenharPares() {
+    await carregarDuplicados();
+    if (!PENDENTES.length) { lista.innerHTML = '<p class="aviso aviso--ok">Nenhum par pendente.</p>'; return; }
+    const pares = await Promise.all(PENDENTES.map(async (rev) => {
+      const ids = JSON.parse(rev.registros);
+      const regs = await Promise.all(ids.map(async (id) => {
+        try {
+          const r = (await Universo.get('registros/' + id)).registro;
+          const tab = id.startsWith('org_') ? { cliente_id: id } : { contato_pessoa_id: id };
+          const ops = await Universo.listar('oportunidades', { ...tab, limite: 50 }).catch(() => ({ itens: [] }));
+          return { ...r, _ops: ops.itens.length };
+        } catch (e) { return { id, nome: '(não encontrado)', _ops: 0, _erro: true }; }
+      }));
+      return { rev, regs, campos: rev.campos ? JSON.parse(rev.campos) : {} };
+    }));
+    lista.innerHTML = pares.map(({ rev, regs, campos }, i) => {
+      const linhas = CAMPOS_CONTATO.filter(([k]) => regs.some(r => r[k])).map(([k, rot]) => {
+        const st = campos[k];
+        const cor = st === 'conflito' ? 'color:var(--danger)' : st === 'bate' ? 'color:#9DC398' : '';
+        return `<tr><th style="${cor}">${rot}${st ? ` · ${st}` : ''}</th>${regs.map(r => `<td>${escHtml(k === 'telefone' || k === 'whatsapp' ? Comercial.fmtTel(r[k]) : r[k] || '—')}</td>`).join('')}</tr>`;
+      }).join('');
+      const tipo = regs[0].id && regs[0].id.startsWith('org_') ? 'empresa' : 'pessoa';
+      return `<section class="dup" data-i="${i}">
+        <h3>Par ${i + 1} · ${tipo}${regs.some(r => r.arquivado_em) ? ' · um deles já está arquivado' : ''}</h3>
+        <table class="tabela"><thead><tr><th></th><th>Cadastro A</th><th>Cadastro B</th></tr></thead>
+          <tbody>${linhas}
+            <tr><th>Oportunidades</th>${regs.map(r => `<td>${r._ops}</td>`).join('')}</tr>
+            <tr><th>Criado em</th>${regs.map(r => `<td>${r.criado_em ? new Date(r.criado_em).toLocaleDateString('pt-BR') : '—'}</td>`).join('')}</tr>
+          </tbody></table>
+        <div class="painel__acoes">
+          <button class="btn btn--primary btn--small" data-manter="${regs[0].id}" ${regs[0]._erro || regs[0].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com A</button>
+          <button class="btn btn--primary btn--small" data-manter="${regs[1].id}" ${regs[1]._erro || regs[1].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com B</button>
+          <button class="btn btn--ghost btn--small" data-diferentes="1">São diferentes</button>
+        </div>
+      </section>`;
+    }).join('');
+    lista.querySelectorAll('.dup').forEach(sec => {
+      const { rev } = pares[Number(sec.dataset.i)];
+      const resolver = async (corpo, botao) => {
+        sec.querySelectorAll('button').forEach(b => b.disabled = true);
+        try {
+          const r = await Universo.post(`revisoes/${rev.id}/resolver`, { versao: rev.versao, ...corpo });
+          aviso(r.situacao === 'mesmo'
+            ? `Cadastros juntados.${r.completados.length ? ' Completado com: ' + r.completados.join(', ') + '.' : ''}${r.outras_resolvidas ? ` ${r.outras_resolvidas} outro(s) par(es) resolvido(s) junto.` : ''}`
+            : 'Registrado: são cadastros diferentes.', 'ok');
+          await desenharPares();
+          carregar();
+        } catch (e) {
+          aviso(e.message);
+          sec.querySelectorAll('button').forEach(b => b.disabled = false);
+        }
+      };
+      sec.querySelectorAll('[data-manter]').forEach(b => b.onclick = () => resolver({ situacao: 'mesmo', manter: b.dataset.manter }, b));
+      sec.querySelector('[data-diferentes]').onclick = (e) => resolver({ situacao: 'diferentes' }, e.target);
+    });
+  }
+  desenharPares();
+}
+
 // ---------------------------------------------------------------- início
 
 async function iniciar() {
@@ -520,6 +612,7 @@ async function iniciar() {
   document.getElementById('filtro').oninput = desenhar;
   document.getElementById('filtro-nucleo').onchange = desenhar;
   document.getElementById('btn-nova').onclick = abrirNova;
+  document.getElementById('btn-duplicados').onclick = abrirDuplicados;
   await carregar();
   if (/^#opo_/.test(location.hash)) abrirFicha(location.hash.slice(1));
 }

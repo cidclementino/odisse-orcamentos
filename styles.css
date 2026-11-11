@@ -651,3 +651,8 @@ input[type="number"] {
 @media (max-width: 900px) {
   .funil { grid-template-columns: repeat(5, 240px); }
 }
+.simulacao-chave { margin-bottom: 24px; }
+.simulacao-chave .check-row { padding: 0; }
+.dup { border-top: 1px solid var(--line-strong); padding-top: 16px; }
+.dup .tabela th { width: 30%; text-transform: none; letter-spacing: 0; font-size: 0.78rem; }
+.dup .tabela td { word-break: break-word; }

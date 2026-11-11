@@ -181,6 +181,20 @@ const Comercial = (() => {
 
   // Finalizar: cliente → oportunidade → proposta numerada. Devolve a proposta.
   async function registrarProposta(state, data) {
+    const r0 = state._calcResult;
+    const servico0 = nomeServico(state, data);
+    // revisão só quando continua do mesmo tipo (simulação → simulação, proposta → proposta);
+    // uma simulação que vira proposta de verdade ganha número próprio
+    const revisaoDe = state._revisaoDe && !!state._revisaoDeSimulacao === !!state._simulacao ? state._revisaoDe : null;
+    if (state._simulacao) {
+      // simulação: numera, mas não cadastra cliente nem entra no funil
+      const corpo = {
+        simulacao: 1, titulo: servico0, data: state.dataProposta || null,
+        valor_total: r0 ? centavos(r0.valorFinal) : null, calculo: retrato(state), referencias: referencias(state, data)
+      };
+      if (revisaoDe) corpo.revisao_de = revisaoDe;
+      return await Universo.criar('propostas', corpo);
+    }
     const clienteId = await garantirCliente(state.cliente, { clienteId: state._clienteId });
     state._clienteId = clienteId;
     const servico = nomeServico(state, data);
@@ -197,7 +211,7 @@ const Comercial = (() => {
       calculo: retrato(state),
       referencias: referencias(state, data)
     };
-    if (state._revisaoDe) corpo.revisao_de = state._revisaoDe;
+    if (revisaoDe) corpo.revisao_de = revisaoDe;
     return await Universo.criar('propostas', corpo);
   }
 
@@ -220,6 +234,7 @@ const Comercial = (() => {
     const estado = typeof proposta.calculo === 'string' ? JSON.parse(proposta.calculo) : proposta.calculo;
     if (!estado) throw new Error('esta proposta não tem os dados do cálculo');
     estado.numeroProposta = proposta.codigo;
+    estado._simulacao = !!proposta.simulacao;
     const { doc, nomeArquivo } = OdissePdf.montar(estado, data);
     doc.save(nomeArquivo);
     return 'remontado';
@@ -234,9 +249,11 @@ const Comercial = (() => {
     estado.numeroPropostaStatus = '';
     estado._propostaId = null;
     estado._pdfCongelado = false;
-    estado._oportunidadeId = proposta.oportunidade_id;
+    estado._oportunidadeId = proposta.oportunidade_id || null;
+    estado._simulacao = !!proposta.simulacao;
     estado._revisaoDe = comoRevisao ? proposta.id : null;
     estado._revisaoDeCodigo = comoRevisao ? proposta.codigo : null;
+    estado._revisaoDeSimulacao = !!proposta.simulacao;
     estado.dataProposta = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
     estado._maxUnlocked = 6;
     localStorage.setItem('odisse-orcamento-rascunho', JSON.stringify({ state: estado, currentStepIndex: 0 }));

@@ -35,7 +35,10 @@
       <h1 class="step__title">Propostas</h1>
       <p class="step__desc">Todas as propostas registradas no Universo. "Baixar PDF" entrega o PDF guardado no momento em que foi gerado; propostas sem PDF guardado são remontadas a partir do cálculo.</p>
       <div id="aviso-migracao"></div>
-      <div class="field" style="max-width:360px"><input type="search" id="filtro" placeholder="Filtrar por código, serviço ou cliente"></div>
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:20px">
+        <div class="field" style="max-width:360px;flex:1;margin:0"><input type="search" id="filtro" placeholder="Filtrar por código, serviço ou cliente"></div>
+        <label class="small muted"><input type="checkbox" id="mostrar-sim" checked> mostrar simulações</label>
+      </div>
       <div id="lista"></div>
     </div>
   </main>
@@ -64,14 +67,15 @@
   function desenhar() {
     const lista = document.getElementById('lista');
     const q = document.getElementById('filtro').value.trim().toLowerCase();
-    const linhas = LINHAS.filter(l => !q || `${l.p.codigo} ${l.p.titulo || ''} ${l.opo ? l.opo.titulo : ''}`.toLowerCase().includes(q));
+    const comSim = document.getElementById('mostrar-sim').checked;
+    const linhas = LINHAS.filter(l => (comSim || !l.p.simulacao)).filter(l => !q || `${l.p.codigo} ${l.p.titulo || ''} ${l.opo ? l.opo.titulo : ''}`.toLowerCase().includes(q) || (l.p.simulacao && 'simulação'.includes(q)));
     if (!linhas.length) { lista.innerHTML = '<div class="card"><p class="muted">Nenhuma proposta encontrada.</p></div>'; return; }
     lista.innerHTML = `<table class="tabela">
       <thead><tr><th>Proposta</th><th>Oportunidade</th><th>Data</th><th style="text-align:right">Valor</th><th>Situação</th><th></th></tr></thead>
       <tbody>${linhas.map(({ p, opo }) => `
         <tr>
           <td><strong>${escHtml(p.codigo)}</strong><br><span class="small muted">${escHtml(p.titulo || '')}${p.importada_de ? ' · importada' : ''}</span></td>
-          <td>${opo ? `<a href="crm.html#${opo.id}">${escHtml(opo.titulo)}</a>` : '—'}</td>
+          <td>${p.simulacao ? '<span class="chip">simulação</span>' : opo ? `<a href="crm.html#${opo.id}">${escHtml(opo.titulo)}</a>` : '—'}</td>
           <td class="tabular">${p.data ? new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</td>
           <td class="tabular" style="text-align:right">${fmtCentavos(p.valor_total)}</td>
           <td>${situacaoChip(p)}</td>
@@ -116,6 +120,7 @@
     document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
     document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
     document.getElementById('filtro').oninput = desenhar;
+    document.getElementById('mostrar-sim').onchange = desenhar;
     avisoMigracao();
 
     const lista = document.getElementById('lista');
@@ -129,7 +134,7 @@
         de = r.proximo;
       }
       const ops = {};
-      const ids = [...new Set(propostas.map(p => p.oportunidade_id))];
+      const ids = [...new Set(propostas.map(p => p.oportunidade_id).filter(Boolean))];
       await Promise.all(ids.map(async id => { ops[id] = await Universo.talvez('oportunidades', id).catch(() => null); }));
       LINHAS = propostas.map(p => ({ p, opo: ops[p.oportunidade_id] }));
     } catch (e) {

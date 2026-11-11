@@ -108,6 +108,16 @@ binding `Vendas` — ver `worker/README.md` e, no repositório
   a migração não roda, finalizar orçamento novo é recusado com aviso, para o
   Universo não repetir números.
 
+- **Simulação** (chave na etapa 1): orçamento sem cliente, para testar a
+  ferramenta ou ter uma ideia do custo de um serviço. Recebe número da mesma
+  sequência das propostas, fica no histórico marcada como simulação, não
+  cadastra cliente nem entra no funil, e o PDF sai com o aviso de simulação na
+  primeira página (e "SIMULAÇÃO" no cabeçalho de todas).
+- **Possíveis duplicados** (botão no funil): quando um cadastro novo parece
+  com um existente mas algum dado conflita, o Universo não junta sozinho. Ali
+  se decide: mesma pessoa (escolhe qual fica; o resto passa para ele e o outro
+  é arquivado) ou pessoas diferentes.
+
 O endereço da etapa 1 é do imóvel, não do cliente: fica no cálculo salvo da
 proposta. Do orçamento, só o CPF vai para os dados pessoais (restritos) do
 cliente, e só quando ainda não houver.

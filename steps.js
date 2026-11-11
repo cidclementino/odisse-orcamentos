@@ -257,7 +257,17 @@ STEPS.push({
   desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
     const c = state.cliente;
-    const vinculo = (state._oportunidadeId || state._clienteId)
+    const travaSimulacao = !!(state._oportunidadeId || state.numeroProposta);
+    const chaveSimulacao = `
+      <div class="card simulacao-chave">
+        <label class="check-row">
+          <input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${travaSimulacao ? 'disabled' : ''}>
+          <span class="check-row__box">${checkSvg()}</span>
+          <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou ter uma ideia de custo. Recebe número como qualquer proposta, mas não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span>
+        </label>
+        ${travaSimulacao && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
+      </div>`;
+    const vinculo = state._simulacao ? '' : (state._oportunidadeId || state._clienteId)
       ? `<div class="card vinculo">
           <p class="small muted" style="margin:0 0 4px">Ligado ao Universo</p>
           <p style="margin:0"><span id="vinculo-texto">${state._oportunidadeId ? 'Oportunidade' : 'Cliente'} carregando…</span></p>
@@ -273,10 +283,11 @@ STEPS.push({
           </div>
         </div>`;
     return `
+      ${chaveSimulacao}
       ${vinculo}
       <div class="field-group">
         <div class="field">
-          <label class="field__label">Nome do cliente / empresa</label>
+          <label class="field__label">Nome do cliente / empresa${state._simulacao ? ' (opcional na simulação)' : ''}</label>
           <input type="text" id="f-nome" value="${c.nome || ''}" placeholder="Ex: Odisse, Estúdio de Arquitetura e Design">
         </div>
         <div class="row-2">
@@ -352,6 +363,12 @@ STEPS.push({
   },
   bind(el, state, data, ctx) {
     ligarVinculoUniverso(el, state, ctx);
+    const chave = el.querySelector('#f-simulacao');
+    if (chave) chave.onchange = () => {
+      state._simulacao = chave.checked;
+      if (state._simulacao) state._clienteId = null;
+      ctx.rerender();
+    };
     el.querySelector('#f-nome').oninput = e => state.cliente.nome = e.target.value;
     el.querySelector('#f-email').oninput = e => state.cliente.email = e.target.value;
     el.querySelector('#f-data-proposta').oninput = e => {
@@ -436,7 +453,7 @@ STEPS.push({
     };
   },
   validate(state) {
-    if (!state.cliente.nome) return 'Informe o nome do cliente.';
+    if (!state.cliente.nome && !state._simulacao) return 'Informe o nome do cliente (ou marque "Simulação").';
     return true;
   }
 });
@@ -1147,7 +1164,7 @@ STEPS.push({
       ? `<p class="field__hint" style="margin: 4px 0 8px">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>`
       : '';
     const numeroBloco = state.numeroProposta
-      ? `<div class="numero-proposta"><span class="numero-proposta__label">Nº da proposta</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
+      ? `<div class="numero-proposta"><span class="numero-proposta__label">${state._simulacao ? 'Nº da simulação' : 'Nº da proposta'}</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
       : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta ainda não foi gerado.'}</p>`;
     const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…'
       : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
@@ -1173,6 +1190,7 @@ STEPS.push({
         <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta && state._pdfStatus !== 'guardando' ? '' : 'disabled'}>${state._pdfStatus === 'guardando' ? 'Guardando…' : 'Gerar PDF da proposta'}</button>
       </div>
       ${pdfStatus ? `<p class="field__hint" style="margin-top:10px">${pdfStatus}</p>` : ''}
+      ${state._simulacao ? '<p class="field__hint" style="margin-top:14px"><strong>Simulação:</strong> ao finalizar, recebe um número (que conta na sequência das propostas) e fica no histórico marcada como simulação, sem cliente e fora do funil. O PDF sai com o aviso de simulação na primeira página.</p>' : ''}
       <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo, ligada ao cliente e a uma oportunidade do funil. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores desta proposta não mudam mais (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
     `;
   },

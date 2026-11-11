@@ -232,18 +232,37 @@ const OdissePdf = (() => {
     let y = TOPO_CONTEUDO;
     y = linhaTexto(doc, `João Pessoa, ${dataFmt}`, LEFT, y, {});
 
+    const simulacao = !!state._simulacao;
     y += 30;
-    y = linhaTexto(doc, 'Proposta Comercial', LEFT, y, {});
+    y = linhaTexto(doc, simulacao ? 'Simulação de Honorários' : 'Proposta Comercial', LEFT, y, {});
     if (state.numeroProposta) {
       y += 17;
       y = linhaTexto(doc, state.numeroProposta, LEFT, y, { tamanho: 11.5, negrito: true });
     }
 
-    y += 30;
-    y = linhaTexto(doc, `${state.cliente.nome},`, LEFT, y, { tamanho: 14, negrito: true });
+    // Simulação: aviso em caixa na primeira página (e "SIMULAÇÃO" no cabeçalho de todas)
+    if (simulacao) {
+      y += 22;
+      const aviso = 'SIMULAÇÃO. Estimativa de honorários sem cliente definido, calculada pela mesma metodologia das propostas do Odisse. Não constitui proposta comercial.';
+      estiloCorpoBold(doc, 11);
+      const linhasAviso = doc.splitTextToSize(aviso, CONTENT_W - 24);
+      const alturaAviso = linhasAviso.length * 11 * 1.35 + 20;
+      doc.setDrawColor(...PRETO);
+      doc.setLineWidth(1.2);
+      doc.rect(LEFT, y - 4, CONTENT_W, alturaAviso);
+      doc.text(linhasAviso, LEFT + 12, y + 12);
+      y += alturaAviso + 4;
+    }
+
+    if (state.cliente.nome) {
+      y += 30;
+      y = linhaTexto(doc, `${state.cliente.nome},`, LEFT, y, { tamanho: 14, negrito: true });
+    }
 
     y += 22;
-    const intro = `Agradecemos o interesse em trabalhar com o Odisse Arquitetos, e a consequente oportunidade de apresentar-lhe nossa proposta comercial. Abaixo, detalhamos nosso entendimento do escopo dos serviços solicitados, assim como cronograma e honorários propostos.`;
+    const intro = simulacao
+      ? 'Esta simulação estima os honorários do Odisse Arquitetos para o serviço descrito abaixo, com entendimento do escopo, cronograma e valores calculados como numa proposta comercial.'
+      : `Agradecemos o interesse em trabalhar com o Odisse Arquitetos, e a consequente oportunidade de apresentar-lhe nossa proposta comercial. Abaixo, detalhamos nosso entendimento do escopo dos serviços solicitados, assim como cronograma e honorários propostos.`;
     y = paragrafo(doc, intro, LEFT, y, CONTENT_W);
 
     y += 16;
@@ -473,9 +492,15 @@ const OdissePdf = (() => {
       doc.setPage(p);
       cabecalho(doc);
       rodape(doc);
+      if (simulacao) {
+        estiloCorpoBold(doc, 9);
+        doc.text('SIMULAÇÃO · NÃO É PROPOSTA COMERCIAL', PAGE_W / 2, 48, { align: 'center' });
+      }
     }
 
-    const nomeArquivo = `${state.numeroProposta || 'Proposta'}_${(state.cliente.nome || 'cliente').replace(/[^\w]+/g, '_')}.pdf`;
+    const nomeArquivo = simulacao
+      ? `${state.numeroProposta || 'Simulacao'}_simulacao${state.cliente.nome ? '_' + state.cliente.nome.replace(/[^\w]+/g, '_') : ''}.pdf`
+      : `${state.numeroProposta || 'Proposta'}_${(state.cliente.nome || 'cliente').replace(/[^\w]+/g, '_')}.pdf`;
     return { doc, nomeArquivo };
   }
 
