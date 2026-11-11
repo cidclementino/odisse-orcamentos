@@ -73,10 +73,10 @@ jobs:
           # (o teste acima também passa com a versão antiga: aqui espera a nova chegar)
           for i in $(seq 1 12); do
             u=$(curl -s -H "Authorization: Bearer $VENDAS_SENHA" "$URL/u/v1/estado")
-            case "$u" in *'0003_simulacao'*) break ;; esac
+            case "$u" in *'"migracao":"0'*) break ;; esac
             sleep 5
           done
           echo "Universo pelo vendas: $u"
-          case "$u" in *'"ferramenta":"vendas"'*'"banco":true'*'0003_simulacao'*) ;; *) echo "::error::A ponte para o Universo não respondeu como esperado."; exit 1 ;; esac
+          case "$u" in *'"ferramenta":"vendas"'*'"banco":true'*'"migracao":"0'*) ;; *) echo "::error::A ponte para o Universo não respondeu como esperado."; exit 1 ;; esac
           n=$(curl -s -H "Authorization: Bearer $VENDAS_SENHA" "$URL/u/v1/propostas/numeracao")
           echo "Numeração das propostas no Universo: $n (null = migração das propostas ainda não rodou)"
