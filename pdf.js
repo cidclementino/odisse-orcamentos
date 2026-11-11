@@ -212,6 +212,16 @@ const OdissePdf = (() => {
   // Universo antes de baixar). gerar() continua existindo: monta e baixa.
   function montar(state, data) {
     if (!window.jspdf) throw new Error('Biblioteca de PDF ainda carregando — tente novamente em instantes.');
+    // propostas antigas foram salvas antes de alguns campos existirem (ex.: entregáveis por etapa)
+    state = {
+      ...state,
+      etapasEntregaveis: state.etapasEntregaveis || {},
+      etapasSemanas: state.etapasSemanas || {},
+      etapasSelecionadas: state.etapasSelecionadas || [],
+      assessoramentoSelecionados: state.assessoramentoSelecionados || [],
+      despesasReembolsaveisSelecionadas: state.despesasReembolsaveisSelecionadas || [],
+      cliente: state.cliente || {}
+    };
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     garantirFonteInter(doc);

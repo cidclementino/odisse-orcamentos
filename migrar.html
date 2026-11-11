@@ -95,15 +95,18 @@
       const lista = await kv('/listar-propostas');
       INDICE = (lista.propostas || []).slice().reverse(); // mais antigas primeiro
       const num = await Universo.get('propostas/numeracao');
-      let feitas = 0;
-      for (const p of INDICE) if (await jaImportada(p.numero)) feitas++;
+      let feitas = 0, semPdf = 0;
+      for (const p of INDICE) {
+        const j = await jaImportada(p.numero);
+        if (j) { feitas++; if (!j.arquivo_pdf_id) semPdf++; }
+      }
       box.innerHTML = `
         <div class="data-row"><span class="data-row__label">Propostas no histórico antigo</span><span class="data-row__value tabular">${INDICE.length}</span></div>
-        <div class="data-row"><span class="data-row__label">Já no Universo</span><span class="data-row__value tabular">${feitas}</span></div>
+        <div class="data-row"><span class="data-row__label">Já no Universo</span><span class="data-row__value tabular">${feitas}${semPdf ? ` (${semPdf} sem PDF guardado)` : ''}</span></div>
         <div class="data-row"><span class="data-row__label">Último número usado no sistema antigo</span><span class="data-row__value tabular">${KV.contador}</span></div>
         <div class="data-row"><span class="data-row__label">Numeração do Universo</span><span class="data-row__value tabular">${num.valor === null ? 'ainda não ajustada' : 'continua do ' + num.valor}</span></div>
         <div class="data-row"><span class="data-row__label">Numeração antiga</span><span class="data-row__value">${KV.encerrado ? 'encerrada em ' + new Date(KV.encerrado).toLocaleString('pt-BR') : 'ainda ativa'}</span></div>`;
-      document.getElementById('btn-migrar').disabled = feitas === INDICE.length && num.valor !== null && num.valor >= KV.contador;
+      document.getElementById('btn-migrar').disabled = feitas === INDICE.length && !semPdf && num.valor !== null && num.valor >= KV.contador;
       document.getElementById('btn-encerrar').disabled = !!KV.encerrado || feitas !== INDICE.length || num.valor === null;
     } catch (e) {
       box.innerHTML = `<p class="aviso aviso--erro">Não consegui conferir (${escHtml(e.message)}).</p>`;
@@ -126,7 +129,9 @@
 
   async function migrarUma(item) {
     const codigo = item.numero;
-    if (await jaImportada(codigo)) { log(`${codigo}: já estava no Universo`); return 'pulada'; }
+    const existente = await jaImportada(codigo);
+    if (existente && existente.arquivo_pdf_id) { log(`${codigo}: já estava no Universo`); return 'pulada'; }
+    if (existente) return await completarPdf(existente);
     const n = lerNumero(codigo);
     if (!n) { log(`${codigo}: código em formato desconhecido — NÃO migrada`); return 'erro'; }
     const res = await kv(`/proposta?numero=${encodeURIComponent(codigo)}`);
@@ -164,6 +169,21 @@
       log(`${codigo}: migrada (${s.cliente.nome}), mas o PDF não foi guardado: ${e.message}`);
     }
     return 'ok';
+  }
+
+  // proposta já migrada cujo PDF não foi guardado: tenta de novo
+  async function completarPdf(p) {
+    try {
+      const estado = { ...JSON.parse(p.calculo), numeroProposta: p.codigo };
+      const { doc } = OdissePdf.montar(estado, DATA);
+      await Comercial.congelarPdf(p.id, doc.output('blob'), `${p.codigo}_remontado.pdf`,
+        `Remontado em ${HOJE.split('-').reverse().join('/')} a partir dos dados salvos; pode diferir em detalhes do PDF enviado na época.`);
+      log(`${p.codigo}: já estava no Universo; PDF remontado e guardado agora`);
+      return 'ok';
+    } catch (e) {
+      log(`${p.codigo}: já estava no Universo, mas o PDF ainda não foi guardado: ${e.message}`);
+      return 'erro';
+    }
   }
 
   async function migrar() {
