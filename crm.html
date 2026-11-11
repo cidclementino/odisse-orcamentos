@@ -86,6 +86,7 @@ function cartao(o) {
     <div class="op__titulo">${escHtml(o.titulo)}</div>
     <div class="op__linha">${escHtml(nomesClientes(o))}${o.nucleo_id ? ' · ' + escHtml(nomeDe(NUCLEOS, o.nucleo_id)) : ''}</div>
     <div class="op__linha">${[v !== null && v !== undefined ? fmtCentavos(v) : '', o.ultima_proposta ? escHtml(o.ultima_proposta.codigo) : '', o.origem ? escHtml(nomeDe(ORIGENS, o.origem)) : ''].filter(Boolean).join(' · ')}</div>
+    ${o.projeto ? `<div class="op__linha"><span class="chip chip--ok">projeto ${escHtml(o.projeto.codigo)}</span></div>` : ''}
     ${o.etapa_funil === 'ganha' || o.etapa_funil === 'perdida' ? '' : proximaAcao(o)}
   </button>`;
 }
@@ -193,6 +194,7 @@ async function abrirFicha(id) {
   history.replaceState(null, '', '#' + id);
   const painel = abrirPainel('<p class="muted">Carregando…</p>');
   let o, contato, propostas, interacoes, clientes;
+  let contratos = [], projetos = [];
   try {
     o = await Universo.ler('oportunidades', id);
     let vincs;
@@ -201,6 +203,12 @@ async function abrirFicha(id) {
       Universo.listar('propostas', { oportunidade_id: id, limite: 100 }),
       Universo.listar('interacoes', { sobre_id: id, limite: 100 }),
       Universo.listar('vinculos', { de_id: id, papel: 'cliente', limite: 50 })
+    ]);
+    // contrato e projeto (o projeto nasce do contrato principal assinado)
+    const reais = propostas.itens.filter(p => !p.simulacao);
+    [contratos, projetos] = await Promise.all([
+      Promise.all(reais.map(p => Universo.listar('contratos', { proposta_id: p.id, limite: 20 }))).then(ls => ls.flatMap(l => l.itens)),
+      Universo.listar('projetos', { oportunidade_id: id, limite: 20 }).then(l => l.itens)
     ]);
     const lerContato = (cid) => Universo.talvez(ehOrg(cid) ? 'organizacoes' : 'pessoas', cid);
     const titular = !o.cliente_id ? null : o.cliente_id === o.contato_pessoa_id ? contato : await lerContato(o.cliente_id);
@@ -284,6 +292,8 @@ async function abrirFicha(id) {
         </tr>`).join('')}</tbody></table>` : '<p class="small muted">Nenhuma proposta ainda.</p>'}
       <div class="painel__acoes"><button class="btn btn--primary btn--small" id="btn-orcar" type="button">Novo orçamento para esta oportunidade</button></div>
     </section>
+
+    ${secaoContrato(o, propostas.itens, contratos, projetos)}
 
     <section>
       <h3>Dados da oportunidade</h3>
@@ -422,10 +432,119 @@ async function abrirFicha(id) {
       Comercial.abrirNoOrcamento(p, { comoRevisao: true });
     }
   });
+  const fc = painel.querySelector('#f-contrato');
+  if (fc) {
+    const pptDe = () => propostas.itens.find(p => p.id === fc.proposta_id.value);
+    fc.proposta_id.onchange = () => { const p = pptDe(); fc.valor.value = reaisDe(p && p.valor_total); };
+    fc.existente.onchange = () => { painel.querySelector('#campos-novo-projeto').hidden = !!fc.existente.value; };
+    fc.onsubmit = async (e) => {
+      e.preventDefault();
+      const p = pptDe();
+      if (!p) return aviso('Escolha a proposta que foi aceita.');
+      const nomeProj = fc.nome_projeto.value.trim() || o.titulo;
+      const msg = fc.existente.value
+        ? `Registrar o contrato de ${p.codigo} como assinado e ligá-lo ao projeto escolhido?`
+        : `Registrar o contrato de ${p.codigo} como assinado?\n\nIsso cria o projeto "${nomeProj}" (com as etapas e o endereço do imóvel da proposta), marca a proposta como aceita e a oportunidade como ganha.`;
+      if (!confirm(msg)) return;
+      const botao = fc.querySelector('button[type=submit]');
+      botao.disabled = true; botao.textContent = 'Registrando…';
+      try {
+        DATA = DATA || await OdisseData.load();
+        const ctr = await Comercial.registrarContrato({
+          proposta: p, data: DATA, assinadoEm: fc.assinado_em.value || hoje(), valorTotal: lerReais(fc.valor.value),
+          nomeProjeto: nomeProj, inicio: fc.inicio.value || null, projetoExistente: fc.existente.value || null,
+          arquivo: fc.arquivo.files[0] || null
+        });
+        await carregar();
+        await abrirFicha(id);
+        const prj = ctr.projeto_id ? await Universo.talvez('projetos', ctr.projeto_id) : null;
+        const novoAviso = document.querySelector('#ficha-aviso');
+        if (prj && novoAviso) novoAviso.innerHTML = `<div class="aviso aviso--ok">Contrato ${escHtml(ctr.codigo)} registrado. Projeto ${escHtml(prj.codigo)} criado.</div>`;
+      } catch (err) { aviso(mensagemDe(err)); botao.disabled = false; botao.textContent = 'Registrar contrato assinado'; }
+    };
+  }
+  painel.querySelectorAll('[data-ctr-pdf]').forEach(b => b.onclick = async () => {
+    try { baixarBlob(await Universo.baixarArquivo(b.dataset.ctrPdf), `${b.dataset.nome}.pdf`); } catch (err) { aviso(mensagemDe(err)); }
+  });
+  painel.querySelectorAll('[data-ctr-enviar]').forEach(inp => inp.onchange = async () => {
+    const c = contratos.find(x => x.id === inp.dataset.ctrEnviar);
+    const arq = inp.files[0];
+    if (!c || !arq) return;
+    try {
+      const reg = await Universo.enviarArquivo(arq, { dono_id: c.id, nome_original: arq.name, categoria: 'contrato' });
+      await Universo.alterar('contratos', c.id, { versao: c.versao, arquivo_assinado_id: reg.id });
+      abrirFicha(id);
+    } catch (err) { aviso(mensagemDe(err)); }
+  });
+  if (fc && fc.existente) {
+    // projetos cadastrados à mão (sem contrato) para ligar ao contrato, em vez de criar outro
+    Universo.listar('projetos', { limite: 200 }).then(l => {
+      const livres = l.itens.filter(x => !x.contrato_id);
+      fc.existente.innerHTML = '<option value="">Criar um projeto novo</option>' +
+        livres.map(x => `<option value="${x.id}">${escHtml(x.codigo)} · ${escHtml(x.nome)}</option>`).join('');
+    }).catch(() => {});
+  }
+
   painel.querySelector('#btn-orcar').onclick = async () => {
     if (!confirm('Começar um orçamento novo ligado a esta oportunidade? O rascunho atual do orçamento (se houver) será substituído.')) return;
     try { await Comercial.novoOrcamentoDaOportunidade(o); } catch (err) { aviso(err.message); }
   };
+}
+
+// ---- contrato e projeto
+const PROJETOS_URL = 'https://projetos.odisse.com.br/#';
+const SITUACOES_PROJETO = { ativo: 'ativo', pausado: 'pausado', concluido: 'concluído', cancelado: 'cancelado' };
+
+function secaoContrato(o, propostas, contratos, projetos) {
+  const reais = propostas.filter(p => !p.simulacao);
+  const assinados = contratos.filter(c => c.situacao === 'assinado' || c.situacao === 'encerrado');
+  const linhasCtr = contratos.map(c => `<li>
+      <strong>${escHtml(c.codigo)}</strong> <span class="chip ${c.situacao === 'assinado' ? 'chip--ok' : ''}">${escHtml(c.situacao)}</span>
+      <span class="small muted">${c.tipo === 'aditivo' ? 'aditivo · ' : ''}${c.valor_total !== null ? fmtCentavos(c.valor_total) : ''}${c.assinado_em ? ' · assinado em ' + fmtDia(c.assinado_em) : ''}</span><br>
+      ${c.arquivo_assinado_id
+        ? `<button type="button" class="btn-link" data-ctr-pdf="${c.arquivo_assinado_id}" data-nome="${escHtml(c.codigo)}">baixar contrato assinado</button>`
+        : `<label class="btn-link">guardar o PDF assinado<input type="file" accept="application/pdf,image/*" data-ctr-enviar="${c.id}" hidden></label>`}
+    </li>`).join('');
+  const linhasPrj = projetos.map(p => `<li>
+      <a href="${PROJETOS_URL}${p.id}" target="_blank" rel="noopener"><strong>${escHtml(p.codigo)} · ${escHtml(p.nome)}</strong></a>
+      <span class="chip">${escHtml(SITUACOES_PROJETO[p.situacao] || p.situacao)}</span>
+      <span class="small muted">${p.inicio ? 'início ' + fmtDia(p.inicio) : ''}${p.previsao_fim ? ' · previsão ' + fmtDia(p.previsao_fim) : ''}</span>
+    </li>`).join('');
+  const temPrincipal = assinados.some(c => c.tipo !== 'aditivo');
+  let form = '';
+  if (!temPrincipal) {
+    if (!reais.length) {
+      form = '<p class="small muted">O contrato entra depois da proposta: faça o orçamento, envie e, quando o cliente assinar, registre aqui.</p>';
+    } else {
+      const ordem = { aceita: 0, enviada: 1, rascunho: 2 };
+      const padrao = [...reais].sort((a, b) => (ordem[a.situacao] ?? 9) - (ordem[b.situacao] ?? 9) || b.numero - a.numero || b.revisao - a.revisao)[0];
+      form = `<form id="f-contrato">
+        <div class="field"><label class="field__label">Proposta aceita</label>
+          <select name="proposta_id">${reais.map(p => `<option value="${p.id}" ${p.id === padrao.id ? 'selected' : ''}>${escHtml(p.codigo)} · ${fmtCentavos(p.valor_total)} · ${escHtml(p.situacao)}</option>`).join('')}</select></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Assinado em</label><input type="date" name="assinado_em" value="${hoje()}" required></div>
+          <div class="field"><label class="field__label">Valor do contrato (R$)</label><input type="text" inputmode="decimal" name="valor" value="${reaisDe(padrao.valor_total)}"></div>
+        </div>
+        <div class="field"><label class="field__label">Projeto</label><select name="existente"><option value="">Criar um projeto novo</option></select>
+          <p class="field__hint">Se o projeto já foi cadastrado à mão na ferramenta Projetos, escolha-o para não criar outro.</p></div>
+        <div id="campos-novo-projeto">
+          <div class="row-2">
+            <div class="field"><label class="field__label">Nome do projeto</label><input type="text" name="nome_projeto" value="${escHtml(o.titulo)}"></div>
+            <div class="field"><label class="field__label">Início dos trabalhos</label><input type="date" name="inicio"><p class="field__hint">Vazio = data da assinatura.</p></div>
+          </div>
+          <p class="field__hint">O projeto recebe o próximo código (AAAA-NNN), as etapas e prazos da proposta, o endereço do imóvel e os co-clientes.</p>
+        </div>
+        <div class="field"><label class="field__label">Contrato assinado (PDF, opcional)</label><input type="file" name="arquivo" accept="application/pdf,image/*"></div>
+        <button class="btn btn--primary btn--small" type="submit">Registrar contrato assinado</button>
+      </form>`;
+    }
+  }
+  return `<section>
+      <h3>Contrato e projeto</h3>
+      ${linhasCtr ? `<ul class="lista-int">${linhasCtr}</ul>` : ''}
+      ${linhasPrj ? `<ul class="lista-int">${linhasPrj}</ul>` : ''}
+      ${form}
+    </section>`;
 }
 
 // ---- nova oportunidade

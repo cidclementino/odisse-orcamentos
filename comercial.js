@@ -282,7 +282,46 @@ const Comercial = (() => {
     window.location.href = 'index.html';
   }
 
+  // ---- contrato assinado → projeto (Universo, ferramenta Projetos)
+  // O Universo cria o projeto ao receber o contrato principal assinado. Daqui vai o que só o vendas
+  // sabe ler do cálculo da proposta: etapas (nomes, fases e semanas, na ordem do cronograma),
+  // endereço do imóvel (etapa 1 do orçamento), tipologia, área e serviço.
+  function dadosDoProjeto(proposta, data, { nome, inicio } = {}) {
+    const c = typeof proposta.calculo === 'string' ? JSON.parse(proposta.calculo || 'null') : proposta.calculo;
+    const p = { nome: nome || null, inicio: inicio || null, servico: proposta.titulo || null };
+    if (!c) return p;
+    const sel = c.etapasSelecionadas || [];
+    p.etapas = (data.etapas || []).filter((e) => sel.includes(e.id)).map((e) => ({
+      nome: e.nome, fase: e.fase || null, ref_vendas: e.id,
+      semanas: (c.etapasSemanas && c.etapasSemanas[e.id]) || e.semanas_base || null
+    }));
+    if (c.servicoId) p.servico = nomeServico(c, data);
+    if (c.tipologiaItem) p.tipologia = c.tipologiaItem.descricao || c.tipologiaItem.item || null;
+    if (c.areaConstruida > 0) p.area_m2 = Number(c.areaConstruida);
+    const im = c.cliente || {};
+    const { cidade, uf } = separarCidadeUf(im.cidadeUf);
+    Object.assign(p, { bairro: im.bairro || null, cidade, uf: uf && /^[A-Z]{2}$/.test(uf) ? uf : null });
+    const cep = digitos(im.cep);
+    p.local = { logradouro: im.logradouro || null, numero: im.numero || null, complemento: im.complemento || null, cep: cep.length === 8 ? cep : null };
+    return p;
+  }
+
+  // Registra o contrato principal assinado; o Universo cria o projeto, marca a proposta aceita e
+  // a oportunidade ganha. `arquivo` (opcional): PDF do contrato assinado, guardado no Universo.
+  async function registrarContrato({ proposta, data, assinadoEm, valorTotal, nomeProjeto, inicio, projetoExistente, arquivo }) {
+    const corpo = { proposta_id: proposta.id, tipo: 'principal', situacao: 'assinado', assinado_em: assinadoEm, valor_total: valorTotal };
+    if (projetoExistente) corpo.projeto_existente = projetoExistente;
+    else corpo.projeto = dadosDoProjeto(proposta, data, { nome: nomeProjeto, inicio });
+    let ctr = await Universo.criar('contratos', corpo);
+    if (arquivo) {
+      const arq = await Universo.enviarArquivo(arquivo, { dono_id: ctr.id, nome_original: arquivo.name || `${ctr.codigo}.pdf`, categoria: 'contrato' });
+      ctr = await Universo.alterar('contratos', ctr.id, { versao: ctr.versao, arquivo_assinado_id: arq.id });
+    }
+    return ctr;
+  }
+
   return {
+    dadosDoProjeto, registrarContrato,
     fmtTel, fmtCpf, fmtCnpj, separarCidadeUf, criarContato, criarTolerante, garantirCliente, garantirOportunidade, nomeServico,
     referencias, retrato, registrarProposta, congelarPdf, baixarPdf, abrirNoOrcamento, novoOrcamentoDaOportunidade
   };
