@@ -15,7 +15,7 @@ Todas as decisões sobre a fórmula de cálculo (modificadores por serviço,
 critérios de complexidade, unificação de escopo/etapas, etc.) estão registradas
 em detalhe no [`PRICING.md`](./PRICING.md) — inclusive o *porquê* de cada
 escolha, não só o *como*. A ferramenta também tem uma página própria
-(`precificacao.html`, link "Como funciona o cálculo" no menu) com um resumo
+(`precificacao.html`, em "Referências → Como funciona o cálculo" na barra) com um resumo
 dessa mesma lógica, pensado para quem está preenchendo um orçamento e quer
 tirar uma dúvida rápida.
 

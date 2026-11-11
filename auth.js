@@ -63,13 +63,23 @@ function logout() {
 // A API recusou a senha (trocada no servidor, por exemplo): sai e volta ao login.
 function senhaRecusada() {
   logout();
-  window.location.href = 'login.html';
+  irParaLogin();
+}
+
+// Leva ao login guardando a página atual, para voltar a ela depois de entrar.
+function irParaLogin() {
+  const aqui = (location.pathname.split('/').pop() || 'index.html') + location.hash;
+  window.location.href = 'login.html' + (aqui && aqui !== 'login.html' ? '?volta=' + encodeURIComponent(aqui) : '');
+}
+
+// Página para onde voltar depois do login (só páginas desta ferramenta).
+function paginaDeVolta() {
+  const v = new URLSearchParams(location.search).get('volta') || '';
+  return /^[a-z0-9-]+\.html(#[\w-]*)?$/i.test(v) && !v.startsWith('login') ? v : 'index.html';
 }
 
 // Redireciona para o login se não estiver autenticado. Chame no topo de
 // qualquer página que exija acesso.
 function exigirAutenticacao() {
-  if (!isAuthenticated()) {
-    window.location.href = 'login.html';
-  }
+  if (!isAuthenticated()) irParaLogin();
 }

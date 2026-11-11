@@ -175,7 +175,7 @@ function updateTicket() {
 }
 
 function alertaHtml(texto, tipo) {
-  const cor = tipo === 'atencao' ? 'var(--danger)' : 'var(--copper-strong)';
+  const cor = tipo === 'atencao' ? 'var(--perigo)' : 'var(--destaque-texto)';
   return `<p class="ticket__alerta" style="color:${cor}">${texto}</p>`;
 }
 
@@ -228,7 +228,6 @@ function renderSidebar() {
       }
     };
   });
-  document.getElementById('rail-user').textContent = STATE._userName ? `Olá, ${STATE._userName}` : '';
 }
 
 function mostrarConfirmacao() {
@@ -313,11 +312,6 @@ async function initApp() {
   document.getElementById('app').hidden = false;
   document.getElementById('btn-next').onclick = goNext;
   document.getElementById('btn-prev').onclick = goPrev;
-  document.getElementById('btn-logout').onclick = (e) => {
-    e.preventDefault();
-    logout();
-    window.location.href = 'login.html';
-  };
   document.getElementById('btn-reset').onclick = () => {
     if (confirm('Recomeçar limpa todos os dados preenchidos. Confirma?')) {
       const nome = STATE._userName;

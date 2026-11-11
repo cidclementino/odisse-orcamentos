@@ -3,35 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Odisse — Histórico de propostas</title>
+<title>Propostas · Vendas — Odisse</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
-  <header class="topbar">
-    <div class="topbar__mark">ODISSE</div>
-    <nav class="topbar__nav-center">
-      <a href="index.html">Orçamentos</a>
-      <a href="crm.html">Funil</a>
-      <a href="historico.html" class="is-current">Histórico</a>
-      <a href="cub.html">CUB</a>
-      <a href="precificacao.html">Como funciona o cálculo</a>
-      <a href="glossario.html">Glossário</a>
-    </nav>
-    <div class="topbar__meta">
-      <span id="rail-user"></span>
-      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
-    </div>
-  </header>
+  <header class="topo" data-pagina="propostas"></header>
+  <script src="topo.js"></script>
 
   <main class="stage">
     <div class="stage__col" style="max-width: 980px">
-      <p class="step__eyebrow">Histórico</p>
+      <p class="step__eyebrow">Vendas</p>
       <h1 class="step__title">Propostas</h1>
       <p class="step__desc">Todas as propostas registradas no Universo. "Baixar PDF" entrega o PDF guardado no momento em que foi gerado; propostas sem PDF guardado são remontadas a partir do cálculo.</p>
       <div id="aviso-migracao"></div>
@@ -110,15 +98,13 @@
       const kv = await res.json();
       if (!kv.encerrado && kv.total) {
         document.getElementById('aviso-migracao').innerHTML =
-          `<div class="aviso">Há ${kv.total} propostas no histórico antigo que ainda precisam ser trazidas para o Universo. <a href="migrar.html" style="color:var(--copper-strong)">Abrir a migração →</a></div>`;
+          `<div class="aviso">Há ${kv.total} propostas no histórico antigo que ainda precisam ser trazidas para o Universo. <a href="migrar.html" style="color:var(--destaque-texto)">Abrir a migração →</a></div>`;
       }
     } catch (_) { /* sem aviso */ }
   }
 
   async function iniciar() {
     document.getElementById('app').hidden = false;
-    document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
-    document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
     document.getElementById('filtro').oninput = desenhar;
     document.getElementById('mostrar-sim').onchange = desenhar;
     avisoMigracao();

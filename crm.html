@@ -3,31 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Odisse — Funil</title>
+<title>Funil · Vendas — Odisse</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
-  <header class="topbar">
-    <div class="topbar__mark">ODISSE</div>
-    <nav class="topbar__nav-center">
-      <a href="index.html">Orçamentos</a>
-      <a href="crm.html" class="is-current">Funil</a>
-      <a href="historico.html">Histórico</a>
-      <a href="cub.html">CUB</a>
-      <a href="precificacao.html">Como funciona o cálculo</a>
-      <a href="glossario.html">Glossário</a>
-    </nav>
-    <div class="topbar__meta">
-      <span id="rail-user"></span>
-      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
-    </div>
-  </header>
+  <header class="topo" data-pagina="crm"></header>
+  <script src="topo.js"></script>
 
   <main class="crm">
     <div class="crm__barra">
@@ -131,7 +119,7 @@ function desenhar() {
   document.getElementById('resumo').innerHTML = `
     <div><strong>${abertas.length}</strong>em aberto</div>
     <div><strong>${fmtCentavos(soma(abertas))}</strong>em aberto (proposta ou estimativa)</div>
-    <div><strong style="${atrasadas ? 'color:var(--danger)' : ''}">${atrasadas}</strong>ações atrasadas</div>
+    <div><strong style="${atrasadas ? 'color:var(--perigo)' : ''}">${atrasadas}</strong>ações atrasadas</div>
     <div><strong>${semAcao}</strong>sem próxima ação</div>
     <div><strong>${ganhas.length} · ${fmtCentavos(soma(ganhas))}</strong>ganhas em 90 dias</div>`;
 
@@ -265,9 +253,9 @@ async function abrirFicha(id) {
       ${cliente ? `<p style="margin:0 0 4px"><strong>${escHtml(cliente.nome)}</strong> <span class="small muted">${cliente.id.startsWith('org_') ? 'empresa' : 'cliente'}</span></p>` : ''}
       ${c ? `<p style="margin:0"><strong>${escHtml(c.nome)}</strong></p>
         <p class="small" style="margin:4px 0 0">${[
-          wa ? `<a href="https://wa.me/${escHtml(wa)}" target="_blank" rel="noopener" style="color:var(--copper-strong)">WhatsApp ${escHtml(Comercial.fmtTel(wa))}</a>` : '',
-          c.email ? `<a href="mailto:${escHtml(c.email)}" style="color:var(--paper-dim)">${escHtml(c.email)}</a>` : '',
-          c.instagram ? `<a href="https://instagram.com/${escHtml(c.instagram)}" target="_blank" rel="noopener" style="color:var(--paper-dim)">@${escHtml(c.instagram)}</a>` : ''
+          wa ? `<a href="https://wa.me/${escHtml(wa)}" target="_blank" rel="noopener" style="color:var(--destaque-texto)">WhatsApp ${escHtml(Comercial.fmtTel(wa))}</a>` : '',
+          c.email ? `<a href="mailto:${escHtml(c.email)}" style="color:var(--tinta-2)">${escHtml(c.email)}</a>` : '',
+          c.instagram ? `<a href="https://instagram.com/${escHtml(c.instagram)}" target="_blank" rel="noopener" style="color:var(--tinta-2)">@${escHtml(c.instagram)}</a>` : ''
         ].filter(Boolean).join(' · ')}</p>` : (cliente ? '' : '<p class="small muted">Sem contato ligado.</p>')}
     </section>
 
@@ -288,7 +276,7 @@ async function abrirFicha(id) {
       <ul class="lista-int">${interacoes.itens.map(i => `
         <li><span class="small">${fmtDia(i.data)} · ${escHtml(nomeDe(TIPOS_INTERACAO, i.tipo))}</span><br>
           ${i.resumo ? escHtml(i.resumo).replace(/\n/g, '<br>') : '<span class="small muted">sem resumo</span>'}
-          ${i.proxima_acao ? `<br><span class="small" style="color:var(--copper-strong)">→ ${escHtml(i.proxima_acao)}${i.proxima_acao_em ? ' até ' + fmtDia(i.proxima_acao_em) : ''}</span>` : ''}
+          ${i.proxima_acao ? `<br><span class="small" style="color:var(--destaque-texto)">→ ${escHtml(i.proxima_acao)}${i.proxima_acao_em ? ' até ' + fmtDia(i.proxima_acao_em) : ''}</span>` : ''}
         </li>`).join('') || '<li class="small muted">Nenhuma interação registrada.</li>'}</ul>
     </section>
 
@@ -561,7 +549,7 @@ async function abrirDuplicados() {
     lista.innerHTML = pares.map(({ rev, regs, campos }, i) => {
       const linhas = CAMPOS_CONTATO.filter(([k]) => regs.some(r => r[k])).map(([k, rot]) => {
         const st = campos[k];
-        const cor = st === 'conflito' ? 'color:var(--danger)' : st === 'bate' ? 'color:#9DC398' : '';
+        const cor = st === 'conflito' ? 'color:var(--perigo)' : st === 'bate' ? 'color:var(--ok)' : '';
         return `<tr><th style="${cor}">${rot}${st ? ` · ${st}` : ''}</th>${regs.map(r => `<td>${escHtml(k === 'telefone' || k === 'whatsapp' ? Comercial.fmtTel(r[k]) : r[k] || '—')}</td>`).join('')}</tr>`;
       }).join('');
       const tipo = regs[0].id && regs[0].id.startsWith('org_') ? 'empresa' : 'pessoa';
@@ -606,8 +594,6 @@ async function abrirDuplicados() {
 
 async function iniciar() {
   document.getElementById('app').hidden = false;
-  document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
-  document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
   document.getElementById('filtro-nucleo').innerHTML += opcoes(NUCLEOS, '');
   document.getElementById('filtro').oninput = desenhar;
   document.getElementById('filtro-nucleo').onchange = desenhar;
