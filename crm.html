@@ -22,7 +22,6 @@
       <h1>Funil</h1>
       <input type="search" id="filtro" placeholder="Filtrar por título, cliente ou origem">
       <select id="filtro-nucleo"><option value="">Todos os núcleos</option></select>
-      <button class="btn btn--ghost btn--small" id="btn-duplicados" type="button" hidden>Possíveis duplicados</button>
       <button class="btn btn--primary btn--small" id="btn-nova" type="button">Nova oportunidade</button>
     </div>
     <div id="aviso"></div>
@@ -46,6 +45,7 @@
 <script src="calc.js"></script>
 <script src="fonts-inter.js"></script>
 <script src="pdf.js"></script>
+<script src="ui.js"></script>
 <script>
 // ==========================================================================
 // Funil (CRM): oportunidades por etapa, ficha com contato, propostas e
@@ -53,16 +53,6 @@
 // ==========================================================================
 
 const ABERTAS = ['lead', 'contato', 'briefing', 'proposta', 'negociacao'];
-const TIPOS_INTERACAO = [
-  { id: 'mensagem', nome: 'Mensagem' }, { id: 'ligacao', nome: 'Ligação' }, { id: 'reuniao', nome: 'Reunião' },
-  { id: 'email', nome: 'E-mail' }, { id: 'visita', nome: 'Visita' }
-];
-const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
-const fmtDia = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '';
-const opcoes = (lista, atual, vazio) => (vazio !== undefined ? `<option value="">${vazio}</option>` : '') +
-  lista.map(x => `<option value="${x.id}" ${x.id === atual ? 'selected' : ''}>${escHtml(x.nome)}</option>`).join('');
-const reaisDe = (c) => c === null || c === undefined ? '' : String(c / 100).replace('.', ',');
-const lerReais = (s) => { const t = String(s || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.'); return t ? centavos(t) : null; };
 
 let ITENS = [];
 let DATA = null;
@@ -94,17 +84,25 @@ function cartao(o) {
   const v = valorDe(o);
   return `<button class="op" draggable="true" data-id="${o.id}">
     <div class="op__titulo">${escHtml(o.titulo)}</div>
-    <div class="op__linha">${escHtml(o.cliente_nome || 'sem cliente')}${o.nucleo_id ? ' · ' + escHtml(nomeDe(NUCLEOS, o.nucleo_id)) : ''}</div>
+    <div class="op__linha">${escHtml(nomesClientes(o))}${o.nucleo_id ? ' · ' + escHtml(nomeDe(NUCLEOS, o.nucleo_id)) : ''}</div>
     <div class="op__linha">${[v !== null && v !== undefined ? fmtCentavos(v) : '', o.ultima_proposta ? escHtml(o.ultima_proposta.codigo) : '', o.origem ? escHtml(nomeDe(ORIGENS, o.origem)) : ''].filter(Boolean).join(' · ')}</div>
     ${o.etapa_funil === 'ganha' || o.etapa_funil === 'perdida' ? '' : proximaAcao(o)}
   </button>`;
+}
+
+// "Ana Lins + Rafael Lins"; com mais de dois clientes, "Ana Lins + 2"
+function nomesClientes(o) {
+  const outros = o.coclientes || [];
+  if (!o.cliente_nome) return outros.length ? outros.join(' + ') : 'sem cliente';
+  if (!outros.length) return o.cliente_nome;
+  return outros.length === 1 ? `${o.cliente_nome} + ${outros[0]}` : `${o.cliente_nome} + ${outros.length}`;
 }
 
 function filtrados() {
   const q = document.getElementById('filtro').value.trim().toLowerCase();
   const n = document.getElementById('filtro-nucleo').value;
   return ITENS.filter(o => (!n || o.nucleo_id === n) &&
-    (!q || `${o.titulo} ${o.cliente_nome || ''} ${o.contato_nome || ''} ${o.origem_detalhe || ''}`.toLowerCase().includes(q)));
+    (!q || semAcento(`${o.titulo} ${o.cliente_nome || ''} ${(o.coclientes || []).join(' ')} ${o.contato_nome || ''} ${o.origem_detalhe || ''}`).includes(semAcento(q))));
 }
 
 function desenhar() {
@@ -158,19 +156,7 @@ function avisar(texto, tipo = 'erro') {
   document.getElementById('aviso').innerHTML = texto ? `<div class="aviso aviso--${tipo}">${escHtml(texto)}</div>` : '';
 }
 
-let PENDENTES = [];
-async function carregarDuplicados() {
-  try {
-    PENDENTES = (await Universo.listar('revisoes', { situacao: 'pendente', limite: 200 })).itens
-      .filter(r => r.tipo === 'duplicado_contato');
-  } catch (_) { PENDENTES = []; }
-  const b = document.getElementById('btn-duplicados');
-  b.hidden = !PENDENTES.length;
-  b.textContent = `Possíveis duplicados (${PENDENTES.length})`;
-}
-
 async function carregar() {
-  carregarDuplicados();
   try {
     const r = await Universo.painel();
     ITENS = r.itens;
@@ -202,41 +188,29 @@ async function mudarOportunidade(o, campos) {
 
 // ---------------------------------------------------------------- painel lateral
 
-function fecharPainel() {
-  document.getElementById('painel-raiz').innerHTML = '';
-  if (location.hash) history.replaceState(null, '', location.pathname);
-}
-
-function abrirPainel(html) {
-  const raiz = document.getElementById('painel-raiz');
-  raiz.innerHTML = `<div class="painel-fundo"></div><aside class="painel" role="dialog">${html}</aside>`;
-  raiz.querySelector('.painel-fundo').onclick = fecharPainel;
-  raiz.querySelectorAll('.painel__fechar').forEach(b => b.onclick = fecharPainel);
-  return raiz.querySelector('.painel');
-}
-
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
-
 // ---- ficha da oportunidade
 async function abrirFicha(id) {
   history.replaceState(null, '', '#' + id);
   const painel = abrirPainel('<p class="muted">Carregando…</p>');
-  let o, contato, cliente, propostas, interacoes;
+  let o, contato, propostas, interacoes, clientes;
   try {
     o = await Universo.ler('oportunidades', id);
-    [contato, cliente, propostas, interacoes] = await Promise.all([
-      o.contato_pessoa_id ? Universo.ler('pessoas', o.contato_pessoa_id) : null,
-      o.cliente_id && o.cliente_id !== o.contato_pessoa_id ? Universo.ler(o.cliente_id.startsWith('org_') ? 'organizacoes' : 'pessoas', o.cliente_id) : null,
+    let vincs;
+    [contato, propostas, interacoes, vincs] = await Promise.all([
+      o.contato_pessoa_id ? Universo.talvez('pessoas', o.contato_pessoa_id) : null,
       Universo.listar('propostas', { oportunidade_id: id, limite: 100 }),
-      Universo.listar('interacoes', { sobre_id: id, limite: 100 })
+      Universo.listar('interacoes', { sobre_id: id, limite: 100 }),
+      Universo.listar('vinculos', { de_id: id, papel: 'cliente', limite: 50 })
     ]);
+    const lerContato = (cid) => Universo.talvez(ehOrg(cid) ? 'organizacoes' : 'pessoas', cid);
+    const titular = !o.cliente_id ? null : o.cliente_id === o.contato_pessoa_id ? contato : await lerContato(o.cliente_id);
+    const outros = await Promise.all(vincs.itens.map(async (v) => ({ v, reg: await lerContato(v.para_id) })));
+    clientes = [...(titular ? [{ reg: titular, titular: true }] : []), ...outros.filter(x => x.reg)];
   } catch (e) {
     painel.innerHTML = `<button class="painel__fechar">×</button><p class="aviso aviso--erro">Não consegui abrir (${escHtml(e.message)}).</p>`;
     painel.querySelector('.painel__fechar').onclick = fecharPainel;
     return;
   }
-  const c = contato || (cliente && cliente.id.startsWith('pes_') ? cliente : null);
-  const wa = c && (c.whatsapp || c.telefone);
 
   painel.innerHTML = `
     <div class="painel__topo">
@@ -249,14 +223,31 @@ async function abrirFicha(id) {
     <div id="ficha-aviso"></div>
 
     <section>
-      <h3>Contato</h3>
-      ${cliente ? `<p style="margin:0 0 4px"><strong>${escHtml(cliente.nome)}</strong> <span class="small muted">${cliente.id.startsWith('org_') ? 'empresa' : 'cliente'}</span></p>` : ''}
-      ${c ? `<p style="margin:0"><strong>${escHtml(c.nome)}</strong></p>
-        <p class="small" style="margin:4px 0 0">${[
-          wa ? `<a href="https://wa.me/${escHtml(wa)}" target="_blank" rel="noopener" style="color:var(--destaque-texto)">WhatsApp ${escHtml(Comercial.fmtTel(wa))}</a>` : '',
-          c.email ? `<a href="mailto:${escHtml(c.email)}" style="color:var(--tinta-2)">${escHtml(c.email)}</a>` : '',
-          c.instagram ? `<a href="https://instagram.com/${escHtml(c.instagram)}" target="_blank" rel="noopener" style="color:var(--tinta-2)">@${escHtml(c.instagram)}</a>` : ''
-        ].filter(Boolean).join(' · ')}</p>` : (cliente ? '' : '<p class="small muted">Sem contato ligado.</p>')}
+      <h3>Clientes</h3>
+      <ul class="lista-pessoas">${clientes.map(c => `
+        <li>
+          <div class="lista-pessoas__quem">
+            <a href="contatos.html#${c.reg.id}"><strong>${escHtml(c.reg.nome)}</strong></a>
+            <span class="chip ${c.titular ? 'chip--cobre' : ''}">${c.titular ? 'titular' : 'co-cliente'}</span>${ehOrg(c.reg.id) ? ' <span class="small muted">organização</span>' : ''}${c.reg.arquivado_em ? ' <span class="chip chip--perda">arquivado</span>' : ''}
+            <div class="meios">${meiosDeContato(c.reg)}</div>
+          </div>
+          ${c.titular ? '' : `<div class="lista-pessoas__acoes"><button type="button" class="btn-link" data-titular="${c.v.id}">tornar titular</button><button type="button" class="btn-link" data-remover="${c.v.id}">tirar</button></div>`}
+        </li>`).join('') || '<li class="small muted">Nenhum cliente ligado.</li>'}</ul>
+      <div class="field busca-campo">
+        <input type="search" id="busca-cliente" placeholder="${clientes.length ? 'Adicionar outro cliente' : 'Ligar o cliente'}: buscar pessoa ou organização…">
+        <div class="busca-res" id="res-cliente"></div>
+      </div>
+      <p class="field__hint">Para quem contrata junto (um casal, sócios). O titular é o nome que aparece no funil; os demais ficam como co-clientes.</p>
+    </section>
+
+    <section>
+      <h3>Pessoa de contato</h3>
+      ${contato ? `<p style="margin:0"><a href="contatos.html#${contato.id}"><strong>${escHtml(contato.nome)}</strong></a></p>
+        <div class="meios">${meiosDeContato(contato)}</div>` : '<p class="small muted" style="margin:0">Nenhuma pessoa de contato.</p>'}
+      <div class="field busca-campo">
+        <input type="search" id="busca-contato" placeholder="${contato ? 'Trocar' : 'Escolher'} a pessoa de contato…">
+        <div class="busca-res" id="res-contato"></div>
+      </div>
     </section>
 
     <section>
@@ -318,6 +309,54 @@ async function abrirFicha(id) {
 
   painel.querySelector('.painel__fechar').onclick = fecharPainel;
   const aviso = (t, tipo = 'erro') => { painel.querySelector('#ficha-aviso').innerHTML = t ? `<div class="aviso aviso--${tipo}">${escHtml(t)}</div>` : ''; };
+
+  // ---- clientes e pessoa de contato
+  const recarregarFicha = async () => { await carregar(); abrirFicha(id); };
+  async function adicionarCliente(cid) {
+    try {
+      if (!o.cliente_id) await mudarOportunidade(o, { cliente_id: cid });
+      else await Universo.criar('vinculos', { de_id: id, para_id: cid, papel: 'cliente' });
+      await recarregarFicha();
+    } catch (err) { aviso(mensagemDe(err)); }
+  }
+  ligarBuscaContatos(painel.querySelector('#busca-cliente'), painel.querySelector('#res-cliente'), {
+    ignorar: clientes.map(c => c.reg.id),
+    aoEscolher: (item) => adicionarCliente(item.id),
+    rotuloNovo: 'Cadastrar pessoa',
+    criarNovo: async (nome) => {
+      try { adicionarCliente((await Comercial.criarContato('pessoas', { nome })).id); } catch (err) { aviso(mensagemDe(err)); }
+    }
+  });
+  painel.querySelectorAll('[data-remover]').forEach(b => b.onclick = async () => {
+    const { v, reg } = clientes.find(c => c.v && c.v.id === b.dataset.remover);
+    if (!confirm(`Tirar ${reg.nome} dos clientes desta oportunidade? (O cadastro continua em Contatos.)`)) return;
+    try { await Universo.post(`vinculos/${v.id}/arquivar`, { versao: v.versao }); await recarregarFicha(); } catch (err) { aviso(mensagemDe(err)); }
+  });
+  painel.querySelectorAll('[data-titular]').forEach(b => b.onclick = async () => {
+    const { v } = clientes.find(c => c.v && c.v.id === b.dataset.titular);
+    const antigo = o.cliente_id;
+    try {
+      await mudarOportunidade(o, { cliente_id: v.para_id });
+      await Universo.post(`vinculos/${v.id}/arquivar`, { versao: v.versao });
+      if (antigo) await Universo.criar('vinculos', { de_id: id, para_id: antigo, papel: 'cliente' }).catch(e => { if (e.status !== 409) throw e; });
+      await recarregarFicha();
+    } catch (err) { aviso(mensagemDe(err)); }
+  });
+  ligarBuscaContatos(painel.querySelector('#busca-contato'), painel.querySelector('#res-contato'), {
+    tabelas: ['pessoas'],
+    ignorar: contato ? [contato.id] : [],
+    aoEscolher: async (item) => {
+      try { await mudarOportunidade(o, { contato_pessoa_id: item.id }); abrirFicha(id); } catch (err) { aviso(mensagemDe(err)); }
+    },
+    rotuloNovo: 'Cadastrar pessoa',
+    criarNovo: async (nome) => {
+      try {
+        const p = await Comercial.criarContato('pessoas', { nome });
+        await mudarOportunidade(o, { contato_pessoa_id: p.id });
+        abrirFicha(id);
+      } catch (err) { aviso(mensagemDe(err)); }
+    }
+  });
 
   const f = painel.querySelector('#f-opo');
   f.etapa_funil.onchange = () => { painel.querySelector('#campo-perda').hidden = f.etapa_funil.value !== 'perdida'; };
@@ -390,7 +429,8 @@ async function abrirFicha(id) {
 }
 
 // ---- nova oportunidade
-function abrirNova() {
+// `inicial`: contato já escolhido (vindo da ficha em Contatos: crm.html#nova=pes_… ou org_…).
+function abrirNova(inicial = null) {
   const painel = abrirPainel(`
     <div class="painel__topo"><h2>Nova oportunidade</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
     <div id="nova-aviso"></div>
@@ -402,12 +442,14 @@ function abrirNova() {
       <h3 style="margin-top:6px">Quem</h3>
       <div class="field">
         <label class="field__label">Pessoa</label>
-        <input type="search" name="busca_pessoa" placeholder="Buscar alguém já cadastrado…" autocomplete="off">
-        <div class="busca-res" id="res-pessoa"></div>
-        <p class="small" id="pessoa-escolhida" hidden></p>
+        <div class="escolhido" id="pessoa-escolhida" hidden></div>
+        <div id="pessoa-busca">
+          <input type="search" name="busca_pessoa" placeholder="Buscar alguém já cadastrado…">
+          <div class="busca-res" id="res-pessoa"></div>
+        </div>
       </div>
       <div id="pessoa-nova">
-        <div class="field"><label class="field__label">Nome</label><input type="text" name="nome"></div>
+        <div class="field"><label class="field__label">Nome (pessoa nova)</label><input type="text" name="nome"></div>
         <div class="row-2">
           <div class="field"><label class="field__label">WhatsApp</label><input type="tel" name="whatsapp" placeholder="(83) 99999-9999"></div>
           <div class="field"><label class="field__label">E-mail</label><input type="email" name="email"></div>
@@ -415,8 +457,13 @@ function abrirNova() {
         <div class="field"><label class="field__label">Instagram</label><input type="text" name="instagram" placeholder="@usuario"></div>
       </div>
       <div class="field">
-        <label class="field__label">Empresa (se o cliente for uma empresa)</label>
-        <input type="text" name="empresa" placeholder="Nome da empresa; deixe vazio se for pessoa física">
+        <label class="field__label">Organização (se o cliente for uma empresa)</label>
+        <div class="escolhido" id="org-escolhida" hidden></div>
+        <div id="org-busca">
+          <input type="search" name="busca_org" placeholder="Buscar ou digitar o nome de uma nova…">
+          <div class="busca-res" id="res-org"></div>
+        </div>
+        <p class="field__hint">Com organização, ela vira a titular e a pessoa fica como contato (ligada a ela em Contatos).</p>
       </div>
       <h3 style="margin-top:6px">O quê</h3>
       <div class="field"><label class="field__label">Título</label><input type="text" name="titulo" required placeholder="Ex.: Reforma apartamento Manaíra"></div>
@@ -433,41 +480,47 @@ function abrirNova() {
     </form>`);
 
   const f = painel.querySelector('#f-nova');
-  const aviso = (t) => { painel.querySelector('#nova-aviso').innerHTML = t ? `<div class="aviso aviso--erro">${escHtml(t)}</div>` : ''; };
-  let pessoaId = null;
+  const aviso = avisoEm(painel.querySelector('#nova-aviso'));
+  let pessoa = null;      // { id, nome } já cadastrada
+  let org = null;         // { id, nome } já cadastrada, ou { nome } nova
 
   f.mensagem.oninput = () => {
     const o = origemDaMensagem(f.mensagem.value);
     if (o) { f.origem.value = o.origem; f.origem_detalhe.value = o.origem_detalhe; }
   };
-  f.nome.oninput = () => { if (!f.titulo.dataset.mexido) f.titulo.value = f.nome.value ? `${f.nome.value} — ` : ''; };
+  const sugerirTitulo = () => {
+    if (f.titulo.dataset.mexido) return;
+    const quem = (org && org.nome) || (pessoa && pessoa.nome) || f.nome.value.trim();
+    f.titulo.value = quem ? `${quem} — ` : '';
+  };
+  f.nome.oninput = sugerirTitulo;
   f.titulo.oninput = () => { f.titulo.dataset.mexido = '1'; };
 
-  let tempo = null;
-  const res = painel.querySelector('#res-pessoa');
-  f.busca_pessoa.oninput = () => {
-    clearTimeout(tempo);
-    const q = f.busca_pessoa.value.trim();
-    if (q.length < 2) { res.innerHTML = ''; return; }
-    tempo = setTimeout(async () => {
-      const r = await Universo.buscar(q, 'pessoas').catch(() => ({ itens: [] }));
-      res.innerHTML = r.itens.map(i => `<button type="button" class="busca-res__item" data-id="${i.id}">${escHtml(i.titulo)}</button>`).join('')
-        || '<p class="small muted">Ninguém encontrado: preencha abaixo para cadastrar.</p>';
-      res.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
-        pessoaId = b.dataset.id;
-        res.innerHTML = '';
-        f.busca_pessoa.value = '';
-        const el = painel.querySelector('#pessoa-escolhida');
-        el.hidden = false;
-        el.innerHTML = `Pessoa: <strong>${escHtml(b.textContent)}</strong> <button type="button" class="btn-link" id="trocar-pessoa">trocar</button>`;
-        painel.querySelector('#pessoa-nova').hidden = true;
-        if (!f.titulo.dataset.mexido) f.titulo.value = `${b.textContent} — `;
-        el.querySelector('#trocar-pessoa').onclick = () => {
-          pessoaId = null; el.hidden = true; painel.querySelector('#pessoa-nova').hidden = false;
-        };
-      });
-    }, 300);
-  };
+  function mostrarEscolha(el, buscaEl, rotulo, valor, aoTrocar) {
+    el.hidden = !valor;
+    buscaEl.hidden = !!valor;
+    el.innerHTML = valor ? `${rotulo}: <strong>${escHtml(valor.nome)}</strong>${valor.id ? '' : ' <span class="chip">nova</span>'} <button type="button" class="btn-link">trocar</button>` : '';
+    if (valor) el.querySelector('button').onclick = aoTrocar;
+  }
+  function escolherPessoa(p) {
+    pessoa = p;
+    painel.querySelector('#pessoa-nova').hidden = !!p;
+    mostrarEscolha(painel.querySelector('#pessoa-escolhida'), painel.querySelector('#pessoa-busca'), 'Pessoa', p, () => escolherPessoa(null));
+    sugerirTitulo();
+  }
+  function escolherOrg(o) {
+    org = o;
+    mostrarEscolha(painel.querySelector('#org-escolhida'), painel.querySelector('#org-busca'), 'Organização', o, () => escolherOrg(null));
+    sugerirTitulo();
+  }
+  ligarBuscaContatos(f.busca_pessoa, painel.querySelector('#res-pessoa'), {
+    tabelas: ['pessoas'], aoEscolher: (i) => escolherPessoa({ id: i.id, nome: i.titulo })
+  });
+  ligarBuscaContatos(f.busca_org, painel.querySelector('#res-org'), {
+    tabelas: ['organizacoes'], aoEscolher: (i) => escolherOrg({ id: i.id, nome: i.titulo }),
+    rotuloNovo: 'Nova organização', criarNovo: (nome) => escolherOrg({ nome })
+  });
+  if (inicial) (ehOrg(inicial.id) ? escolherOrg : escolherPessoa)(inicial);
 
   f.onsubmit = async (e) => {
     e.preventDefault();
@@ -475,21 +528,25 @@ function abrirNova() {
     const botao = f.querySelector('button[type=submit]');
     botao.disabled = true;
     try {
-      if (!pessoaId && !f.nome.value.trim() && !f.empresa.value.trim()) throw new Error('Informe a pessoa (ou a empresa).');
+      let pessoaId = pessoa ? pessoa.id : null;
+      if (!pessoaId && !f.nome.value.trim() && !org) throw new Error('Informe a pessoa (ou a organização).');
       if (!pessoaId && f.nome.value.trim()) {
         const p = await Comercial.criarContato('pessoas', {
           nome: f.nome.value.trim(), whatsapp: f.whatsapp.value || null, telefone: f.whatsapp.value || null,
           email: f.email.value || null, instagram: f.instagram.value || null
         });
         pessoaId = p.id;
+        pessoa = { id: p.id, nome: p.nome };
       }
-      let orgId = null;
-      if (f.empresa.value.trim()) {
-        const org = await Comercial.criarContato('organizacoes', { nome: f.empresa.value.trim() });
-        orgId = org.id;
-        if (pessoaId) {
-          await Universo.criar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, papel: 'contato' }).catch(() => null);
-        }
+      let orgId = org ? org.id : null;
+      if (org && !orgId) {
+        orgId = (await Comercial.criarContato('organizacoes', { nome: org.nome })).id;
+        org = { id: orgId, nome: org.nome };
+      }
+      // pessoa e organização: liga as duas em Contatos, se ainda não estiverem
+      if (orgId && pessoaId) {
+        const ja = await Universo.listar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, limite: 1 }).catch(() => ({ itens: [] }));
+        if (!ja.itens.length) await Universo.criar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, papel: 'contato' }).catch(() => null);
       }
       const o = await Universo.criar('oportunidades', {
         titulo: f.titulo.value.trim(), cliente_id: orgId || pessoaId, contato_pessoa_id: pessoaId,
@@ -505,89 +562,10 @@ function abrirNova() {
       await carregar();
       abrirFicha(o.id);
     } catch (err) {
-      aviso(err.message);
+      aviso(mensagemDe(err));
       botao.disabled = false;
     }
   };
-}
-
-// ---- possíveis duplicados (fila de revisão do Universo)
-// O Universo não junta cadastros sozinho quando algo bate (nome, e-mail, telefone) mas outro
-// dado conflita: cria os dois e pede uma decisão aqui.
-const CAMPOS_CONTATO = [
-  ['nome', 'Nome'], ['email', 'E-mail'], ['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'],
-  ['instagram', 'Instagram'], ['cnpj', 'CNPJ'], ['razao_social', 'Razão social'], ['cidade', 'Cidade'], ['observacoes', 'Observações']
-];
-
-async function abrirDuplicados() {
-  const painel = abrirPainel(`
-    <div class="painel__topo">
-      <div><p class="small muted" style="margin:0 0 4px">Cadastros parecidos que o Universo não juntou sozinho</p><h2>Possíveis duplicados</h2></div>
-      <button class="painel__fechar" aria-label="Fechar">×</button>
-    </div>
-    <p class="small muted">Para cada par, diga se é a mesma pessoa (ou empresa). Se for, escolha qual cadastro fica: ele é completado com o que só o outro tinha, e oportunidades, propostas, interações e dados pessoais passam para ele; o outro é arquivado (nada se apaga).</p>
-    <div id="dup-aviso"></div>
-    <div id="dup-lista"><p class="muted">Carregando…</p></div>`);
-  const lista = painel.querySelector('#dup-lista');
-  const aviso = (t, tipo = 'erro') => { painel.querySelector('#dup-aviso').innerHTML = t ? `<div class="aviso aviso--${tipo}">${escHtml(t)}</div>` : ''; };
-
-  async function desenharPares() {
-    await carregarDuplicados();
-    if (!PENDENTES.length) { lista.innerHTML = '<p class="aviso aviso--ok">Nenhum par pendente.</p>'; return; }
-    const pares = await Promise.all(PENDENTES.map(async (rev) => {
-      const ids = JSON.parse(rev.registros);
-      const regs = await Promise.all(ids.map(async (id) => {
-        try {
-          const r = (await Universo.get('registros/' + id)).registro;
-          const tab = id.startsWith('org_') ? { cliente_id: id } : { contato_pessoa_id: id };
-          const ops = await Universo.listar('oportunidades', { ...tab, limite: 50 }).catch(() => ({ itens: [] }));
-          return { ...r, _ops: ops.itens.length };
-        } catch (e) { return { id, nome: '(não encontrado)', _ops: 0, _erro: true }; }
-      }));
-      return { rev, regs, campos: rev.campos ? JSON.parse(rev.campos) : {} };
-    }));
-    lista.innerHTML = pares.map(({ rev, regs, campos }, i) => {
-      const linhas = CAMPOS_CONTATO.filter(([k]) => regs.some(r => r[k])).map(([k, rot]) => {
-        const st = campos[k];
-        const cor = st === 'conflito' ? 'color:var(--perigo)' : st === 'bate' ? 'color:var(--ok)' : '';
-        return `<tr><th style="${cor}">${rot}${st ? ` · ${st}` : ''}</th>${regs.map(r => `<td>${escHtml(k === 'telefone' || k === 'whatsapp' ? Comercial.fmtTel(r[k]) : r[k] || '—')}</td>`).join('')}</tr>`;
-      }).join('');
-      const tipo = regs[0].id && regs[0].id.startsWith('org_') ? 'empresa' : 'pessoa';
-      return `<section class="dup" data-i="${i}">
-        <h3>Par ${i + 1} · ${tipo}${regs.some(r => r.arquivado_em) ? ' · um deles já está arquivado' : ''}</h3>
-        <table class="tabela"><thead><tr><th></th><th>Cadastro A</th><th>Cadastro B</th></tr></thead>
-          <tbody>${linhas}
-            <tr><th>Oportunidades</th>${regs.map(r => `<td>${r._ops}</td>`).join('')}</tr>
-            <tr><th>Criado em</th>${regs.map(r => `<td>${r.criado_em ? new Date(r.criado_em).toLocaleDateString('pt-BR') : '—'}</td>`).join('')}</tr>
-          </tbody></table>
-        <div class="painel__acoes">
-          <button class="btn btn--primary btn--small" data-manter="${regs[0].id}" ${regs[0]._erro || regs[0].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com A</button>
-          <button class="btn btn--primary btn--small" data-manter="${regs[1].id}" ${regs[1]._erro || regs[1].arquivado_em ? 'disabled' : ''}>Mesma ${tipo}: ficar com B</button>
-          <button class="btn btn--ghost btn--small" data-diferentes="1">São diferentes</button>
-        </div>
-      </section>`;
-    }).join('');
-    lista.querySelectorAll('.dup').forEach(sec => {
-      const { rev } = pares[Number(sec.dataset.i)];
-      const resolver = async (corpo, botao) => {
-        sec.querySelectorAll('button').forEach(b => b.disabled = true);
-        try {
-          const r = await Universo.post(`revisoes/${rev.id}/resolver`, { versao: rev.versao, ...corpo });
-          aviso(r.situacao === 'mesmo'
-            ? `Cadastros juntados.${r.completados.length ? ' Completado com: ' + r.completados.join(', ') + '.' : ''}${r.outras_resolvidas ? ` ${r.outras_resolvidas} outro(s) par(es) resolvido(s) junto.` : ''}`
-            : 'Registrado: são cadastros diferentes.', 'ok');
-          await desenharPares();
-          carregar();
-        } catch (e) {
-          aviso(e.message);
-          sec.querySelectorAll('button').forEach(b => b.disabled = false);
-        }
-      };
-      sec.querySelectorAll('[data-manter]').forEach(b => b.onclick = () => resolver({ situacao: 'mesmo', manter: b.dataset.manter }, b));
-      sec.querySelector('[data-diferentes]').onclick = (e) => resolver({ situacao: 'diferentes' }, e.target);
-    });
-  }
-  desenharPares();
 }
 
 // ---------------------------------------------------------------- início
@@ -597,10 +575,22 @@ async function iniciar() {
   document.getElementById('filtro-nucleo').innerHTML += opcoes(NUCLEOS, '');
   document.getElementById('filtro').oninput = desenhar;
   document.getElementById('filtro-nucleo').onchange = desenhar;
-  document.getElementById('btn-nova').onclick = abrirNova;
-  document.getElementById('btn-duplicados').onclick = abrirDuplicados;
+  document.getElementById('btn-nova').onclick = () => abrirNova();
   await carregar();
-  if (/^#opo_/.test(location.hash)) abrirFicha(location.hash.slice(1));
+  abrirPeloEndereco();
+  window.addEventListener('hashchange', abrirPeloEndereco);
+}
+
+// crm.html#opo_… abre a ficha; crm.html#nova=pes_… (ou org_…), vindo de Contatos,
+// abre a nova oportunidade com o contato já escolhido.
+async function abrirPeloEndereco() {
+  if (/^#opo_/.test(location.hash)) return abrirFicha(location.hash.slice(1));
+  const nova = location.hash.match(/^#nova=((?:pes|org)_[\w]+)$/);
+  if (nova) {
+    history.replaceState(null, '', location.pathname);
+    const reg = await Universo.get('registros/' + nova[1]).then(r => r.registro).catch(() => null);
+    abrirNova(reg ? { id: reg.id, nome: reg.nome } : null);
+  }
 }
 
 iniciar();

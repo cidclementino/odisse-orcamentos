@@ -94,11 +94,17 @@ binding `Vendas` — ver `worker/README.md` e, no repositório
   mudar, abra uma **revisão** pelo histórico ou pelo funil (mesmo número,
   `-R1`, `-R2`…; a anterior passa a "substituída").
 - **Funil (`crm.html`)**: oportunidades por etapa (arrastar muda a etapa),
-  próxima ação com data (atrasadas em destaque), ficha com contato, propostas
+  próxima ação com data (atrasadas em destaque), ficha com clientes (titular e
+  co-clientes, como um casal ou sócios) e pessoa de contato, propostas
   (situação, PDF, revisão), interações e "novo orçamento para esta
   oportunidade". Colar a primeira mensagem do WhatsApp com o código da página
   (`[LP-residencial]`, `[Herma 030770479]`) preenche a origem.
-- **Histórico (`historico.html`)**: todas as propostas do Universo, com o PDF
+- **Contatos (`contatos.html`)**: pessoas e organizações do Universo, com
+  busca e filtros; ficha com oportunidades (titular, co-cliente ou contato),
+  ligações entre pessoas e organizações (papel, cargo, desde/até), cadastro
+  editável, dados pessoais (CPF, endereço residencial; abertos sob pedido e
+  registrados no histórico) e interações. "Possíveis duplicados" fica aqui.
+- **Propostas (`historico.html`)**: todas as propostas do Universo, com o PDF
   guardado de cada uma.
 - **Migração (`migrar.html`, uso único)**: traz as propostas do histórico
   antigo (KV) com número e código originais, cria clientes e uma oportunidade
@@ -137,13 +143,16 @@ bloco, etc.).
 login.html            → página de senha (separada do app)
 index.html          → shell do app (formulário)
 historico.html         → propostas do Universo, com o PDF guardado de cada uma
-crm.html               → funil: oportunidades, contatos, interações e propostas
+crm.html               → funil: oportunidades, clientes, interações e propostas
+contatos.html          → pessoas e organizações, ligações, dados pessoais, duplicados
+topo.js                → barra de navegação comum a todas as páginas
+ui.js                  → peças comuns do funil e dos contatos (painel, busca de contatos, CEP)
 migrar.html            → migração única das propostas antigas (KV) para o Universo
 comercial.js           → liga o orçamento ao Universo (cliente, oportunidade, proposta, PDF congelado)
 config.js             → URL do Worker do Cloudflare
 auth.js                → autenticação (mantém a sessão entre visitas)
 store.js                 → cliente da API do Universo (via Worker) + leitura do histórico antigo
-styles.css           → estilos (tema escuro, identidade Odisse)
+styles.css           → estilos (padrão do Universo, sobre marca.css e universo.css)
 data-loader.js        → carrega os data/*.json
 calc.js                → motor de cálculo (ver "Como o cálculo funciona" abaixo)
 steps.js                → renderização e lógica de cada etapa do formulário
