@@ -1,28 +1,48 @@
 // ==========================================================================
-// Autenticação — mantém a pessoa logada entre visitas (localStorage), em vez
-// de pedir a senha a cada página. Isto continua sendo um portão simples do
-// lado do cliente, não um controle de acesso real (ver aviso no README) —
-// mas resolve o incômodo de digitar a senha toda hora.
+// Autenticação — a senha é conferida pelo Worker (servidor), não pelo
+// navegador. Depois de entrar, ela fica lembrada neste computador
+// (localStorage) e vai em cada chamada à API (cabeçalho Authorization).
+// Sem a senha certa, o Worker não entrega nem grava nada.
 // ==========================================================================
 
 const AUTH_FLAG_KEY = 'odisse-auth-ok';
 const AUTH_NAME_KEY = 'odisse-auth-nome';
 
-async function sha256(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+const AUTH_SENHA_KEY = 'odisse-senha';
+
+function getSenha() {
+  try { return localStorage.getItem(AUTH_SENHA_KEY) || ''; } catch (_) { return ''; }
+}
+
+// Cabeçalhos para as chamadas ao Worker.
+function cabecalhosAuth(extra = {}) {
+  return { ...extra, Authorization: `Bearer ${getSenha()}` };
+}
+
+// Pergunta ao Worker se a senha está certa. Devolve 'ok', 'senha' (incorreta)
+// ou 'rede' (não conseguiu falar com o servidor).
+async function conferirSenha(senha) {
+  try {
+    const res = await fetch(`${CONFIG.workerUrl}/estado`, { headers: { Authorization: `Bearer ${senha}` } });
+    if (res.ok) return 'ok';
+    if (res.status === 401) return 'senha';
+    return 'rede';
+  } catch (_) {
+    return 'rede';
+  }
 }
 
 function isAuthenticated() {
-  return localStorage.getItem(AUTH_FLAG_KEY) === 'ok';
+  return localStorage.getItem(AUTH_FLAG_KEY) === 'ok' && !!getSenha();
 }
 
 function getUserName() {
   return localStorage.getItem(AUTH_NAME_KEY) || '';
 }
 
-function setAuthenticated(nome) {
+function setAuthenticated(nome, senha) {
   localStorage.setItem(AUTH_FLAG_KEY, 'ok');
+  localStorage.setItem(AUTH_SENHA_KEY, senha);
   localStorage.setItem(AUTH_NAME_KEY, nome || '');
 
   // Registro local de acesso (apenas neste navegador — ver README sobre
@@ -37,8 +57,13 @@ function setAuthenticated(nome) {
 function logout() {
   localStorage.removeItem(AUTH_FLAG_KEY);
   localStorage.removeItem(AUTH_NAME_KEY);
-  // o token do GitHub fica guardado propositalmente — não precisa reconfigurar
-  // a cada login, só ao trocar de token em si (ver login.html).
+  localStorage.removeItem(AUTH_SENHA_KEY);
+}
+
+// A API recusou a senha (trocada no servidor, por exemplo): sai e volta ao login.
+function senhaRecusada() {
+  logout();
+  window.location.href = 'login.html';
 }
 
 // Redireciona para o login se não estiver autenticado. Chame no topo de

@@ -2,8 +2,10 @@ name = "odisse-orcamentos-api"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 
-# Depois de rodar `npx wrangler kv namespace create ODISSE_KV`, cole o "id"
-# retornado aqui no lugar de SEU_NAMESPACE_ID_AQUI.
+# Namespace KV "ODISSE_KV" (já existe, com as propostas). O workflow
+# .github/workflows/worker.yml acha o id pelo nome e troca o marcador abaixo
+# antes de publicar — não é preciso editar nada aqui.
+# A senha (VENDAS_SENHA) é um secret do Worker, enviado pelo workflow.
 kv_namespaces = [
-  { binding = "ODISSE_KV", id = "SEU_NAMESPACE_ID_AQUI" }
+  { binding = "ODISSE_KV", id = "__KV_ID__" }
 ]

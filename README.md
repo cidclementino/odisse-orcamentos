@@ -57,19 +57,24 @@ Depois acesse `http://localhost:8000`.
 2. Em **Settings → Pages**, source: `Deploy from a branch`, branch `main`,
    pasta `/ (root)`.
 3. Publica em `https://cidclementino.github.io/nome-do-repositorio/`.
-4. **Trocar a senha de acesso** (faça isso antes do primeiro uso real):
-   ```bash
-   python3 -c "import hashlib; print(hashlib.sha256('SUA_SENHA_AQUI'.encode()).hexdigest())"
-   ```
-   Copie o resultado e cole em `config.js`, na constante `CONFIG.passwordHash`.
-   A senha de fábrica é `odisse2026` — troque assim que possível.
+4. **Senha de acesso**: é conferida pelo Worker, não pelo navegador. Ver
+   "Acesso" abaixo.
 
 ## Acesso (login.html)
 
-A senha agora é pedida numa página própria (`login.html`), separada do
-formulário. Depois de entrar uma vez, o navegador lembra (via
-`localStorage`) e não pede de novo — até alguém clicar em **Sair**, no
-canto superior direito do app.
+A senha é pedida numa página própria (`login.html`) e **conferida pelo
+Worker** (`GET /estado`), nunca pelo navegador. Ela não está no código: é o
+secret `VENDAS_SENHA` da Cloudflare, enviado pelo GitHub Actions a partir do
+secret de mesmo nome do repositório. Todas as rotas da API exigem
+`Authorization: Bearer <senha>`; sem ela, nada é listado nem gravado.
+
+Depois de entrar, o navegador lembra a senha (localStorage) até alguém clicar
+em **Sair**. Se a senha for trocada no servidor, quem estava dentro volta para
+o login na próxima chamada.
+
+**Trocar a senha:** GitHub → Settings → Secrets and variables → Actions →
+`VENDAS_SENHA` → atualizar; depois Actions → "Publicar API do vendas" → Run
+workflow.
 
 ## Numeração automática de propostas & histórico
 

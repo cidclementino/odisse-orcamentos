@@ -1,0 +1,66 @@
+name: Publicar API do vendas (Cloudflare Worker)
+
+on:
+  push:
+    branches: [main]
+    paths: ['worker/**', '.github/workflows/worker.yml']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      VENDAS_SENHA: ${{ secrets.VENDAS_SENHA }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verificar secrets
+        run: |
+          for s in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID VENDAS_SENHA; do
+            if [ -z "${!s}" ]; then echo "::error::Falta o secret $s (Settings → Secrets and variables → Actions)."; exit 1; fi
+          done
+
+      - name: Instalar Wrangler
+        run: npm install --no-save --prefix "$RUNNER_TEMP/wr" wrangler@4
+
+      # Acha o namespace que já guarda as propostas. Nunca cria um novo:
+      # publicar com um namespace vazio esconderia o histórico.
+      - name: Namespace KV ODISSE_KV (já existente)
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          cd "$RUNNER_TEMP"
+          ID=$("$W" kv namespace list | node -e '
+            let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+              const l = JSON.parse(s.slice(s.indexOf("[")));
+              const achados = l.filter(x => x.title === "ODISSE_KV" || x.title.endsWith("-ODISSE_KV"));
+              if (achados.length !== 1) {
+                console.error("Encontrados " + achados.length + " namespaces ODISSE_KV: " + achados.map(x => x.title).join(", "));
+                process.exit(1);
+              }
+              process.stdout.write(achados[0].id);
+            });')
+          if [ -z "$ID" ]; then echo "::error::Não achei (ou achei mais de um) namespace KV ODISSE_KV nesta conta. Confira a conta e o token."; exit 1; fi
+          echo "Namespace ODISSE_KV: $ID"
+          sed -i "s/__KV_ID__/$ID/" "$GITHUB_WORKSPACE/worker/wrangler.toml"
+
+      # A senha entra antes do código novo: o Worker novo recusa tudo sem ela.
+      - name: Gravar senha e publicar
+        working-directory: worker
+        run: |
+          W="$RUNNER_TEMP/wr/node_modules/.bin/wrangler"
+          printf '%s' "$VENDAS_SENHA" | "$W" secret put VENDAS_SENHA
+          "$W" deploy
+
+      - name: Conferir
+        run: |
+          URL="https://odisse-orcamentos-api.reservaprojectbasework.workers.dev"
+          sem=$(curl -s -o /dev/null -w '%{http_code}' "$URL/listar-propostas")
+          com=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $VENDAS_SENHA" "$URL/estado")
+          echo "Sem senha: $sem (esperado 401) · com senha: $com (esperado 200)"
+          if [ "$sem" != "401" ] || [ "$com" != "200" ]; then echo "::error::A API não respondeu como esperado."; exit 1; fi

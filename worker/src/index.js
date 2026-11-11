@@ -10,13 +10,35 @@
 //   POST /salvar-proposta        → grava o snapshot completo de uma proposta
 //   GET  /listar-propostas         → devolve o índice (número, data, cliente)
 //   GET  /proposta?numero=PC001/2026  → devolve o snapshot completo de uma proposta
+//   GET  /estado                → confere a senha (usado pela tela de login)
+//
+// Todas as rotas exigem o cabeçalho `Authorization: Bearer <VENDAS_SENHA>`.
+// VENDAS_SENHA é um secret do Worker, enviado pelo GitHub Actions a partir do
+// secret do repositório (ver .github/workflows/worker.yml). Sem o secret
+// configurado, o Worker recusa tudo (falha fechada).
 // ==========================================================================
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
+
+// Comparação em tempo constante (não revela, pelo tempo de resposta, quantos
+// caracteres da senha estão certos).
+function iguais(a, b) {
+  const ea = new TextEncoder().encode(a);
+  const eb = new TextEncoder().encode(b);
+  let dif = ea.length ^ eb.length;
+  for (let i = 0; i < Math.max(ea.length, eb.length); i++) dif |= (ea[i] || 0) ^ (eb[i] || 0);
+  return dif === 0;
+}
+
+function autorizado(request, env) {
+  if (!env.VENDAS_SENHA) return false;
+  const cab = request.headers.get('Authorization') || '';
+  return iguais(cab, `Bearer ${env.VENDAS_SENHA}`);
+}
 
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
@@ -33,7 +55,14 @@ export default {
       return new Response(null, { headers: CORS });
     }
 
+    if (!env.VENDAS_SENHA) return json({ erro: 'senha do servidor não configurada' }, 503);
+    if (!autorizado(request, env)) return json({ erro: 'senha incorreta' }, 401);
+
     try {
+      if (url.pathname === '/estado' && request.method === 'GET') {
+        return json({ ok: true });
+      }
+
       if (url.pathname === '/proximo-numero' && request.method === 'POST') {
         const ano = new Date().getFullYear();
         const atual = parseInt((await env.ODISSE_KV.get('contador')) || '0', 10);
