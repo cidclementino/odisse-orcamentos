@@ -84,6 +84,14 @@ function estadoInicial() {
     incluirDespesasReembolsaveis: true,
     despesasReembolsaveisSelecionadas: (DATA && DATA.despesasReembolsaveis) ? DATA.despesasReembolsaveis.map(d => d.id) : [],
     _calcResult: null,
+    // ligação com o Universo (ver comercial.js)
+    _clienteId: null,        // pes_… ou org_…
+    _oportunidadeId: null,   // opo_…
+    _propostaId: null,       // ppt_… depois de finalizar
+    _revisaoDe: null,        // ppt_… quando este orçamento é revisão de outra proposta
+    _revisaoDeCodigo: null,
+    _pdfCongelado: false,
+    _erroFinalizar: '',
     _userName: '',
     _maxUnlocked: 0
   };

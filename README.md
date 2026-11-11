@@ -31,9 +31,9 @@ qualquer dado de cliente que for commitado. Enquanto isso:
   e torne o repositório privado** em Settings → General → Danger Zone →
   Change visibility. O GitHub Pages continua funcionando normalmente em
   repositórios privados nos planos pagos.
-- Dados reais de clientes de propostas geradas ficam no Cloudflare (Workers
-  KV), não neste repositório — ver "Numeração automática" abaixo — então a
-  numeração pode ser usada com segurança mesmo com o repositório público.
+- Dados reais de clientes de propostas geradas ficam no Cloudflare (banco do
+  Universo), não neste repositório — ver "Universo" abaixo — então a
+  ferramenta pode ser usada com segurança mesmo com o repositório público.
 
 ## Como rodar localmente
 
@@ -76,35 +76,41 @@ o login na próxima chamada.
 `VENDAS_SENHA` → atualizar; depois Actions → "Publicar API do vendas" → Run
 workflow.
 
-## Numeração automática de propostas & histórico
+## Universo: propostas, funil e histórico
 
-O número da proposta (`PC0XX/AAAA`) é gerado automaticamente na etapa de
-revisão, e não mais digitado à mão. Isso funciona através de um pequeno
-Worker do Cloudflare (pasta `worker/`), que guarda o contador e uma cópia
-de cada proposta gerada — de graça, no plano gratuito do Cloudflare (ver
-`worker/README.md` para detalhes de custo).
+Desde novembro de 2026 (passo 2 do Universo), as propostas, os clientes e as
+oportunidades moram no banco de dados comum do Odisse (D1 + R2 do Universo,
+Worker `universo-hub`). O navegador fala só com o Worker deste repositório
+(`/u/v1/…`, com a senha do vendas), que repassa ao Universo pelo service
+binding `Vendas` — ver `worker/README.md` e, no repositório
+`universo-odisse`, `dados/DECISOES.md`.
 
-- **Com o Worker configurado** (recomendado): siga `worker/README.md` para
-  colocá-lo no ar (leva uns 10 minutos, uma vez só) e cole a URL gerada em
-  `config.js` → `CONFIG.workerUrl`. A partir daí, o número é compartilhado
-  entre todo mundo que usa a ferramenta, e a página `historico.html` lista
-  todas as propostas geradas (número, data, cliente), com um botão para
-  baixar o PDF de novo a qualquer momento.
-- **Sem o Worker**: a numeração cai para um contador local, salvo só no
-  navegador de quem está usando — funciona, mas cada pessoa/computador tem
-  sua própria contagem, e a página de histórico fica vazia.
+- **Finalizar orçamento**: cadastra (ou reaproveita) o cliente, liga a uma
+  oportunidade do funil (cria uma, na etapa "proposta", se o orçamento não
+  veio do funil) e numera a proposta (`PC-0007-2026`). A numeração continua
+  da que existia no sistema antigo.
+- **Gerar PDF**: o PDF é guardado no Universo exatamente como vai para o
+  cliente ("congelado"). Depois disso os valores da proposta não mudam; para
+  mudar, abra uma **revisão** pelo histórico ou pelo funil (mesmo número,
+  `-R1`, `-R2`…; a anterior passa a "substituída").
+- **Funil (`crm.html`)**: oportunidades por etapa (arrastar muda a etapa),
+  próxima ação com data (atrasadas em destaque), ficha com contato, propostas
+  (situação, PDF, revisão), interações e "novo orçamento para esta
+  oportunidade". Colar a primeira mensagem do WhatsApp com o código da página
+  (`[LP-residencial]`, `[Herma 030770479]`) preenche a origem.
+- **Histórico (`historico.html`)**: todas as propostas do Universo, com o PDF
+  guardado de cada uma.
+- **Migração (`migrar.html`, uso único)**: traz as propostas do histórico
+  antigo (KV) com número e código originais, cria clientes e uma oportunidade
+  por cliente, remonta e guarda o PDF de cada uma (marcado como remontado) e
+  ajusta a numeração. Depois, "Encerrar a numeração antiga" faz o Worker
+  recusar o caminho antigo (`/proximo-numero`, `/salvar-proposta`). Enquanto
+  a migração não roda, finalizar orçamento novo é recusado com aviso, para o
+  Universo não repetir números.
 
-Nenhum token ou senha extra precisa ser digitado em lugar nenhum — a
-autorização fica só no Worker, configurada uma única vez por quem publica
-a ferramenta.
-
-## Histórico de propostas (historico.html)
-
-Lista simples, não editável: número, data e cliente de cada proposta já
-gerada, com um botão "Baixar PDF" que reconstrói o documento na hora a
-partir dos dados salvos (não é o PDF em si que fica guardado, só os dados
-— o documento é remontado de forma idêntica ao original). Só funciona com
-o Worker do Cloudflare configurado (ver seção acima).
+O endereço da etapa 1 é do imóvel, não do cliente: fica no cálculo salvo da
+proposta. Do orçamento, só o CPF vai para os dados pessoais (restritos) do
+cliente, e só quando ainda não houver.
 
 ## Endereço com busca automática por CEP
 
@@ -120,17 +126,20 @@ bloco, etc.).
 ```
 login.html            → página de senha (separada do app)
 index.html          → shell do app (formulário)
-historico.html         → lista de propostas já geradas, com botão de baixar de novo
-config.js             → senha (hash) e URL do Worker do Cloudflare
+historico.html         → propostas do Universo, com o PDF guardado de cada uma
+crm.html               → funil: oportunidades, contatos, interações e propostas
+migrar.html            → migração única das propostas antigas (KV) para o Universo
+comercial.js           → liga o orçamento ao Universo (cliente, oportunidade, proposta, PDF congelado)
+config.js             → URL do Worker do Cloudflare
 auth.js                → autenticação (mantém a sessão entre visitas)
-store.js                 → numeração automática + histórico, via o Worker do Cloudflare
+store.js                 → cliente da API do Universo (via Worker) + leitura do histórico antigo
 styles.css           → estilos (tema escuro, identidade Odisse)
 data-loader.js        → carrega os data/*.json
 calc.js                → motor de cálculo (ver "Como o cálculo funciona" abaixo)
 steps.js                → renderização e lógica de cada etapa do formulário
 pdf.js                    → gera o PDF final (jsPDF + autotable)
 app.js                     → orquestração geral (navegação, ficha de valores)
-worker/                     → Worker do Cloudflare (numeração + histórico) — ver worker/README.md
+worker/                     → Worker do Cloudflare (senha, ponte para o Universo, histórico antigo) — ver worker/README.md
 data/
   tipologias.json          → tabela de tipologias × CUB × fator de adequação × BH
   cub.json                  → valores de CUB vigentes (atualizado mensalmente)

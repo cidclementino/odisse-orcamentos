@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odisse — Funil</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topbar">
+    <div class="topbar__mark">ODISSE</div>
+    <nav class="topbar__nav-center">
+      <a href="index.html">Orçamentos</a>
+      <a href="crm.html" class="is-current">Funil</a>
+      <a href="historico.html">Histórico</a>
+      <a href="cub.html">CUB</a>
+      <a href="precificacao.html">Como funciona o cálculo</a>
+      <a href="glossario.html">Glossário</a>
+    </nav>
+    <div class="topbar__meta">
+      <span id="rail-user"></span>
+      <a class="rail__reset" href="login.html" id="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <main class="crm">
+    <div class="crm__barra">
+      <h1>Funil</h1>
+      <input type="search" id="filtro" placeholder="Filtrar por título, cliente ou origem">
+      <select id="filtro-nucleo"><option value="">Todos os núcleos</option></select>
+      <button class="btn btn--primary btn--small" id="btn-nova" type="button">Nova oportunidade</button>
+    </div>
+    <div id="aviso"></div>
+    <div class="crm__resumo" id="resumo"></div>
+    <div class="funil" id="funil"><p class="muted">Carregando…</p></div>
+    <p class="field__hint">Arraste um cartão para mudar a etapa. Para marcar como ganha ou perdida, abra a oportunidade.</p>
+    <details class="fechadas" id="fechadas"></details>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="data-loader.js"></script>
+<script src="store.js"></script>
+<script src="comercial.js"></script>
+<script src="calc.js"></script>
+<script src="fonts-inter.js"></script>
+<script src="pdf.js"></script>
+<script>
+// ==========================================================================
+// Funil (CRM): oportunidades por etapa, ficha com contato, propostas e
+// interações. Tudo mora no Universo (ver comercial.js e store.js).
+// ==========================================================================
+
+const ABERTAS = ['lead', 'contato', 'briefing', 'proposta', 'negociacao'];
+const TIPOS_INTERACAO = [
+  { id: 'mensagem', nome: 'Mensagem' }, { id: 'ligacao', nome: 'Ligação' }, { id: 'reuniao', nome: 'Reunião' },
+  { id: 'email', nome: 'E-mail' }, { id: 'visita', nome: 'Visita' }
+];
+const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+const fmtDia = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : '';
+const opcoes = (lista, atual, vazio) => (vazio !== undefined ? `<option value="">${vazio}</option>` : '') +
+  lista.map(x => `<option value="${x.id}" ${x.id === atual ? 'selected' : ''}>${escHtml(x.nome)}</option>`).join('');
+const reaisDe = (c) => c === null || c === undefined ? '' : String(c / 100).replace('.', ',');
+const lerReais = (s) => { const t = String(s || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.'); return t ? centavos(t) : null; };
+
+let ITENS = [];
+let DATA = null;
+
+// Código de origem que as landing pages e a Herma põem no texto do WhatsApp:
+// "[LP-residencial]" ou "[Herma 030770479]".
+function origemDaMensagem(texto) {
+  const lp = String(texto || '').match(/\[(LP-[^\]\s]+)\]/i);
+  if (lp) return { origem: 'landing_page', origem_detalhe: lp[1] };
+  const h = String(texto || '').match(/\[Herma\s+([^\]]+)\]/i);
+  if (h) return { origem: 'herma', origem_detalhe: `Herma ${h[1].trim()}` };
+  return null;
+}
+
+// ---------------------------------------------------------------- quadro
+
+function proximaAcao(o) {
+  const i = o.ultima_interacao;
+  if (!i || !i.proxima_acao) return `<div class="op__acao is-sem">sem próxima ação</div>`;
+  const atrasada = i.proxima_acao_em && i.proxima_acao_em < hoje();
+  return `<div class="op__acao ${atrasada ? 'is-atrasada' : ''}">${i.proxima_acao_em ? fmtDia(i.proxima_acao_em) + ' · ' : ''}${escHtml(i.proxima_acao)}</div>`;
+}
+
+function valorDe(o) {
+  return o.ultima_proposta && o.ultima_proposta.valor_total !== null ? o.ultima_proposta.valor_total : o.valor_estimado;
+}
+
+function cartao(o) {
+  const v = valorDe(o);
+  return `<button class="op" draggable="true" data-id="${o.id}">
+    <div class="op__titulo">${escHtml(o.titulo)}</div>
+    <div class="op__linha">${escHtml(o.cliente_nome || 'sem cliente')}${o.nucleo_id ? ' · ' + escHtml(nomeDe(NUCLEOS, o.nucleo_id)) : ''}</div>
+    <div class="op__linha">${[v !== null && v !== undefined ? fmtCentavos(v) : '', o.ultima_proposta ? escHtml(o.ultima_proposta.codigo) : '', o.origem ? escHtml(nomeDe(ORIGENS, o.origem)) : ''].filter(Boolean).join(' · ')}</div>
+    ${o.etapa_funil === 'ganha' || o.etapa_funil === 'perdida' ? '' : proximaAcao(o)}
+  </button>`;
+}
+
+function filtrados() {
+  const q = document.getElementById('filtro').value.trim().toLowerCase();
+  const n = document.getElementById('filtro-nucleo').value;
+  return ITENS.filter(o => (!n || o.nucleo_id === n) &&
+    (!q || `${o.titulo} ${o.cliente_nome || ''} ${o.contato_nome || ''} ${o.origem_detalhe || ''}`.toLowerCase().includes(q)));
+}
+
+function desenhar() {
+  const itens = filtrados();
+  const abertas = itens.filter(o => ABERTAS.includes(o.etapa_funil));
+  const ganhas = itens.filter(o => o.etapa_funil === 'ganha');
+  const perdidas = itens.filter(o => o.etapa_funil === 'perdida');
+  const soma = (l) => l.reduce((t, o) => t + (valorDe(o) || 0), 0);
+  const atrasadas = abertas.filter(o => o.ultima_interacao && o.ultima_interacao.proxima_acao_em && o.ultima_interacao.proxima_acao_em < hoje()).length;
+  const semAcao = abertas.filter(o => !o.ultima_interacao || !o.ultima_interacao.proxima_acao).length;
+
+  document.getElementById('resumo').innerHTML = `
+    <div><strong>${abertas.length}</strong>em aberto</div>
+    <div><strong>${fmtCentavos(soma(abertas))}</strong>em aberto (proposta ou estimativa)</div>
+    <div><strong style="${atrasadas ? 'color:var(--danger)' : ''}">${atrasadas}</strong>ações atrasadas</div>
+    <div><strong>${semAcao}</strong>sem próxima ação</div>
+    <div><strong>${ganhas.length} · ${fmtCentavos(soma(ganhas))}</strong>ganhas em 90 dias</div>`;
+
+  const funil = document.getElementById('funil');
+  funil.innerHTML = ABERTAS.map(et => {
+    const l = abertas.filter(o => o.etapa_funil === et);
+    return `<div class="funil__col" data-etapa="${et}">
+      <h2><span>${nomeDe(ETAPAS_FUNIL, et)}</span><span>${l.length}</span></h2>
+      ${l.map(cartao).join('')}
+    </div>`;
+  }).join('');
+
+  const fech = document.getElementById('fechadas');
+  fech.innerHTML = `<summary>Fechadas nos últimos 90 dias: ${ganhas.length} ganhas, ${perdidas.length} perdidas</summary>
+    <div class="fechadas__lista">${[...ganhas, ...perdidas].map(cartao).join('') || '<p class="small muted">Nenhuma.</p>'}</div>`;
+
+  document.querySelectorAll('.op').forEach(b => {
+    b.onclick = () => abrirFicha(b.dataset.id);
+    b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', b.dataset.id); e.dataTransfer.effectAllowed = 'move'; };
+  });
+  document.querySelectorAll('.funil__col').forEach(col => {
+    col.ondragover = (e) => { e.preventDefault(); col.classList.add('is-alvo'); };
+    col.ondragleave = () => col.classList.remove('is-alvo');
+    col.ondrop = async (e) => {
+      e.preventDefault();
+      col.classList.remove('is-alvo');
+      const id = e.dataTransfer.getData('text/plain');
+      const o = ITENS.find(x => x.id === id);
+      if (!o || o.etapa_funil === col.dataset.etapa) return;
+      await mudarOportunidade(o, { etapa_funil: col.dataset.etapa });
+    };
+  });
+}
+
+function avisar(texto, tipo = 'erro') {
+  document.getElementById('aviso').innerHTML = texto ? `<div class="aviso aviso--${tipo}">${escHtml(texto)}</div>` : '';
+}
+
+async function carregar() {
+  try {
+    const r = await Universo.painel();
+    ITENS = r.itens;
+    avisar('');
+    desenhar();
+  } catch (e) {
+    avisar(`Não consegui carregar o funil (${e.message}).`);
+    document.getElementById('funil').innerHTML = '';
+  }
+}
+
+// PATCH com a versão que temos; em conflito, recarrega e avisa.
+async function mudarOportunidade(o, campos) {
+  try {
+    const reg = await Universo.alterar('oportunidades', o.id, { versao: o.versao, ...campos });
+    Object.assign(o, reg);
+    await carregar();
+    return reg;
+  } catch (e) {
+    if (e.status === 409 && e.dados.erro === 'conflito') {
+      avisar('Alguém mudou esta oportunidade enquanto você editava. Recarreguei; confira e tente de novo.');
+      await carregar();
+    } else {
+      avisar(`Não consegui salvar (${e.message}).`);
+    }
+    throw e;
+  }
+}
+
+// ---------------------------------------------------------------- painel lateral
+
+function fecharPainel() {
+  document.getElementById('painel-raiz').innerHTML = '';
+  if (location.hash) history.replaceState(null, '', location.pathname);
+}
+
+function abrirPainel(html) {
+  const raiz = document.getElementById('painel-raiz');
+  raiz.innerHTML = `<div class="painel-fundo"></div><aside class="painel" role="dialog">${html}</aside>`;
+  raiz.querySelector('.painel-fundo').onclick = fecharPainel;
+  raiz.querySelectorAll('.painel__fechar').forEach(b => b.onclick = fecharPainel);
+  return raiz.querySelector('.painel');
+}
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPainel(); });
+
+// ---- ficha da oportunidade
+async function abrirFicha(id) {
+  history.replaceState(null, '', '#' + id);
+  const painel = abrirPainel('<p class="muted">Carregando…</p>');
+  let o, contato, cliente, propostas, interacoes;
+  try {
+    o = await Universo.ler('oportunidades', id);
+    [contato, cliente, propostas, interacoes] = await Promise.all([
+      o.contato_pessoa_id ? Universo.ler('pessoas', o.contato_pessoa_id) : null,
+      o.cliente_id && o.cliente_id !== o.contato_pessoa_id ? Universo.ler(o.cliente_id.startsWith('org_') ? 'organizacoes' : 'pessoas', o.cliente_id) : null,
+      Universo.listar('propostas', { oportunidade_id: id, limite: 100 }),
+      Universo.listar('interacoes', { sobre_id: id, limite: 100 })
+    ]);
+  } catch (e) {
+    painel.innerHTML = `<button class="painel__fechar">×</button><p class="aviso aviso--erro">Não consegui abrir (${escHtml(e.message)}).</p>`;
+    painel.querySelector('.painel__fechar').onclick = fecharPainel;
+    return;
+  }
+  const c = contato || (cliente && cliente.id.startsWith('pes_') ? cliente : null);
+  const wa = c && (c.whatsapp || c.telefone);
+
+  painel.innerHTML = `
+    <div class="painel__topo">
+      <div>
+        <p class="small muted" style="margin:0 0 4px">${escHtml(nomeDe(ETAPAS_FUNIL, o.etapa_funil))}${o.etapa_desde ? ' desde ' + fmtDia(o.etapa_desde) : ''}</p>
+        <h2>${escHtml(o.titulo)}</h2>
+      </div>
+      <button class="painel__fechar" aria-label="Fechar">×</button>
+    </div>
+    <div id="ficha-aviso"></div>
+
+    <section>
+      <h3>Contato</h3>
+      ${cliente ? `<p style="margin:0 0 4px"><strong>${escHtml(cliente.nome)}</strong> <span class="small muted">${cliente.id.startsWith('org_') ? 'empresa' : 'cliente'}</span></p>` : ''}
+      ${c ? `<p style="margin:0"><strong>${escHtml(c.nome)}</strong></p>
+        <p class="small" style="margin:4px 0 0">${[
+          wa ? `<a href="https://wa.me/${escHtml(wa)}" target="_blank" rel="noopener" style="color:var(--copper-strong)">WhatsApp ${escHtml(Comercial.fmtTel(wa))}</a>` : '',
+          c.email ? `<a href="mailto:${escHtml(c.email)}" style="color:var(--paper-dim)">${escHtml(c.email)}</a>` : '',
+          c.instagram ? `<a href="https://instagram.com/${escHtml(c.instagram)}" target="_blank" rel="noopener" style="color:var(--paper-dim)">@${escHtml(c.instagram)}</a>` : ''
+        ].filter(Boolean).join(' · ')}</p>` : (cliente ? '' : '<p class="small muted">Sem contato ligado.</p>')}
+    </section>
+
+    <section>
+      <h3>Próximo passo</h3>
+      <form id="f-int">
+        <div class="row-2">
+          <div class="field"><label class="field__label">O que aconteceu</label><select name="tipo">${opcoes(TIPOS_INTERACAO, 'mensagem')}</select></div>
+          <div class="field"><label class="field__label">Quando</label><input type="date" name="data" value="${hoje()}"></div>
+        </div>
+        <div class="field"><label class="field__label">Resumo</label><textarea name="resumo" rows="2" style="min-height:60px"></textarea></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Próxima ação</label><input type="text" name="proxima_acao" placeholder="Ex.: enviar proposta"></div>
+          <div class="field"><label class="field__label">Até</label><input type="date" name="proxima_acao_em"></div>
+        </div>
+        <button class="btn btn--ghost btn--small" type="submit">Registrar</button>
+      </form>
+      <ul class="lista-int">${interacoes.itens.map(i => `
+        <li><span class="small">${fmtDia(i.data)} · ${escHtml(nomeDe(TIPOS_INTERACAO, i.tipo))}</span><br>
+          ${i.resumo ? escHtml(i.resumo).replace(/\n/g, '<br>') : '<span class="small muted">sem resumo</span>'}
+          ${i.proxima_acao ? `<br><span class="small" style="color:var(--copper-strong)">→ ${escHtml(i.proxima_acao)}${i.proxima_acao_em ? ' até ' + fmtDia(i.proxima_acao_em) : ''}</span>` : ''}
+        </li>`).join('') || '<li class="small muted">Nenhuma interação registrada.</li>'}</ul>
+    </section>
+
+    <section>
+      <h3>Propostas</h3>
+      ${propostas.itens.length ? `<table class="tabela">
+        <thead><tr><th>Código</th><th style="text-align:right">Valor</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${propostas.itens.map(p => `<tr>
+          <td><strong>${escHtml(p.codigo)}</strong><br><span class="small muted">${escHtml(p.titulo || '')}${p.data ? ' · ' + fmtDia(p.data) : ''}${p.arquivo_pdf_id ? '' : ' · sem PDF guardado'}</span></td>
+          <td class="tabular" style="text-align:right">${fmtCentavos(p.valor_total)}</td>
+          <td><select data-sit="${p.id}">${opcoes(SITUACOES_PROPOSTA, p.situacao)}</select></td>
+          <td style="white-space:nowrap"><button class="btn btn--ghost btn--small" data-pdf="${p.id}">PDF</button>
+            <button class="btn btn--ghost btn--small" data-rev="${p.id}">Revisão</button></td>
+        </tr>`).join('')}</tbody></table>` : '<p class="small muted">Nenhuma proposta ainda.</p>'}
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" id="btn-orcar" type="button">Novo orçamento para esta oportunidade</button></div>
+    </section>
+
+    <section>
+      <h3>Dados da oportunidade</h3>
+      <form id="f-opo">
+        <div class="field"><label class="field__label">Título</label><input type="text" name="titulo" value="${escHtml(o.titulo)}" required></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Etapa</label><select name="etapa_funil">${opcoes(ETAPAS_FUNIL, o.etapa_funil)}</select></div>
+          <div class="field"><label class="field__label">Núcleo</label><select name="nucleo_id">${opcoes(NUCLEOS, o.nucleo_id, '—')}</select></div>
+        </div>
+        <div class="field" id="campo-perda" ${o.etapa_funil === 'perdida' ? '' : 'hidden'}><label class="field__label">Motivo da perda</label><input type="text" name="motivo_perda" value="${escHtml(o.motivo_perda || '')}" placeholder="Ex.: preço, prazo, escolheu outro escritório"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Origem</label><select name="origem">${opcoes(ORIGENS, o.origem, '—')}</select></div>
+          <div class="field"><label class="field__label">Detalhe da origem</label><input type="text" name="origem_detalhe" value="${escHtml(o.origem_detalhe || '')}" placeholder="LP, post, quem indicou…"></div>
+        </div>
+        <div class="field"><label class="field__label">Valor estimado (R$)</label><input type="text" inputmode="decimal" name="valor_estimado" value="${reaisDe(o.valor_estimado)}"></div>
+        <div class="field"><label class="field__label">Observações</label><textarea name="observacoes" rows="3">${escHtml(o.observacoes || '')}</textarea></div>
+        <div class="painel__acoes">
+          <button class="btn btn--primary btn--small" type="submit">Salvar</button>
+          <button class="btn btn--ghost btn--small" type="button" id="btn-arquivar">Arquivar</button>
+        </div>
+      </form>
+    </section>`;
+
+  painel.querySelector('.painel__fechar').onclick = fecharPainel;
+  const aviso = (t, tipo = 'erro') => { painel.querySelector('#ficha-aviso').innerHTML = t ? `<div class="aviso aviso--${tipo}">${escHtml(t)}</div>` : ''; };
+
+  const f = painel.querySelector('#f-opo');
+  f.etapa_funil.onchange = () => { painel.querySelector('#campo-perda').hidden = f.etapa_funil.value !== 'perdida'; };
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await mudarOportunidade(o, {
+        titulo: f.titulo.value, etapa_funil: f.etapa_funil.value, nucleo_id: f.nucleo_id.value || null,
+        motivo_perda: f.etapa_funil.value === 'perdida' ? (f.motivo_perda.value || null) : o.motivo_perda,
+        origem: f.origem.value || null, origem_detalhe: f.origem_detalhe.value || null,
+        valor_estimado: lerReais(f.valor_estimado.value), observacoes: f.observacoes.value || null
+      });
+      abrirFicha(id);
+    } catch (err) { aviso(err.message); }
+  };
+  painel.querySelector('#btn-arquivar').onclick = async () => {
+    if (!confirm('Arquivar esta oportunidade? Ela sai do funil, mas nada é apagado.')) return;
+    try {
+      await Universo.post(`oportunidades/${id}/arquivar`, { versao: o.versao });
+      fecharPainel();
+      carregar();
+    } catch (err) { aviso(err.message); }
+  };
+
+  const fi = painel.querySelector('#f-int');
+  fi.onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await Universo.criar('interacoes', {
+        sobre_id: id, pessoa_id: o.contato_pessoa_id || null, tipo: fi.tipo.value, data: fi.data.value || hoje(),
+        resumo: fi.resumo.value || null, proxima_acao: fi.proxima_acao.value || null, proxima_acao_em: fi.proxima_acao_em.value || null
+      });
+      await carregar();
+      abrirFicha(id);
+    } catch (err) { aviso(err.message); }
+  };
+
+  painel.querySelectorAll('[data-sit]').forEach(s => s.onchange = async () => {
+    const p = propostas.itens.find(x => x.id === s.dataset.sit);
+    try {
+      const reg = await Universo.alterar('propostas', p.id, { versao: p.versao, situacao: s.value });
+      Object.assign(p, reg);
+      // proposta aceita: oferece marcar a oportunidade como ganha
+      if (s.value === 'aceita' && o.etapa_funil !== 'ganha' && confirm('Proposta aceita. Marcar a oportunidade como ganha?')) {
+        await mudarOportunidade(o, { etapa_funil: 'ganha' });
+        abrirFicha(id);
+      } else {
+        carregar();
+      }
+    } catch (err) { aviso(err.message); s.value = p.situacao; }
+  });
+  painel.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => {
+    try {
+      DATA = DATA || await OdisseData.load();
+      const p = propostas.itens.find(x => x.id === b.dataset.pdf);
+      const como = await Comercial.baixarPdf(p, DATA);
+      if (como === 'remontado') aviso('Esta proposta não tem PDF guardado: o PDF foi remontado a partir do cálculo salvo.', 'ok');
+    } catch (err) { aviso(err.message); }
+  });
+  painel.querySelectorAll('[data-rev]').forEach(b => b.onclick = () => {
+    const p = propostas.itens.find(x => x.id === b.dataset.rev);
+    if (confirm(`Abrir ${p.codigo} no orçamento como revisão? O rascunho atual do orçamento (se houver) será substituído.`)) {
+      Comercial.abrirNoOrcamento(p, { comoRevisao: true });
+    }
+  });
+  painel.querySelector('#btn-orcar').onclick = async () => {
+    if (!confirm('Começar um orçamento novo ligado a esta oportunidade? O rascunho atual do orçamento (se houver) será substituído.')) return;
+    try { await Comercial.novoOrcamentoDaOportunidade(o); } catch (err) { aviso(err.message); }
+  };
+}
+
+// ---- nova oportunidade
+function abrirNova() {
+  const painel = abrirPainel(`
+    <div class="painel__topo"><h2>Nova oportunidade</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+    <div id="nova-aviso"></div>
+    <form id="f-nova">
+      <div class="field">
+        <label class="field__label">Mensagem recebida (opcional)</label>
+        <textarea name="mensagem" rows="3" placeholder="Cole aqui a primeira mensagem. Códigos como [LP-residencial] ou [Herma 030770479] preenchem a origem sozinhos."></textarea>
+      </div>
+      <h3 style="margin-top:6px">Quem</h3>
+      <div class="field">
+        <label class="field__label">Pessoa</label>
+        <input type="search" name="busca_pessoa" placeholder="Buscar alguém já cadastrado…" autocomplete="off">
+        <div class="busca-res" id="res-pessoa"></div>
+        <p class="small" id="pessoa-escolhida" hidden></p>
+      </div>
+      <div id="pessoa-nova">
+        <div class="field"><label class="field__label">Nome</label><input type="text" name="nome"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">WhatsApp</label><input type="tel" name="whatsapp" placeholder="(83) 99999-9999"></div>
+          <div class="field"><label class="field__label">E-mail</label><input type="email" name="email"></div>
+        </div>
+        <div class="field"><label class="field__label">Instagram</label><input type="text" name="instagram" placeholder="@usuario"></div>
+      </div>
+      <div class="field">
+        <label class="field__label">Empresa (se o cliente for uma empresa)</label>
+        <input type="text" name="empresa" placeholder="Nome da empresa; deixe vazio se for pessoa física">
+      </div>
+      <h3 style="margin-top:6px">O quê</h3>
+      <div class="field"><label class="field__label">Título</label><input type="text" name="titulo" required placeholder="Ex.: Reforma apartamento Manaíra"></div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Núcleo</label><select name="nucleo_id">${opcoes(NUCLEOS, 'arquitetos', '—')}</select></div>
+        <div class="field"><label class="field__label">Etapa</label><select name="etapa_funil">${opcoes(ETAPAS_FUNIL.filter(e => ABERTAS.includes(e.id)), 'lead')}</select></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label class="field__label">Origem</label><select name="origem">${opcoes(ORIGENS, '', '—')}</select></div>
+        <div class="field"><label class="field__label">Detalhe da origem</label><input type="text" name="origem_detalhe" placeholder="LP, post, quem indicou…"></div>
+      </div>
+      <div class="field"><label class="field__label">Valor estimado (R$, opcional)</label><input type="text" inputmode="decimal" name="valor_estimado"></div>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Criar</button></div>
+    </form>`);
+
+  const f = painel.querySelector('#f-nova');
+  const aviso = (t) => { painel.querySelector('#nova-aviso').innerHTML = t ? `<div class="aviso aviso--erro">${escHtml(t)}</div>` : ''; };
+  let pessoaId = null;
+
+  f.mensagem.oninput = () => {
+    const o = origemDaMensagem(f.mensagem.value);
+    if (o) { f.origem.value = o.origem; f.origem_detalhe.value = o.origem_detalhe; }
+  };
+  f.nome.oninput = () => { if (!f.titulo.dataset.mexido) f.titulo.value = f.nome.value ? `${f.nome.value} — ` : ''; };
+  f.titulo.oninput = () => { f.titulo.dataset.mexido = '1'; };
+
+  let tempo = null;
+  const res = painel.querySelector('#res-pessoa');
+  f.busca_pessoa.oninput = () => {
+    clearTimeout(tempo);
+    const q = f.busca_pessoa.value.trim();
+    if (q.length < 2) { res.innerHTML = ''; return; }
+    tempo = setTimeout(async () => {
+      const r = await Universo.buscar(q, 'pessoas').catch(() => ({ itens: [] }));
+      res.innerHTML = r.itens.map(i => `<button type="button" class="busca-res__item" data-id="${i.id}">${escHtml(i.titulo)}</button>`).join('')
+        || '<p class="small muted">Ninguém encontrado: preencha abaixo para cadastrar.</p>';
+      res.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+        pessoaId = b.dataset.id;
+        res.innerHTML = '';
+        f.busca_pessoa.value = '';
+        const el = painel.querySelector('#pessoa-escolhida');
+        el.hidden = false;
+        el.innerHTML = `Pessoa: <strong>${escHtml(b.textContent)}</strong> <button type="button" class="btn-link" id="trocar-pessoa">trocar</button>`;
+        painel.querySelector('#pessoa-nova').hidden = true;
+        if (!f.titulo.dataset.mexido) f.titulo.value = `${b.textContent} — `;
+        el.querySelector('#trocar-pessoa').onclick = () => {
+          pessoaId = null; el.hidden = true; painel.querySelector('#pessoa-nova').hidden = false;
+        };
+      });
+    }, 300);
+  };
+
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    aviso('');
+    const botao = f.querySelector('button[type=submit]');
+    botao.disabled = true;
+    try {
+      if (!pessoaId && !f.nome.value.trim() && !f.empresa.value.trim()) throw new Error('Informe a pessoa (ou a empresa).');
+      if (!pessoaId && f.nome.value.trim()) {
+        const p = await Comercial.criarContato('pessoas', {
+          nome: f.nome.value.trim(), whatsapp: f.whatsapp.value || null, telefone: f.whatsapp.value || null,
+          email: f.email.value || null, instagram: f.instagram.value || null
+        });
+        pessoaId = p.id;
+      }
+      let orgId = null;
+      if (f.empresa.value.trim()) {
+        const org = await Comercial.criarContato('organizacoes', { nome: f.empresa.value.trim() });
+        orgId = org.id;
+        if (pessoaId) {
+          await Universo.criar('atuacoes', { pessoa_id: pessoaId, organizacao_id: orgId, papel: 'contato' }).catch(() => null);
+        }
+      }
+      const o = await Universo.criar('oportunidades', {
+        titulo: f.titulo.value.trim(), cliente_id: orgId || pessoaId, contato_pessoa_id: pessoaId,
+        nucleo_id: f.nucleo_id.value || null, etapa_funil: f.etapa_funil.value,
+        origem: f.origem.value || null, origem_detalhe: f.origem_detalhe.value || null,
+        valor_estimado: lerReais(f.valor_estimado.value)
+      });
+      if (f.mensagem.value.trim()) {
+        await Universo.criar('interacoes', {
+          sobre_id: o.id, pessoa_id: pessoaId, tipo: 'mensagem', data: hoje(), resumo: f.mensagem.value.trim()
+        });
+      }
+      await carregar();
+      abrirFicha(o.id);
+    } catch (err) {
+      aviso(err.message);
+      botao.disabled = false;
+    }
+  };
+}
+
+// ---------------------------------------------------------------- início
+
+async function iniciar() {
+  document.getElementById('app').hidden = false;
+  document.getElementById('rail-user').textContent = getUserName() ? `Olá, ${getUserName()}` : '';
+  document.getElementById('btn-logout').onclick = (e) => { e.preventDefault(); logout(); window.location.href = 'login.html'; };
+  document.getElementById('filtro-nucleo').innerHTML += opcoes(NUCLEOS, '');
+  document.getElementById('filtro').oninput = desenhar;
+  document.getElementById('filtro-nucleo').onchange = desenhar;
+  document.getElementById('btn-nova').onclick = abrirNova;
+  await carregar();
+  if (/^#opo_/.test(location.hash)) abrirFicha(location.hash.slice(1));
+}
+
+iniciar();
+</script>
+</body>
+</html>

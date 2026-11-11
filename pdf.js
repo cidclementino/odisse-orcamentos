@@ -208,8 +208,10 @@ const OdissePdf = (() => {
     return corpo;
   }
 
-  function gerar(state, data) {
-    if (!window.jspdf) { alert('Biblioteca de PDF ainda carregando — tente novamente em instantes.'); return; }
+  // Monta o PDF e devolve { doc, nomeArquivo } sem baixar (o orçamento guarda o PDF no
+  // Universo antes de baixar). gerar() continua existindo: monta e baixa.
+  function montar(state, data) {
+    if (!window.jspdf) throw new Error('Biblioteca de PDF ainda carregando — tente novamente em instantes.');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     garantirFonteInter(doc);
@@ -464,8 +466,17 @@ const OdissePdf = (() => {
     }
 
     const nomeArquivo = `${state.numeroProposta || 'Proposta'}_${(state.cliente.nome || 'cliente').replace(/[^\w]+/g, '_')}.pdf`;
-    doc.save(nomeArquivo);
+    return { doc, nomeArquivo };
   }
 
-  return { gerar };
+  function gerar(state, data) {
+    try {
+      const { doc, nomeArquivo } = montar(state, data);
+      doc.save(nomeArquivo);
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  return { montar, gerar };
 })();

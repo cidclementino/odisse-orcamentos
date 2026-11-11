@@ -9,3 +9,11 @@ compatibility_date = "2026-01-01"
 kv_namespaces = [
   { binding = "ODISSE_KV", id = "__KV_ID__" }
 ]
+
+# Universo: banco de dados comum (D1/R2) pelo Worker do hub, ponto de entrada "Vendas".
+# Só outro Worker da mesma conta alcança esse ponto de entrada; não passa pela internet.
+# O navegador chama /u/v1/… aqui (com a senha do vendas) e este Worker repassa.
+[[services]]
+binding = "UNIVERSO"
+service = "universo-hub"
+entrypoint = "Vendas"

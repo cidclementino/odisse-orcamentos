@@ -1,15 +1,10 @@
 // ==========================================================================
-// Numeração automática + histórico de propostas, via o Worker do Cloudflare
-// (ver worker/README.md). Sem CONFIG.workerUrl configurado, cai para um
-// contador local — funciona, mas não compartilhado entre navegadores.
+// Histórico antigo (KV do Worker do vendas). Desde a migração ao Universo
+// (nov/2026) as propostas são numeradas e guardadas no Universo; o KV fica
+// só para leitura, usado pela página de migração (migrar.html).
 // ==========================================================================
 
 const OdisseStore = (() => {
-  function temWorker() {
-    return !!(CONFIG.workerUrl && CONFIG.workerUrl.trim());
-  }
-
-  // fetch ao Worker com a senha; se ela for recusada, volta ao login.
   async function chamar(caminho, opcoes = {}) {
     const res = await fetch(`${CONFIG.workerUrl}${caminho}`, { ...opcoes, headers: cabecalhosAuth(opcoes.headers) });
     if (res.status === 401) {
@@ -19,54 +14,7 @@ const OdisseStore = (() => {
     return res;
   }
 
-  async function proximoNumero() {
-    const ano = new Date().getFullYear();
-
-    if (temWorker()) {
-      try {
-        const controlador = new AbortController();
-        const timeout = setTimeout(() => controlador.abort(), 8000);
-        const res = await chamar('/proximo-numero', { method: 'POST', signal: controlador.signal });
-        clearTimeout(timeout);
-        if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-        const dados = await res.json();
-        return { ...dados, fonte: 'worker' };
-      } catch (e) {
-        console.error('Falha ao numerar via Worker, caindo para contador local:', e);
-        return numeroLocal(ano, `Não consegui falar com a API (${e.message}) — número gerado localmente.`);
-      }
-    }
-    return numeroLocal(ano, 'Nenhum Worker configurado — número gerado localmente (não aparece no histórico compartilhado).');
-  }
-
-  function numeroLocal(ano, aviso) {
-    const chave = 'odisse-contador-local';
-    const ultimo = parseInt(localStorage.getItem(chave) || '0', 10);
-    const novo = ultimo + 1;
-    localStorage.setItem(chave, String(novo));
-    return { numero: novo, numeroFormatado: `PC-${String(novo).padStart(4, '0')}-${ano}`, fonte: 'local', aviso };
-  }
-
-  // Salva o snapshot completo da proposta — só funciona com o Worker configurado.
-  async function salvarRegistro(numeroFormatado, snapshot) {
-    if (!temWorker()) return { ok: false, motivo: 'sem-worker' };
-    try {
-      const resumo = { data: snapshot.dataProposta, cliente: snapshot.cliente.nome };
-      const res = await chamar('/salvar-proposta', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numeroFormatado, snapshot, resumo })
-      });
-      if (!res.ok) throw new Error(`API respondeu ${res.status}`);
-      return { ok: true };
-    } catch (e) {
-      console.error('Falha ao salvar o registro da proposta:', e);
-      return { ok: false, motivo: e.message };
-    }
-  }
-
   async function listarPropostas() {
-    if (!temWorker()) return { propostas: [], semWorker: true };
     const res = await chamar('/listar-propostas');
     if (!res.ok) throw new Error(`API respondeu ${res.status}`);
     return await res.json();
@@ -79,5 +27,91 @@ const OdisseStore = (() => {
     return dados.snapshot;
   }
 
-  return { proximoNumero, salvarRegistro, listarPropostas, buscarProposta, temWorker };
+  return { listarPropostas, buscarProposta };
 })();
+
+// ==========================================================================
+// Universo — banco de dados comum (contatos, oportunidades, propostas, PDFs).
+// O navegador fala só com o Worker do vendas (/u/v1/…, com a senha do vendas),
+// que repassa à API de dados do Universo. Erros vêm como { erro, ... } e viram
+// UniversoErro com .status e .dados (ex.: 409 possivel_duplicado traz .dados.candidatos).
+// ==========================================================================
+
+class UniversoErro extends Error {
+  constructor(status, dados) {
+    super((dados && (dados.detalhe && dados.erro !== 'erro no servidor' ? dados.detalhe : dados.erro)) || `erro ${status}`);
+    this.status = status;
+    this.dados = dados || {};
+  }
+}
+
+const Universo = (() => {
+  async function chamar(metodo, caminho, corpo, extra = {}) {
+    const opcoes = { method: metodo, headers: cabecalhosAuth(extra.headers || {}) };
+    if (corpo !== undefined && corpo !== null) {
+      if (corpo instanceof Blob || corpo instanceof ArrayBuffer) {
+        opcoes.body = corpo;
+      } else {
+        opcoes.body = JSON.stringify(corpo);
+        opcoes.headers['Content-Type'] = 'application/json';
+      }
+    }
+    const res = await fetch(`${CONFIG.workerUrl}/u/v1/${caminho}`, opcoes);
+    if (res.status === 401) { senhaRecusada(); throw new UniversoErro(401, { erro: 'senha recusada' }); }
+    if (extra.bruto) {
+      if (!res.ok) throw new UniversoErro(res.status, await res.json().catch(() => null));
+      return res;
+    }
+    const dados = await res.json().catch(() => null);
+    if (!res.ok) throw new UniversoErro(res.status, dados);
+    return dados;
+  }
+
+  const qs = (o) => Object.entries(o || {}).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+
+  return {
+    get: (caminho, params) => chamar('GET', params ? `${caminho}?${qs(params)}` : caminho),
+    post: (caminho, corpo) => chamar('POST', caminho, corpo || {}),
+    patch: (caminho, corpo) => chamar('PATCH', caminho, corpo),
+    listar: (rota, params) => chamar('GET', `${rota}?${qs(params)}`),
+    ler: async (rota, id) => (await chamar('GET', `${rota}/${encodeURIComponent(id)}`)).registro,
+    // registro ou null (404)
+    talvez: async (rota, id) => {
+      try { return (await chamar('GET', `${rota}/${encodeURIComponent(id)}`)).registro; }
+      catch (e) { if (e.status === 404) return null; throw e; }
+    },
+    criar: async (rota, corpo) => (await chamar('POST', rota, corpo)).registro,
+    alterar: async (rota, id, corpo) => (await chamar('PATCH', `${rota}/${encodeURIComponent(id)}`, corpo)).registro,
+    buscar: (q, tabela) => chamar('GET', `busca?${qs({ q, tabela })}`),
+    painel: () => chamar('GET', 'comercial/painel'),
+
+    // Sobe um arquivo (PDF da proposta, contrato…) e devolve o registro já com o conteúdo enviado.
+    async enviarArquivo(blob, campos) {
+      const reg = (await chamar('POST', 'arquivos', { tipo_mime: blob.type || 'application/octet-stream', tamanho: blob.size, ...campos })).registro;
+      await chamar('PUT', `arquivos/${reg.id}/conteudo?variante=g`, blob, { headers: { 'Content-Type': blob.type || 'application/octet-stream' } });
+      return reg;
+    },
+    async baixarArquivo(id) {
+      const res = await chamar('GET', `arquivos/${encodeURIComponent(id)}/conteudo`, null, { bruto: true });
+      return await res.blob();
+    }
+  };
+})();
+
+// Baixa um Blob com o nome dado.
+function baixarBlob(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// Valores da API em centavos ↔ reais.
+const centavos = (reais) => (reais === null || reais === undefined || reais === '' || Number.isNaN(Number(reais))) ? null : Math.round(Number(reais) * 100);
+const fmtCentavos = (c) => (c === null || c === undefined) ? '—' : (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

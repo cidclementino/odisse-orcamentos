@@ -1,8 +1,15 @@
-# Odisse — API de propostas (Cloudflare Worker)
+# Odisse — API do vendas (Cloudflare Worker)
 
-Guarda a numeração e o histórico de propostas no Workers KV (plano gratuito
-da Cloudflare), para que a numeração seja compartilhada entre todo mundo que
-usa a ferramenta, sem precisar de nenhum token no navegador.
+Confere a senha do vendas e repassa as chamadas `/u/v1/…` à API de dados do
+Universo (`/api/v1/…` do Worker `universo-hub`), pelo service binding
+`UNIVERSO` com ponto de entrada `Vendas` (ver `wrangler.toml`). O navegador
+nunca recebe a senha do hub; o Universo enxerga estas chamadas como a
+ferramenta "vendas", com as permissões dela.
+
+O KV `ODISSE_KV` guardava a numeração e o histórico antes do Universo. Fica
+só para leitura (página `migrar.html`): `GET /kv/estado`, `GET
+/listar-propostas`, `GET /proposta?numero=…`. Depois de `POST /kv/encerrar`,
+`/proximo-numero` e `/salvar-proposta` respondem 410.
 
 ## Deploy
 

@@ -183,6 +183,72 @@ const STEPS = [];
 
 // -------------------------------------------------------------------------
 // 1. Cliente & Projeto
+// Bloco "Ligado ao Universo" / busca de cliente cadastrado (etapa 1).
+function ligarVinculoUniverso(el, state, ctx) {
+  const texto = el.querySelector('#vinculo-texto');
+  if (texto) {
+    (async () => {
+      try {
+        if (state._oportunidadeId) {
+          const o = await Universo.ler('oportunidades', state._oportunidadeId);
+          texto.innerHTML = `Oportunidade <a href="crm.html#${o.id}">${escHtml(o.titulo)}</a> · ${escHtml(nomeDe(ETAPAS_FUNIL, o.etapa_funil))}`;
+        } else {
+          const t = state._clienteId.startsWith('org_') ? 'organizacoes' : 'pessoas';
+          const c = await Universo.ler(t, state._clienteId);
+          texto.textContent = `Cliente: ${c.nome}`;
+        }
+      } catch (e) {
+        texto.textContent = `Não consegui carregar a ligação (${e.message}).`;
+      }
+    })();
+  }
+  const desligar = el.querySelector('#btn-desligar');
+  if (desligar) desligar.onclick = () => {
+    if (!confirm('Desligar este orçamento do cliente e da oportunidade? Os campos preenchidos continuam.')) return;
+    Object.assign(state, { _oportunidadeId: null, _clienteId: null, _revisaoDe: null, _revisaoDeCodigo: null });
+    ctx.rerender();
+  };
+
+  const busca = el.querySelector('#f-busca-cliente');
+  if (!busca) return;
+  const res = el.querySelector('#busca-cliente-res');
+  let tempo = null;
+  busca.oninput = () => {
+    clearTimeout(tempo);
+    const q = busca.value.trim();
+    if (q.length < 2) { res.innerHTML = ''; return; }
+    tempo = setTimeout(async () => {
+      try {
+        const [p, o] = await Promise.all([Universo.buscar(q, 'pessoas'), Universo.buscar(q, 'organizacoes')]);
+        const itens = [...o.itens, ...p.itens];
+        res.innerHTML = itens.length
+          ? itens.map(i => `<button type="button" class="busca-res__item" data-id="${i.id}">${escHtml(i.titulo)} <span class="small muted">${i.tabela === 'organizacoes' ? 'empresa' : 'pessoa'}</span></button>`).join('')
+          : '<p class="small muted">Ninguém encontrado — o cliente será cadastrado ao finalizar.</p>';
+        res.querySelectorAll('[data-id]').forEach(b => b.onclick = async () => {
+          const id = b.dataset.id;
+          const tabela = id.startsWith('org_') ? 'organizacoes' : 'pessoas';
+          const c = await Universo.ler(tabela, id);
+          state._clienteId = id;
+          state.cliente.nome = c.nome || '';
+          state.cliente.email = c.email || '';
+          state.cliente.telefone = Comercial.fmtTel(c.telefone || c.whatsapp || '');
+          if (tabela === 'organizacoes') {
+            state.cliente.representacao = 'PJ';
+            if (c.cnpj) state.cliente.documento = Comercial.fmtCnpj(c.cnpj);
+          } else {
+            state.cliente.representacao = 'PF';
+            const s = await Universo.talvez('pessoas-sensiveis', id).catch(() => null);
+            if (s && s.cpf) state.cliente.documento = Comercial.fmtCpf(s.cpf);
+          }
+          ctx.rerender();
+        });
+      } catch (e) {
+        res.innerHTML = `<p class="small muted">Não consegui buscar agora (${escHtml(e.message)}).</p>`;
+      }
+    }, 300);
+  };
+}
+
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'cliente',
@@ -191,7 +257,23 @@ STEPS.push({
   desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
   render(state) {
     const c = state.cliente;
+    const vinculo = (state._oportunidadeId || state._clienteId)
+      ? `<div class="card vinculo">
+          <p class="small muted" style="margin:0 0 4px">Ligado ao Universo</p>
+          <p style="margin:0"><span id="vinculo-texto">${state._oportunidadeId ? 'Oportunidade' : 'Cliente'} carregando…</span></p>
+          ${state._revisaoDeCodigo ? `<p class="small" style="margin:6px 0 0">Revisão de <strong>${escHtml(state._revisaoDeCodigo)}</strong></p>` : ''}
+          ${state.numeroProposta ? '' : '<button type="button" class="btn-link" id="btn-desligar">Desligar e começar como cliente novo</button>'}
+        </div>`
+      : `<div class="field-group">
+          <div class="field">
+            <label class="field__label">Cliente já cadastrado? Busque no Universo (opcional)</label>
+            <input type="search" id="f-busca-cliente" placeholder="Nome, e-mail, telefone ou CNPJ" autocomplete="off">
+            <div id="busca-cliente-res" class="busca-res"></div>
+            <p class="field__hint">Sem busca, o cliente é cadastrado no Universo ao finalizar o orçamento (com aviso se já houver alguém parecido).</p>
+          </div>
+        </div>`;
     return `
+      ${vinculo}
       <div class="field-group">
         <div class="field">
           <label class="field__label">Nome do cliente / empresa</label>
@@ -268,7 +350,8 @@ STEPS.push({
       </div>
     `;
   },
-  bind(el, state) {
+  bind(el, state, data, ctx) {
+    ligarVinculoUniverso(el, state, ctx);
     el.querySelector('#f-nome').oninput = e => state.cliente.nome = e.target.value;
     el.querySelector('#f-email').oninput = e => state.cliente.email = e.target.value;
     el.querySelector('#f-data-proposta').oninput = e => {
@@ -1060,9 +1143,14 @@ STEPS.push({
     const r = state._calcResult;
     if (!r) return `<p class="muted">Complete as etapas anteriores para ver o resumo do cálculo.</p>`;
 
+    const revisao = state._revisaoDeCodigo
+      ? `<p class="field__hint" style="margin: 4px 0 8px">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>`
+      : '';
     const numeroBloco = state.numeroProposta
-      ? `<div class="numero-proposta"><span class="numero-proposta__label">Nº da proposta</span><span class="numero-proposta__valor">${state.numeroProposta}</span></div>`
-      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : state.numeroPropostaStatus === 'erro' ? 'Não consegui gerar o número — tente novamente.' : 'O número da proposta ainda não foi gerado.'}</p>`;
+      ? `<div class="numero-proposta"><span class="numero-proposta__label">Nº da proposta</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
+      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta ainda não foi gerado.'}</p>`;
+    const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…'
+      : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
 
     return `
       <div class="card">
@@ -1078,12 +1166,14 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Percentual do serviço</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
       </div>
+      ${revisao}
       ${numeroBloco}
       <div class="row-2">
         <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
-        <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta ? '' : 'disabled'}>Gerar PDF da proposta</button>
+        <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta && state._pdfStatus !== 'guardando' ? '' : 'disabled'}>${state._pdfStatus === 'guardando' ? 'Guardando…' : 'Gerar PDF da proposta'}</button>
       </div>
-      <p class="field__hint" style="margin-top:14px">O PDF é gerado inteiramente no seu navegador — os únicos dados enviados a um servidor são o número e um resumo da proposta, salvos na API de histórico, gravados só ao finalizar.</p>
+      ${pdfStatus ? `<p class="field__hint" style="margin-top:10px">${pdfStatus}</p>` : ''}
+      <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo, ligada ao cliente e a uma oportunidade do funil. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores desta proposta não mudam mais (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
     `;
   },
   bind(el, state, data, ctx) {
@@ -1091,23 +1181,47 @@ STEPS.push({
     if (btnFinalizar) {
       btnFinalizar.onclick = async () => {
         state.numeroPropostaStatus = 'gerando';
+        state._erroFinalizar = '';
         ctx.rerender();
         try {
-          const resultado = await OdisseStore.proximoNumero();
-          state.numeroProposta = resultado.numeroFormatado;
+          const proposta = await Comercial.registrarProposta(state, data);
+          state._propostaId = proposta.id;
+          state.numeroProposta = proposta.codigo;
           state.numeroPropostaStatus = 'ok';
-          if (resultado.aviso) console.warn(resultado.aviso);
-          await OdisseStore.salvarRegistro(resultado.numeroFormatado, state);
         } catch (e) {
           state.numeroPropostaStatus = 'erro';
+          state._erroFinalizar = e.message;
           console.error(e);
         }
         ctx.rerender();
       };
     }
     const btn = el.querySelector('#btn-gerar-pdf');
-    if (btn) btn.onclick = () => {
-      OdissePdf.gerar(state, data);
+    if (btn) btn.onclick = async () => {
+      let montado;
+      try {
+        montado = OdissePdf.montar(state, data);
+      } catch (e) {
+        alert(e.message);
+        return;
+      }
+      // guarda no Universo o PDF que vai para o cliente (uma vez só; se já foi, só baixa de novo)
+      if (state._propostaId && !state._pdfCongelado) {
+        state._pdfStatus = 'guardando';
+        ctx.rerender();
+        try {
+          await Comercial.congelarPdf(state._propostaId, montado.doc.output('blob'), montado.nomeArquivo);
+          state._pdfCongelado = true;
+          state._pdfStatus = '';
+        } catch (e) {
+          state._pdfStatus = 'erro';
+          state._erroPdf = e.message;
+          console.error(e);
+          ctx.rerender();
+          return;
+        }
+      }
+      montado.doc.save(montado.nomeArquivo);
       if (typeof limparRascunho === 'function') limparRascunho();
       if (typeof mostrarConfirmacao === 'function') mostrarConfirmacao();
     };

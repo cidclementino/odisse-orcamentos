@@ -11,6 +11,13 @@
 //   GET  /listar-propostas         → devolve o índice (número, data, cliente)
 //   GET  /proposta?numero=PC001/2026  → devolve o snapshot completo de uma proposta
 //   GET  /estado                → confere a senha (usado pela tela de login)
+//   GET  /kv/estado             → { contador, total, encerrado } (para a migração ao Universo)
+//   POST /kv/encerrar           → encerra a numeração antiga (depois da migração)
+//   *    /u/v1/…                → repassado à API de dados do Universo (/api/v1/…), como ferramenta "vendas"
+//
+// Desde a migração ao Universo (passo 2, nov/2026), as propostas, oportunidades e contatos moram no
+// banco D1 do Universo. O KV fica só como leitura do histórico antigo; depois de encerrado,
+// /proximo-numero e /salvar-proposta recusam (410) para nenhuma página antiga numerar em paralelo.
 //
 // Todas as rotas exigem o cabeçalho `Authorization: Bearer <VENDAS_SENHA>`.
 // VENDAS_SENHA é um secret do Worker, enviado pelo GitHub Actions a partir do
@@ -20,7 +27,7 @@
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
@@ -38,6 +45,20 @@ function autorizado(request, env) {
   if (!env.VENDAS_SENHA) return false;
   const cab = request.headers.get('Authorization') || '';
   return iguais(cab, `Bearer ${env.VENDAS_SENHA}`);
+}
+
+// Repassa /u/v1/… para o hub (service binding), sem a senha do vendas.
+async function universo(request, env, url) {
+  if (!env.UNIVERSO) return json({ erro: 'ligação com o Universo não configurada' }, 503);
+  const destino = 'https://universo/api/v1/' + url.pathname.replace(/^\/u\/v1\/?/, '') + url.search;
+  const cab = new Headers();
+  for (const k of ['Content-Type', 'Content-Length']) if (request.headers.get(k)) cab.set(k, request.headers.get(k));
+  const temCorpo = !['GET', 'HEAD'].includes(request.method);
+  const res = await env.UNIVERSO.fetch(destino, { method: request.method, headers: cab, body: temCorpo ? request.body : undefined });
+  const saida = new Headers(res.headers);
+  for (const [k, v] of Object.entries(CORS)) saida.set(k, v);
+  saida.set('Access-Control-Expose-Headers', 'Content-Type, Content-Length');
+  return new Response(res.body, { status: res.status, headers: saida });
 }
 
 function json(obj, status = 200) {
@@ -61,6 +82,27 @@ export default {
     try {
       if (url.pathname === '/estado' && request.method === 'GET') {
         return json({ ok: true });
+      }
+
+      if (url.pathname.startsWith('/u/v1')) return await universo(request, env, url);
+
+      if (url.pathname === '/kv/estado' && request.method === 'GET') {
+        const indice = JSON.parse((await env.ODISSE_KV.get('indice')) || '[]');
+        return json({
+          contador: parseInt((await env.ODISSE_KV.get('contador')) || '0', 10),
+          total: indice.length,
+          encerrado: (await env.ODISSE_KV.get('encerrado')) || null
+        });
+      }
+
+      if (url.pathname === '/kv/encerrar' && request.method === 'POST') {
+        await env.ODISSE_KV.put('encerrado', new Date().toISOString());
+        return json({ ok: true });
+      }
+
+      const encerrado = await env.ODISSE_KV.get('encerrado');
+      if (encerrado && ['/proximo-numero', '/salvar-proposta'].includes(url.pathname)) {
+        return json({ erro: 'numeração antiga encerrada: as propostas agora são numeradas pelo Universo. Recarregue a página.' }, 410);
       }
 
       if (url.pathname === '/proximo-numero' && request.method === 'POST') {

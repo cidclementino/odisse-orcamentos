@@ -69,3 +69,9 @@ jobs:
           done
           echo "Sem senha: $sem (esperado 401) · com senha: $com (esperado 200)"
           if [ "$sem" != "401" ] || [ "$com" != "200" ]; then echo "::error::A API não respondeu como esperado."; exit 1; fi
+          # ponte para o Universo (service binding "Vendas" do universo-hub)
+          u=$(curl -s -H "Authorization: Bearer $VENDAS_SENHA" "$URL/u/v1/estado")
+          echo "Universo pelo vendas: $u"
+          case "$u" in *'"ferramenta":"vendas"'*'"banco":true'*'0002_comercial'*) ;; *) echo "::error::A ponte para o Universo não respondeu como esperado."; exit 1 ;; esac
+          n=$(curl -s -H "Authorization: Bearer $VENDAS_SENHA" "$URL/u/v1/propostas/numeracao")
+          echo "Numeração das propostas no Universo: $n (null = migração das propostas ainda não rodou)"
