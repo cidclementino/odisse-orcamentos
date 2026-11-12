@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honorários · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="honorarios"></header>
+  <script src="topo.js"></script>
+
+  <main class="crm">
+    <div class="crm__barra">
+      <h1>Honorários</h1>
+      <div class="gestao__pub" id="pub"></div>
+    </div>
+    <p class="gestao__intro">O custo sobre a estrutura do estúdio. Serviços, tipologias, fases, etapas e entregáveis são definidos na ferramenta
+      Projetos (<a href="https://projetos.odisse.com.br/bases.html">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>);
+      aqui ficam o preço de cada serviço, o peso de cada etapa no honorário, as parcelas e a base de honorários de cada uso.</p>
+    <div class="abas gestao__abas" role="tablist">
+      <button type="button" data-aba="servicos">Serviços</button>
+      <button type="button" data-aba="pesos">Pesos das etapas</button>
+      <button type="button" data-aba="parcelas">Parcelas</button>
+      <button type="button" data-aba="bh">Base de honorários</button>
+      <button type="button" data-aba="tabelas">Tabelas do CAU</button>
+    </div>
+    <div id="aviso"></div>
+
+    <section data-painel="servicos" hidden><div class="rolagem" id="servicos"><p class="muted">Carregando…</p></div></section>
+    <section data-painel="pesos" hidden><div class="rolagem" id="pesos"></div></section>
+    <section data-painel="parcelas" hidden><div id="parcelas"></div></section>
+    <section data-painel="bh" hidden>
+      <div class="gestao__filtros"><input type="search" id="filtro-uso" placeholder="Filtrar usos (descrição, item, CUB)"></div>
+      <div id="bh"><p class="muted">Carregando…</p></div>
+    </section>
+    <section data-painel="tabelas" hidden><div id="tabelas"></div></section>
+  </main>
+</div>
+
+<div id="painel-raiz"></div>
+
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>exigirAutenticacao();</script>
+<script src="store.js"></script>
+<script src="comercial.js"></script>
+<script src="ui.js"></script>
+<script>
+// ==========================================================================
+// Honorários (migração 0006 do Universo): o custo que se aplica sobre as
+// Bases e o Plano Geral de Trabalho, que moram na ferramenta Projetos.
+//   - preço dos serviços: modificador, tem preço, repartido por etapa
+//   - pesos das etapas na matriz etapa × serviço (só onde a etapa vale)
+//   - parcelas: entrada (na assinatura) + uma por fase
+//   - base de honorários de cada uso: CUB vigente (data/cub.json) × fator
+// Publicar grava a versão de honorários que as propostas vão registrar.
+// ==========================================================================
+let H = null;     // GET honorarios
+let B = null;     // GET bases (usos e categorias, para a base de honorários)
+let CUB = null;   // tabela do CUB da região ativa
+const aviso = avisoEm(document.getElementById('aviso'));
+
+const GRUPOS = [
+  { id: 'residencial', nome: 'Residencial', cor: 'var(--odisse-pessego, #F2DDBE)' },
+  { id: 'comercial', nome: 'Comercial', cor: 'var(--odisse-ambar, #ECC28F)' },
+  { id: 'institucional', nome: 'Institucional', cor: 'color-mix(in srgb, var(--odisse-ardosia, #3F4B57) 30%, white)' },
+  { id: 'diversos', nome: 'Diversos', cor: 'var(--odisse-areia, #E3D9C6)' }
+];
+const lerNum = (s) => {
+  const t = String(s ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+};
+const fmtNum = (n, casas) => (n === null || n === undefined || n === '') ? '' :
+  Number(n).toLocaleString('pt-BR', casas === undefined ? { maximumFractionDigits: 4 } : { minimumFractionDigits: casas, maximumFractionDigits: casas });
+const fmtReais = (n) => (n === null || n === undefined || Number.isNaN(n)) ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const igual = (a, b) => Math.abs(a - b) < 0.0001;
+
+async function iniciar() {
+  document.getElementById('app').hidden = false;
+  ligarAbas();
+  await carregar();
+  carregarBH();
+}
+
+async function carregar() {
+  try {
+    H = await Universo.get('honorarios');
+    desenhar();
+  } catch (e) { aviso(`Não consegui carregar os honorários (${mensagemDe(e)}).`); }
+}
+
+function desenhar() {
+  desenharPublicacao();
+  desenharServicos();
+  desenharPesos();
+  desenharParcelas();
+}
+
+// ---------------------------------------------------------------- publicação
+function desenharPublicacao() {
+  const el = document.getElementById('pub');
+  const p = H.publicacao;
+  const quando = p ? new Date(p.publicado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  el.innerHTML = `<span class="gestao-status">
+      ${p ? `<span title="${escHtml(p.nota || '')}">Versão <strong>${p.numero}</strong> publicada em ${quando}</span>` : '<span>Ainda não publicado</span>'}
+      ${H.pendente ? '<span class="chip chip--pendente">mudanças não publicadas</span>' : '<span class="chip chip--ok">em dia</span>'}
+    </span>
+    <button class="btn btn--primary btn--small" type="button" ${H.pendente ? '' : 'disabled'}>Publicar versão</button>`;
+  el.querySelector('button').onclick = () => {
+    const numero = p ? p.numero + 1 : 1;
+    const painel = abrirPainel(`
+      <div class="painel__topo"><h2>Publicar a versão ${numero} dos honorários</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
+      <div id="pub-aviso"></div>
+      <p class="small">Publicar grava um retrato do que está aqui agora (preços, pesos, parcelas). É esse retrato que as propostas novas vão usar
+        e registrar, junto com as versões das Bases e do Plano Geral de Trabalho. O rascunho continua editável depois.</p>
+      ${somasRuins().length ? `<div class="aviso aviso--erro">Pesos que não somam 100: ${escHtml(somasRuins().join(', '))}.</div>` : ''}
+      ${parcelasRuins() ? `<div class="aviso aviso--erro">As parcelas somam ${fmtNum(parcelasRuins(), 2)}%, não 100%.</div>` : ''}
+      <form id="f-pub">
+        <div class="field"><label class="field__label">O que mudou (opcional)</label>
+          <textarea name="nota" rows="3" maxlength="500" placeholder="Ex.: pesos de Interiores revisados"></textarea></div>
+        <div class="painel__acoes"><button class="btn btn--primary btn--small" type="submit">Publicar</button></div>
+      </form>`);
+    const av = avisoEm(painel.querySelector('#pub-aviso'));
+    painel.querySelector('#f-pub').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await Universo.post('honorarios/publicar', { nota: e.target.nota.value.trim() || null });
+        fecharPainel();
+        carregar();
+      } catch (err) { av(err.status === 409 ? 'Nada mudou desde a última versão publicada.' : mensagemDe(err)); }
+    };
+  };
+}
+function marcarPendente() { H.pendente = true; desenharPublicacao(); }
+
+// ---------------------------------------------------------------- serviços (preço)
+function desenharServicos() {
+  const sn = [{ id: '1', nome: 'Sim' }, { id: '0', nome: 'Não' }];
+  document.getElementById('servicos').innerHTML = `<table class="tabela">
+    <thead><tr><th>Sigla</th><th>Serviço</th><th class="centro">Tem preço</th><th class="centro">Modificador</th><th class="centro">Repartido por etapa</th></tr></thead>
+    <tbody>${H.servicos.map((s) => `<tr data-id="${s.id}">
+      <td class="sigla">${escHtml(s.sigla)}</td><td><strong>${escHtml(s.nome)}</strong></td>
+      <td class="centro"><select data-c="com_preco">${opcoes(sn, String(s.com_preco))}</select></td>
+      <td class="centro"><input class="cel" data-c="modificador" inputmode="decimal" value="${fmtNum(s.modificador)}" placeholder="—"></td>
+      <td class="centro"><select data-c="preco_por_etapa">${opcoes(sn, String(s.preco_por_etapa))}</select></td></tr>`).join('')}</tbody></table>
+    <p class="field__hint">Modificador: multiplica o valor do CAU (Nova Edificação = 1,00 é a referência). Repartido por etapa: o honorário se divide
+      pelos pesos das etapas (aba Pesos das etapas). Serviços novos são criados nas Bases, no Projetos, e chegam aqui sem preço.</p>`;
+  document.querySelectorAll('#servicos [data-c]').forEach((c) => c.onchange = async () => {
+    const s = H.servicos.find((x) => x.id === c.closest('tr').dataset.id);
+    let v = c.value;
+    if (c.dataset.c === 'modificador') {
+      v = lerNum(v);
+      if (Number.isNaN(v) || (v !== null && v <= 0)) { aviso('Modificador: número maior que zero (ex.: 1,25).'); c.value = fmtNum(s.modificador); return; }
+    } else v = Number(v);
+    c.disabled = true;
+    try {
+      const r = await Universo.alterar('bases-servicos', s.id, { versao: s.versao, [c.dataset.c]: v });
+      Object.assign(s, { [c.dataset.c]: r[c.dataset.c], versao: r.versao });
+      aviso('');
+      marcarPendente();
+      desenharPesos();
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); }
+    c.disabled = false;
+  });
+}
+
+// ---------------------------------------------------------------- pesos das etapas
+const comPreco = () => H.servicos.filter((s) => s.com_preco);
+function somaDe(s) { return H.etapas.reduce((t, e) => t + ((e.servicos[s.id] && e.servicos[s.id].peso) || 0), 0); }
+function somasRuins() { return H.servicos.filter((s) => s.com_preco && s.preco_por_etapa && !igual(somaDe(s), 100)).map((s) => `${s.sigla} (${fmtNum(somaDe(s))})`); }
+
+function desenharPesos() {
+  const S = comPreco();
+  const ncol = S.length + 2;
+  let html = '';
+  for (const f of H.fases) {
+    const etapas = H.etapas.filter((e) => e.fase_id === f.id);
+    if (!etapas.length) continue;
+    html += `<tr class="grupo"><td colspan="${ncol}"><strong>Fase ${escHtml(f.nome)}</strong>${f.ilha ? ' <span class="small muted">· ilha</span>' : ''}</td></tr>`;
+    html += etapas.map((e) => `<tr>
+      <td class="sigla">${escHtml(e.sigla)}</td><td>${escHtml(e.nome)}</td>
+      ${S.map((s) => {
+        const x = e.servicos[s.id];
+        if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
+        return `<td class="centro"><input class="cel cel--peso${x.pertinencia === 'O' ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}" inputmode="decimal"
+          value="${fmtNum(x.peso)}" placeholder="—" title="${escHtml(`${e.sigla} em ${s.sigla}${x.pertinencia === 'O' ? ' (etapa opcional)' : ''}`)}"></td>`;
+      }).join('')}</tr>`).join('');
+  }
+  html += `<tr class="somas"><td colspan="2" class="small">Soma (deve dar 100 nos serviços repartidos por etapa)</td>
+    ${S.map((s) => { const n = somaDe(s); return `<td class="centro ${s.preco_por_etapa && !igual(n, 100) ? 'ruim' : ''}">${s.preco_por_etapa ? fmtNum(n) : '<span class="muted" title="não reparte por etapa">—</span>'}</td>`; }).join('')}</tr>`;
+  const el = document.getElementById('pesos');
+  el.innerHTML = `<table class="tabela matriz"><thead>
+      <tr><th rowspan="2">Sigla</th><th rowspan="2">Etapa</th><th colspan="${S.length}" class="grupo-srv">Serviços</th></tr>
+      <tr>${S.map((s) => `<th class="srv" title="${escHtml(s.nome)}">${escHtml(s.sigla)}</th>`).join('')}</tr></thead>
+    <tbody>${html}</tbody></table>
+    <p class="field__hint">Peso: participação da etapa no honorário do serviço, em %. Só aparece campo onde a etapa vale para o serviço
+      (o que vale para cada serviço é marcado no Plano Geral de Trabalho); campo tracejado = etapa opcional. Serviços sem preço não aparecem.</p>`;
+  el.querySelectorAll('.cel--peso').forEach((c) => c.onchange = async () => {
+    const e = H.etapas.find((x) => x.id === c.dataset.etapa);
+    const x = e.servicos[c.dataset.srv];
+    const v = lerNum(c.value);
+    if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso: número de 0 a 100.'); c.value = fmtNum(x.peso); return; }
+    c.disabled = true;
+    try {
+      await Universo.post('honorarios/pesos', { etapa_id: e.id, servico_id: c.dataset.srv, peso: v });
+      x.peso = v;
+      aviso('');
+      marcarPendente();
+      desenharPesos();
+      const prox = document.querySelector(`.cel--peso[data-etapa="${e.id}"][data-srv="${c.dataset.srv}"]`);
+      if (prox && document.activeElement === document.body) prox.focus();
+    } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
+  });
+}
+
+// ---------------------------------------------------------------- parcelas
+const fasesComParcela = () => H.fases.filter((f) => !f.ilha);
+function totalParcelas() {
+  return ((H.parametros.parcela_entrada || 0) + fasesComParcela().reduce((t, f) => t + (f.parcela || 0), 0)) * 100;
+}
+function parcelasRuins() { const t = totalParcelas(); return igual(t, 100) ? 0 : t; }
+
+function desenharParcelas() {
+  const el = document.getElementById('parcelas');
+  const t = totalParcelas();
+  el.innerHTML = `<table class="tabela" style="max-width:560px">
+    <thead><tr><th>Quando</th><th class="centro">Parcela (%)</th></tr></thead>
+    <tbody>
+      <tr><td>${escHtml(H.parametros_rotulos.parcela_entrada)}</td>
+        <td class="centro"><input class="cel" id="p-entrada" inputmode="decimal" value="${H.parametros.parcela_entrada === undefined ? '' : fmtNum(H.parametros.parcela_entrada * 100)}"></td></tr>
+      ${fasesComParcela().map((f) => `<tr><td>Ao concluir a fase ${escHtml(f.nome)}</td>
+        <td class="centro"><input class="cel" data-fase="${f.id}" inputmode="decimal" value="${f.parcela === null ? '' : fmtNum(f.parcela * 100)}" placeholder="—"></td></tr>`).join('')}
+      <tr class="somas"><td class="small">Total</td><td class="centro ${igual(t, 100) ? '' : 'ruim'}">${fmtNum(t, 2)}%</td></tr>
+    </tbody></table>
+    <p class="field__hint">Fases-ilha (consultorias, laudos) ficam fora das parcelas. Vazio = a fase não tem parcela própria.</p>`;
+  el.querySelector('#p-entrada').onchange = async (ev) => {
+    const n = lerNum(ev.target.value);
+    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso('Parcela de entrada: número de 0 a 100.'); return desenharParcelas(); }
+    try {
+      await Universo.post('honorarios/parametros', { chave: 'parcela_entrada', valor: n / 100 });
+      H.parametros.parcela_entrada = n / 100;
+      aviso(''); marcarPendente(); desenharParcelas();
+    } catch (err) { aviso(mensagemDe(err)); }
+  };
+  el.querySelectorAll('[data-fase]').forEach((c) => c.onchange = async () => {
+    const f = H.fases.find((x) => x.id === c.dataset.fase);
+    const n = lerNum(c.value);
+    if (Number.isNaN(n) || (n !== null && (n < 0 || n > 100))) { aviso('Parcela: número de 0 a 100.'); return desenharParcelas(); }
+    try {
+      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, parcela: n === null ? null : n / 100 });
+      Object.assign(f, { parcela: r.parcela, versao: r.versao });
+      aviso(''); marcarPendente(); desenharParcelas();
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); }
+  });
+}
+
+// ---------------------------------------------------------------- base de honorários (CUB vigente × fator) e tabelas
+async function carregarBH() {
+  try {
+    const [bases, cub, fp, red] = await Promise.all([
+      Universo.get('bases'),
+      fetch('data/cub.json').then((r) => r.json()),
+      fetch('data/fator-percentual.json').then((r) => r.json()).catch(() => null),
+      fetch('data/redutor-repeticao.json').then((r) => r.json()).catch(() => null)
+    ]);
+    B = bases;
+    const r = cub.regioes[cub.regiao_ativa];
+    CUB = { regiao: cub.regiao_ativa, fonte: r.fonte, competencia: r.competencia_referencia, tabela: r.tabela };
+    desenharBH();
+    desenharTabelas(fp, red);
+  } catch (e) { document.getElementById('bh').innerHTML = `<p class="small muted">Não consegui carregar as tipologias ou o CUB (${escHtml(mensagemDe(e))}).</p>`; }
+}
+
+function desenharBH() {
+  const q = semAcento(document.getElementById('filtro-uso').value.trim());
+  const casa = (u) => !q || semAcento([u.descricao, u.item, u.cub_codigo].join(' ')).includes(q);
+  const vigente = (cod) => (CUB.tabela[cod] ? CUB.tabela[cod].honerado : null);
+  let html = '';
+  for (const g of GRUPOS) {
+    const cats = B.categorias.filter((c) => c.grupo === g.id);
+    if (!cats.length) continue;
+    let blocos = '';
+    for (const c of cats) {
+      const usos = B.usos.filter((u) => u.categoria_id === c.id && casa(u));
+      if (!usos.length) continue;
+      blocos += `<div class="cat-bloco" style="--g:${g.cor}"><h3>${escHtml(c.nome)}</h3>
+        <div class="rolagem"><table class="tabela usos">
+          <colgroup><col style="width:80px"><col><col style="width:110px"><col style="width:130px"><col style="width:80px"><col style="width:130px"></colgroup>
+          <thead><tr><th>Item CAU</th><th>Uso</th><th class="centro">Código do CUB</th><th class="num">CUB vigente</th><th class="centro">Fator</th>
+            <th class="num" title="Base de honorários = CUB vigente × fator de adequação">BH (R$/m²)</th></tr></thead>
+          <tbody>${usos.map((u) => {
+            const v = vigente(u.cub_codigo);
+            const usado = v ?? u.cub_referencia;
+            return `<tr><td class="codigo">${escHtml(u.item || '')}</td><td>${escHtml(u.descricao)}</td>
+              <td class="codigo centro">${escHtml(u.cub_codigo || '—')}</td>
+              <td class="num">${v !== null ? fmtReais(v) : `<span class="muted" title="código fora da tabela vigente: vale o CUB de referência do uso">${fmtReais(u.cub_referencia)}*</span>`}</td>
+              <td class="centro">${fmtNum(u.fator_adequacao, 2)}</td>
+              <td class="num"><strong>${usado !== null && u.fator_adequacao !== null ? fmtReais(usado * u.fator_adequacao) : '—'}</strong></td></tr>`;
+          }).join('')}</tbody></table></div></div>`;
+    }
+    if (blocos) html += `<div class="grupo-faixa" style="--g:${g.cor}">${escHtml(g.nome)}</div>${blocos}`;
+  }
+  document.getElementById('bh').innerHTML = (html || '<div class="vazio"><p>Nenhum uso com esse filtro.</p></div>') +
+    `<p class="field__hint">CUB vigente: ${escHtml(CUB.regiao)} · ${escHtml(CUB.competencia)} (<a href="cub.html">tabela do CUB</a>).
+      * código fora da tabela vigente: vale o CUB de referência do uso. Código do CUB, fator e enquadramento de cada uso são editados nas
+      <a href="https://projetos.odisse.com.br/bases.html">Bases</a>, no Projetos.</p>`;
+}
+
+function desenharTabelas(fp, red) {
+  document.getElementById('tabelas').innerHTML = `<div class="ref-grade">
+    <div>
+      <h3>Fator percentual (CAU) por faixa de área</h3>
+      ${fp ? `<table class="tabela"><thead><tr><th>Área (m²)</th><th class="num">Cat. 1</th><th class="num">Cat. 2</th><th class="num">Cat. 3</th><th class="num">Cat. 4</th></tr></thead>
+        <tbody>${fp.map((l) => `<tr><td>${escHtml(l.area_limite)}</td>${['baixo', 'medio', 'alto', 'especial'].map((k) => `<td class="num">${fmtNum(l[k] * 100, 2)}%</td>`).join('')}</tr>`).join('')}</tbody></table>
+        <p class="field__hint">A coluna é a "categoria do fator percentual" de cada uso (1 a 4), definida nas Bases.</p>` : '<p class="small muted">Não consegui ler a tabela.</p>'}
+    </div>
+    <div>
+      <h3>Redutor por repetição</h3>
+      ${red ? `<table class="tabela"><thead><tr><th>Repetições</th><th class="num">Redutor</th></tr></thead>
+        <tbody>${red.map((l) => `<tr><td>${escHtml(l.q)}</td><td class="num">${fmtNum(l.r, 2)}</td></tr>`).join('')}</tbody></table>` : ''}
+      <h3 style="margin-top:24px">CUB</h3>
+      <p class="small">${escHtml(CUB.regiao)} · fonte ${escHtml(CUB.fonte)} · competência ${escHtml(CUB.competencia)}.
+        Valores completos em <a href="cub.html">Tabela do CUB</a> (atualizada pelo robô mensal do Sinduscon).</p>
+    </div>
+  </div>`;
+}
+
+// ---------------------------------------------------------------- abas
+function ligarAbas() {
+  const botoes = [...document.querySelectorAll('.gestao__abas [data-aba]')];
+  const mostrar = (id) => {
+    botoes.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.aba === id)));
+    document.querySelectorAll('[data-painel]').forEach((s) => { s.hidden = s.dataset.painel !== id; });
+    try { sessionStorage.setItem('aba:honorarios', id); } catch (_) { /* sem armazenamento */ }
+  };
+  botoes.forEach((b) => b.onclick = () => mostrar(b.dataset.aba));
+  let inicial = location.hash.slice(1);
+  if (!botoes.some((b) => b.dataset.aba === inicial)) { try { inicial = sessionStorage.getItem('aba:honorarios') || ''; } catch (_) { inicial = ''; } }
+  mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : botoes[0].dataset.aba);
+}
+
+document.getElementById('filtro-uso').oninput = () => B && desenharBH();
+iniciar();
+</script>
+</body>
+</html>

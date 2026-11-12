@@ -640,3 +640,40 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .so-movel { display: block; margin-top: 2px; }
   .lista-pessoas > li { flex-wrap: wrap; }
 }
+
+/* ---- Honorários (mesmas peças das páginas de gestão do Projetos) ---- */
+.gestao__pub { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.gestao-status { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; color: var(--tinta-2); }
+.gestao-status strong { color: var(--tinta); }
+.chip--pendente { background: var(--destaque-fundo); color: var(--destaque-texto); }
+.gestao__abas { margin-bottom: 20px; }
+.gestao__intro { font-size: 13px; color: var(--tinta-2); max-width: 820px; margin: 0 0 18px; }
+.gestao__intro a, .field__hint a { color: inherit; }
+.gestao__filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.gestao__filtros input { background: var(--elevada); color: var(--tinta); border: 1px solid var(--linha-forte); border-radius: var(--raio-p); padding: 7px 10px; font: inherit; font-size: 13px; width: 260px; }
+.rolagem { overflow-x: auto; }
+.tabela .num, .tabela th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela th.centro, .tabela td.centro { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela td.centro select { min-width: 72px; }
+.tabela input.cel { width: 64px; text-align: center; background: var(--elevada); color: var(--tinta); border: 1px solid var(--linha-forte); border-radius: 4px; padding: 4px 6px; font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tabela input.cel:focus { outline: 2px solid var(--foco); outline-offset: -1px; border-color: transparent; }
+.tabela input.cel.is-opcional { border-style: dashed; }
+.tabela input.cel:disabled { opacity: .6; }
+.sigla { font-weight: 700; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
+.codigo { font-size: 12px; color: var(--tinta-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.matriz th.srv, .matriz td.srv { text-align: center; width: 54px; }
+.matriz th.grupo-srv { text-align: center; border-bottom: 1px solid var(--linha); padding-bottom: 4px; }
+.matriz thead tr:first-child th[rowspan] { vertical-align: bottom; }
+.matriz tr.grupo td { background: var(--veu); padding-top: 12px; }
+.matriz td.centro { vertical-align: middle; }
+.somas td { font-size: 12px; color: var(--tinta-2); border-bottom: 0; font-weight: 600; }
+.somas td.ruim { color: var(--perigo); }
+.grupo-faixa { --g: var(--odisse-nevoa, #E6E8EB); display: flex; align-items: center; gap: 10px; margin: 30px 0 4px; padding: 7px 12px; border-left: 5px solid var(--g); background: color-mix(in srgb, var(--g) 45%, transparent); border-radius: 0 var(--raio-p) var(--raio-p) 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta); }
+.grupo-faixa:first-child { margin-top: 4px; }
+.cat-bloco { border-left: 5px solid var(--g, transparent); padding-left: 14px; margin-bottom: 18px; }
+.cat-bloco h3 { font-size: 14px; font-weight: 650; margin: 14px 0 6px; }
+.tabela.usos { table-layout: fixed; min-width: 760px; }
+.tabela.usos td:nth-child(2) { overflow-wrap: anywhere; }
+.ref-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+.ref-grade h3 { font-size: 13px; font-weight: 650; margin: 0 0 8px; }
+.matriz td { vertical-align: middle; }

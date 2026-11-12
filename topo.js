@@ -10,7 +10,7 @@
 //
 // Organização (nov/2026):
 //   - seções de trabalho, na ordem do fluxo: Funil → Contatos → Orçamento → Propostas;
-//   - material de consulta (CUB, cálculo, glossário) agrupado em "Referências";
+//   - referências do custo (Honorários, CUB, cálculo, glossário) agrupadas em "Referências";
 //   - a migração (uso único) não entra no menu: é aberta pelo aviso em Propostas.
 //
 // Mantém os ids #rail-user e #btn-logout, que as páginas já usam.
@@ -24,6 +24,7 @@
     { id: 'propostas', nome: 'Propostas', href: 'historico.html', dica: 'Propostas numeradas, PDFs guardados e revisões' }
   ];
   const REFERENCIAS = [
+    { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, pesos das etapas, parcelas e base de honorários' },
     { id: 'cub', nome: 'Tabela do CUB', href: 'cub.html', dica: 'Valores do mês usados como base de honorários' },
     { id: 'calculo', nome: 'Como funciona o cálculo', href: 'precificacao.html', dica: 'Fórmula, modificadores e tipologias' },
     { id: 'glossario', nome: 'Glossário', href: 'glossario.html', dica: 'Fases, etapas e entregáveis' }
@@ -62,7 +63,7 @@
   const painel = document.createElement('div');
   painel.className = 'topo__painel';
   painel.hidden = true;
-  painel.innerHTML = `<div class="topo__painel-cab">Consulta</div>` + REFERENCIAS.map((r) =>
+  painel.innerHTML = `<div class="topo__painel-cab">Referências</div>` + REFERENCIAS.map((r) =>
     `<a class="topo__item${r.id === pagina ? ' is-current' : ''}" href="${r.href}"><b>${esc(r.nome)}</b><small>${esc(r.dica)}</small></a>`).join('');
   document.body.appendChild(painel);
 
