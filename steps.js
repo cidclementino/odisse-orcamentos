@@ -844,7 +844,7 @@ STEPS.push({
       // rubricas de quem assina: lidas da Equipe só agora, ligadas à proposta no histórico
       if (state._propostaId && !state._simulacao) state._rubricas = await Comercial.lerRubricas(state).catch(() => ({}));
       let montado;
-      try { montado = OdissePdf.montar(state, data); } catch (e) { alert(e.message); btn.disabled = false; return; }
+      try { await OdissePdf.preparar(); montado = OdissePdf.montar(state, data); } catch (e) { alert(e.message); btn.disabled = false; return; }
       if (state._propostaId && !state._pdfCongelado) {
         state._pdfStatus = 'guardando';
         ctx.rerender();

@@ -128,6 +128,18 @@ O endereço da etapa 1 é do imóvel, não do cliente: fica no cálculo salvo da
 proposta. Do orçamento, só o CPF vai para os dados pessoais (restritos) do
 cliente, e só quando ainda não houver.
 
+## Página Propostas e cache (desde nov/2026)
+
+- **Propostas** (`index.html`) junta o antigo Orçamento e o Histórico, como no marketing.odisse: em cima, "Nova
+  proposta" (um quadro por serviço do catálogo, mais Simulação e o rascunho em andamento); embaixo, o histórico de 10
+  em 10, com busca, filtro (todas, propostas, simulações) e navegação de e-mail (`1–10 de 57 ‹ ›`), pela rota leve
+  `comercial/propostas` do Universo. O editor fica em `index.html#/editor`. `historico.html` só redireciona.
+- **Cache**: arquivos do site com `?v=<hash>` guardados pelo service worker (`sw.js`); rode
+  `python3 tools/versionar.py` antes de cada commit que mexa em .js/.css (o workflow "Conferir versões" falha se
+  esquecer). Dados com cópia local (`comCopia` em `store.js`, `vendas:dados` no data-loader, catálogo): a página abre
+  com a última cópia e confere por baixo. jsPDF e a fonte Inter (~220 KB) só carregam ao montar um PDF
+  (`OdissePdf.preparar()`).
+
 ## Orçamento: catálogo do Universo (desde nov/2026)
 
 Serviços, tipologias, etapas, entregas, cláusulas, prazos e pesos **não vêm mais de `data/*.json`**: o orçamento lê as

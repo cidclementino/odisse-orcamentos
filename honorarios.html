@@ -9,13 +9,13 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=a4974c73a6">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
   <header class="topo" data-pagina="honorarios"></header>
-  <script src="topo.js"></script>
+  <script src="topo.js?v=6f1d796085"></script>
 
   <main class="crm">
     <div class="crm__barra">
@@ -47,12 +47,13 @@
 
 <div id="painel-raiz"></div>
 
-<script src="config.js"></script>
-<script src="auth.js"></script>
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=71994a29a1"></script>
 <script>exigirAutenticacao();</script>
-<script src="store.js"></script>
-<script src="comercial.js"></script>
-<script src="ui.js"></script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
 <script>
 // ==========================================================================
 // Honorários (migração 0006 do Universo): o custo que se aplica sobre as
@@ -88,13 +89,14 @@ const igual = (a, b) => Math.abs(a - b) < 0.0001;
 async function iniciar() {
   document.getElementById('app').hidden = false;
   ligarAbas();
-  await carregar();
+  await carregar({ copia: true });
   carregarBH();
 }
 
-async function carregar() {
+// Abre na hora com a cópia local (copia: true, só na entrada) e confere por baixo; depois de gravar, lê do servidor.
+async function carregar({ copia = false } = {}) {
   try {
-    H = await Universo.get('honorarios');
+    H = await comCopia('honorarios', () => Universo.get('honorarios'), (novo) => { H = novo; desenhar(); }, { fresco: !copia });
     desenhar();
   } catch (e) { aviso(`Não consegui carregar os honorários (${mensagemDe(e)}).`); }
 }
@@ -267,12 +269,11 @@ function desenharParcelas() {
 // ---------------------------------------------------------------- base de honorários (CUB vigente × fator) e tabelas
 async function carregarBH() {
   try {
-    const [bases, cub, fp, red] = await Promise.all([
-      Universo.get('bases'),
-      fetch('data/cub.json').then((r) => r.json()),
-      fetch('data/fator-percentual.json').then((r) => r.json()).catch(() => null),
-      fetch('data/redutor-repeticao.json').then((r) => r.json()).catch(() => null)
+    const [bases, dados] = await Promise.all([
+      comCopia('bases', () => Universo.get('bases'), (novo) => { B = novo; desenharBH(); }),
+      OdisseData.load()
     ]);
+    const cub = dados.cub, fp = dados.fatorPercentual, red = dados.redutorRepeticao;
     B = bases;
     const r = cub.regioes[cub.regiao_ativa];
     CUB = { regiao: cub.regiao_ativa, fonte: r.fonte, competencia: r.competencia_referencia, tabela: r.tabela };

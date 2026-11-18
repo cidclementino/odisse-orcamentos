@@ -85,6 +85,8 @@ const Universo = (() => {
     alterar: async (rota, id, corpo) => (await chamar('PATCH', `${rota}/${encodeURIComponent(id)}`, corpo)).registro,
     buscar: (q, tabela) => chamar('GET', `busca?${qs({ q, tabela })}`),
     painel: () => chamar('GET', 'comercial/painel'),
+    // lista leve das propostas (página Propostas), de 10 em 10, com o total
+    propostas: (params) => chamar('GET', `comercial/propostas?${qs(params)}`),
     // resposta crua (imagens: foto e rubrica da Equipe)
     bruto: (caminho) => chamar('GET', caminho, null, { bruto: true }),
 
@@ -100,6 +102,32 @@ const Universo = (() => {
     }
   };
 })();
+
+// ==========================================================================
+// Cópias locais (regra de todas as páginas do Universo): a página abre na hora com a última
+// cópia e a resposta nova chega por baixo; só redesenha se mudou. Nunca guarda dados sensíveis
+// (CPF, rubricas) — só listas e painéis.
+//   const r = await comCopia('painel', () => Universo.painel(), (novo) => { …redesenha… });
+//   comCopia(chave, buscar, aoMudar, { fresco: true })  → depois de gravar algo: espera o servidor
+// ==========================================================================
+const COPIA_P = 'vendas:copia:';
+function lerCopia(chave) {
+  try { const x = JSON.parse(localStorage.getItem(COPIA_P + chave) || 'null'); return x ? x.d : null; } catch (_) { return null; }
+}
+function gravarCopia(chave, d) {
+  try { localStorage.setItem(COPIA_P + chave, JSON.stringify({ em: Date.now(), d })); } catch (_) { /* cheio: segue sem cópia */ }
+}
+const igualJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+async function comCopia(chave, buscar, aoMudar, { fresco = false } = {}) {
+  const c = fresco ? null : lerCopia(chave);
+  const pedido = buscar().then((novo) => {
+    gravarCopia(chave, novo);
+    if (c && !igualJson(c, novo) && aoMudar) aoMudar(novo);
+    return novo;
+  });
+  if (c) { pedido.catch(() => { /* sem rede: fica a cópia */ }); return c; }
+  return pedido;
+}
 
 // Baixa um Blob com o nome dado.
 function baixarBlob(blob, nome) {

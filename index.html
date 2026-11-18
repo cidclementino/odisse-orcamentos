@@ -3,26 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Orçamento · Vendas — Odisse</title>
+<title>Propostas · Vendas — Odisse</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=a4974c73a6">
 </head>
 <body>
 
 <!-- ================= APP ================= -->
 <div id="app" class="app app--no-sidebar" hidden>
 
-  <header class="topo" data-pagina="orcamento"></header>
-  <script src="topo.js"></script>
+  <header class="topo" data-pagina="propostas"></header>
+  <script src="topo.js?v=6f1d796085"></script>
 
+  <!-- Propostas: nova proposta (um quadro por serviço) + histórico de 10 em 10 -->
+  <main class="pp" id="pp-lista" hidden>
+    <div id="pp-aviso"></div>
+    <section class="pp-criar">
+      <div class="pp-cab">
+        <div><h1 class="pp-titulo">Nova proposta</h1>
+          <p class="pp-apoio">Escolha o serviço. Etapas, entregas e honorários vêm do Plano Geral de Trabalho, das Bases e dos Honorários publicados no Universo.</p></div>
+      </div>
+      <div class="pp-tiles" id="pp-tiles"></div>
+    </section>
+    <section class="pp-arquivo">
+      <div class="pp-cab">
+        <div><h2 class="pp-titulo pp-titulo--m">Histórico</h2><p class="pp-apoio" id="pp-info"></p></div>
+        <div class="pp-filtros">
+          <div class="pp-chips" role="group" aria-label="Filtrar">
+            <button type="button" class="pp-chip is-on" data-filtro="todas">Todas</button>
+            <button type="button" class="pp-chip" data-filtro="propostas">Propostas</button>
+            <button type="button" class="pp-chip" data-filtro="simulacoes">Simulações</button>
+          </div>
+          <input type="search" id="pp-busca" placeholder="Buscar: código, cliente, serviço" aria-label="Buscar proposta">
+          <div class="pp-pag" id="pp-pag"></div>
+        </div>
+      </div>
+      <div class="pp-itens" id="pp-itens"><div class="pp-vazio">Carregando…</div></div>
+    </section>
+  </main>
+
+  <div id="pp-editor" hidden>
   <div class="orc-aviso" id="orc-aviso" hidden></div>
   <div class="orc">
-    <nav class="orc-guia" aria-label="Passos do orçamento">
-      <p class="orc-guia__titulo">Orçamento</p>
+    <nav class="orc-guia" aria-label="Passos da proposta">
+      <nav class="u-trilha orc-trilha" aria-label="Você está em"><a href="#/">Propostas</a><span class="sep">/</span><span aria-current="page" id="orc-trilha-atual">Nova proposta</span></nav>
       <div class="orc-guia__passos" id="orc-guia-passos"></div>
       <p class="orc-guia__versoes" id="orc-versoes"></p>
       <button class="btn btn--text" id="btn-reset" type="button">Recomeçar</button>
@@ -38,22 +66,20 @@
 
     <aside class="orc-previa" id="orc-previa" aria-label="Prévia de custos e prazos"></aside>
   </div>
+  </div>
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="config.js"></script>
-<script src="auth.js"></script>
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=71994a29a1"></script>
 <script>exigirAutenticacao();</script>
-<script src="data-loader.js"></script>
-<script src="store.js"></script>
-<script src="comercial.js"></script>
-<script src="calc.js"></script>
-<script src="catalogo.js"></script>
-<script src="fonts-inter.js"></script>
-<script src="pdf.js"></script>
-<script src="steps.js"></script>
-<script src="app.js"></script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="calc.js?v=1e0bca77f8"></script>
+<script src="catalogo.js?v=1bea5785b0"></script>
+<script src="pdf.js?v=b973ca15ad"></script>
+<script src="steps.js?v=b316db6044"></script>
+<script src="app.js?v=d8e4500c07"></script>
 </body>
 </html>

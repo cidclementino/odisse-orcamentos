@@ -9,7 +9,7 @@
 // ferramenta à esquerda; seções no centro; botão "Universo" à direita.
 //
 // Organização (nov/2026):
-//   - seções de trabalho, na ordem do fluxo: Funil → Contatos → Orçamento → Propostas;
+//   - seções de trabalho, na ordem do fluxo: Funil → Contatos → Propostas (orçamento e histórico na mesma página);
 //   - referências do custo (Honorários, CUB, cálculo, glossário) agrupadas em "Referências";
 //   - a migração (uso único) não entra no menu: é aberta pelo aviso em Propostas.
 //
@@ -20,8 +20,7 @@
   const SECOES = [
     { id: 'crm', nome: 'Funil', href: 'crm.html', dica: 'Oportunidades por etapa e próximas ações' },
     { id: 'contatos', nome: 'Contatos', href: 'contatos.html', dica: 'Pessoas e organizações, ligações entre elas e o histórico de cada uma' },
-    { id: 'orcamento', nome: 'Orçamento', href: 'index.html', dica: 'Novo orçamento de honorários (CAU/AsBEA)' },
-    { id: 'propostas', nome: 'Propostas', href: 'historico.html', dica: 'Propostas numeradas, PDFs guardados e revisões' }
+    { id: 'propostas', nome: 'Propostas', href: 'index.html', dica: 'Nova proposta (orçamento de honorários) e o histórico: PDFs guardados e revisões' }
   ];
   const REFERENCIAS = [
     { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, pesos das etapas, parcelas e base de honorários' },

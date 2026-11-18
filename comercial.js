@@ -264,13 +264,14 @@ const Comercial = (() => {
     if (!estado) throw new Error('esta proposta não tem os dados do cálculo');
     estado.numeroProposta = proposta.codigo;
     estado._simulacao = !!proposta.simulacao;
+    await OdissePdf.preparar();
     const { doc, nomeArquivo } = OdissePdf.montar(estado, data);
     doc.save(nomeArquivo);
     return 'remontado';
   }
 
   // Abre uma proposta no orçamento como revisão (mesmo número, R+1) ou como nova proposta
-  // da mesma oportunidade. Grava o rascunho e vai para index.html.
+  // da mesma oportunidade. Grava o rascunho e vai para o editor (index.html#/editor).
   function abrirNoOrcamento(proposta, { comoRevisao = true } = {}) {
     const estado = typeof proposta.calculo === 'string' ? JSON.parse(proposta.calculo) : proposta.calculo;
     if (!estado) { alert('Esta proposta não tem os dados do cálculo para reabrir.'); return; }
@@ -288,7 +289,7 @@ const Comercial = (() => {
     delete estado.resumo;
     estado.dataProposta = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
     localStorage.setItem('odisse-orcamento-rascunho', JSON.stringify({ state: estado, currentStepIndex: 0 }));
-    window.location.href = 'index.html';
+    window.location.href = 'index.html#/editor';
   }
 
   // Novo orçamento já ligado a uma oportunidade (vindo do funil).
@@ -310,7 +311,7 @@ const Comercial = (() => {
       state: { versao: 2, cliente: { nome: cliente.nome, email: cliente.email, telefone: cliente.telefone, representacao: cliente.representacao, documento: cliente.documento }, _oportunidadeId: oportunidade.id, _clienteId: oportunidade.cliente_id || null },
       currentStepIndex: 0
     }));
-    window.location.href = 'index.html';
+    window.location.href = 'index.html#/editor';
   }
 
   // ---- contrato assinado → projeto (Universo, ferramenta Projetos)

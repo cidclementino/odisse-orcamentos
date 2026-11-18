@@ -9,13 +9,13 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=a4974c73a6">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
   <header class="topo" data-pagina="crm"></header>
-  <script src="topo.js"></script>
+  <script src="topo.js?v=6f1d796085"></script>
 
   <main class="crm">
     <div class="crm__barra">
@@ -34,18 +34,15 @@
 
 <div id="painel-raiz"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="config.js"></script>
-<script src="auth.js"></script>
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=71994a29a1"></script>
 <script>exigirAutenticacao();</script>
-<script src="data-loader.js"></script>
-<script src="store.js"></script>
-<script src="comercial.js"></script>
-<script src="calc.js"></script>
-<script src="fonts-inter.js"></script>
-<script src="pdf.js"></script>
-<script src="ui.js"></script>
+<script src="data-loader.js?v=b1b3a59ba0"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="calc.js?v=1e0bca77f8"></script>
+<script src="pdf.js?v=b973ca15ad"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
 <script>
 // ==========================================================================
 // Funil (CRM): oportunidades por etapa, ficha com contato, propostas e
@@ -157,9 +154,11 @@ function avisar(texto, tipo = 'erro') {
   document.getElementById('aviso').innerHTML = texto ? `<div class="aviso aviso--${tipo}">${escHtml(texto)}</div>` : '';
 }
 
-async function carregar() {
+// Abre na hora com a cópia local do painel (copia: true, só na entrada) e confere por baixo;
+// depois de gravar algo, lê direto do servidor.
+async function carregar({ copia = false } = {}) {
   try {
-    const r = await Universo.painel();
+    const r = await comCopia('painel', () => Universo.painel(), (novo) => { ITENS = novo.itens; desenhar(); }, { fresco: !copia });
     ITENS = r.itens;
     avisar('');
     desenhar();
@@ -290,7 +289,7 @@ async function abrirFicha(id) {
           <td style="white-space:nowrap"><button class="btn btn--ghost btn--small" data-pdf="${p.id}">PDF</button>
             <button class="btn btn--ghost btn--small" data-rev="${p.id}">Revisão</button></td>
         </tr>`).join('')}</tbody></table>` : '<p class="small muted">Nenhuma proposta ainda.</p>'}
-      <div class="painel__acoes"><button class="btn btn--primary btn--small" id="btn-orcar" type="button">Novo orçamento para esta oportunidade</button></div>
+      <div class="painel__acoes"><button class="btn btn--primary btn--small" id="btn-orcar" type="button">Nova proposta para esta oportunidade</button></div>
     </section>
 
     ${secaoContrato(o, propostas.itens, contratos, projetos)}
@@ -695,7 +694,7 @@ async function iniciar() {
   document.getElementById('filtro').oninput = desenhar;
   document.getElementById('filtro-nucleo').onchange = desenhar;
   document.getElementById('btn-nova').onclick = () => abrirNova();
-  await carregar();
+  await carregar({ copia: true });
   abrirPeloEndereco();
   window.addEventListener('hashchange', abrirPeloEndereco);
 }

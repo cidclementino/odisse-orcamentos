@@ -9,13 +9,13 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=a4974c73a6">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
   <header class="topo" data-pagina="contatos"></header>
-  <script src="topo.js"></script>
+  <script src="topo.js?v=6f1d796085"></script>
 
   <main class="crm contatos">
     <div class="crm__barra">
@@ -40,12 +40,12 @@
 
 <div id="painel-raiz"></div>
 
-<script src="config.js"></script>
-<script src="auth.js"></script>
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=71994a29a1"></script>
 <script>exigirAutenticacao();</script>
-<script src="store.js"></script>
-<script src="comercial.js"></script>
-<script src="ui.js"></script>
+<script src="store.js?v=66a6878146"></script>
+<script src="comercial.js?v=2dc7225c30"></script>
+<script src="ui.js?v=2dfbfc5119"></script>
 <script>
 // ==========================================================================
 // Contatos: pessoas e organizações do Universo, com as ligações entre elas
@@ -77,9 +77,13 @@ const avisar = avisoEm(document.getElementById('aviso'));
 
 // ---------------------------------------------------------------- lista
 
-async function carregar() {
+// Abre na hora com a cópia local da lista (copia: true, só na entrada) e confere por baixo;
+// depois de gravar algo, lê direto do servidor.
+async function carregar({ copia = false } = {}) {
   try {
-    const r = await Universo.get('comercial/contatos', document.getElementById('arquivados').checked ? { arquivados: 1 } : null);
+    const arq = document.getElementById('arquivados').checked;
+    const r = await comCopia('contatos' + (arq ? ':arquivados' : ''), () => Universo.get('comercial/contatos', arq ? { arquivados: 1 } : null),
+      (novo) => { PESSOAS = novo.pessoas; ORGS = novo.organizacoes; desenhar(); }, { fresco: !copia });
     PESSOAS = r.pessoas; ORGS = r.organizacoes;
     avisar('');
     desenhar();
@@ -581,7 +585,7 @@ async function iniciar() {
   document.getElementById('btn-duplicados').onclick = abrirDuplicados;
   window.addEventListener('hashchange', abrirPeloEndereco);
   carregarDuplicados();
-  await carregar();
+  await carregar({ copia: true });
   abrirPeloEndereco();
 }
 

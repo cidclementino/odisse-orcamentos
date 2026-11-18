@@ -21,6 +21,25 @@
 // ==========================================================================
 
 const OdissePdf = (() => {
+  // As bibliotecas do PDF (jsPDF, autotable) e a fonte Inter embutida (~220 KB) só carregam quando um PDF
+  // vai ser montado: as páginas abrem sem elas. Chame `await OdissePdf.preparar()` antes de montar().
+  const LIBS = [
+    ['jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => window.jspdf],
+    ['autotable', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js', () => window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable],
+    ['inter', 'fonts-inter.js?v=31c6429b0b', () => typeof INTER_REGULAR_B64 !== 'undefined'],
+  ];
+  let preparando = null;
+  const script = (src) => new Promise((ok, erro) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => erro(new Error('não consegui carregar ' + src));
+    document.head.appendChild(s);
+  });
+  function preparar() {
+    if (!preparando) preparando = (async () => { for (const [, src, pronto] of LIBS) if (!pronto()) await script(src); })()
+      .catch((e) => { preparando = null; throw e; });
+    return preparando;
+  }
+
   const PAGE_W = 595.28; // A4 pt
   const PAGE_H = 841.89;
 
@@ -698,8 +717,9 @@ const OdissePdf = (() => {
     return state && state.versao === 2 ? montarV2(state, data) : montarV1(state, data);
   }
 
-  function gerar(state, data) {
+  async function gerar(state, data) {
     try {
+      await preparar();
       const { doc, nomeArquivo } = montar(state, data);
       doc.save(nomeArquivo);
     } catch (e) {
@@ -707,5 +727,5 @@ const OdissePdf = (() => {
     }
   }
 
-  return { montar, gerar };
+  return { preparar, montar, gerar };
 })();

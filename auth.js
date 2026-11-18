@@ -75,11 +75,16 @@ function irParaLogin() {
 // Página para onde voltar depois do login (só páginas desta ferramenta).
 function paginaDeVolta() {
   const v = new URLSearchParams(location.search).get('volta') || '';
-  return /^[a-z0-9-]+\.html(#[\w-]*)?$/i.test(v) && !v.startsWith('login') ? v : 'index.html';
+  return /^[a-z0-9-]+\.html(#[\w\/-]*)?$/i.test(v) && !v.startsWith('login') ? v : 'index.html';
 }
 
 // Redireciona para o login se não estiver autenticado. Chame no topo de
 // qualquer página que exija acesso.
 function exigirAutenticacao() {
   if (!isAuthenticated()) irParaLogin();
+}
+
+// Arquivos do site com número de versão (?v=) ficam guardados pelo service worker até a próxima versão.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }

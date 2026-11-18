@@ -298,18 +298,11 @@ function mostrarConfirmacao() {
     <p class="step__desc">O orçamento de <strong>${escHtml(nomeCliente)}</strong> foi gerado${STATE.numeroProposta ? `: proposta <strong>${escHtml(STATE.numeroProposta)}</strong>` : ''}.</p>
     <div class="row-2">
       <button class="btn btn--ghost" id="btn-baixar-de-novo" type="button">Baixar PDF novamente</button>
-      <button class="btn btn--primary u-botao forte" id="btn-novo-orcamento" type="button">Novo orçamento</button>
+      <button class="btn btn--primary u-botao forte" id="btn-novo-orcamento" type="button">Ver em Propostas</button>
     </div>
   `;
   document.getElementById('btn-baixar-de-novo').onclick = () => OdissePdf.gerar(STATE, DATA);
-  document.getElementById('btn-novo-orcamento').onclick = () => {
-    const nome = STATE._userName;
-    STATE = estadoInicial();
-    STATE._userName = nome;
-    currentStepIndex = 0;
-    renderStep();
-    window.scrollTo(0, 0);
-  };
+  document.getElementById('btn-novo-orcamento').onclick = () => { location.hash = '#/'; };
   document.getElementById('orc-nav').hidden = true;
 }
 
@@ -348,6 +341,200 @@ function irParaEtapa(indice) {
   window.scrollTo(0, 0);
 }
 
+// ---------------------------------------------------------------- página Propostas
+// Uma página só, como o marketing.odisse: em cima "Nova proposta" (um quadro por serviço, que abre o
+// editor), embaixo o histórico de 10 em 10 com navegação de e-mail. O editor (as três colunas acima)
+// fica em #/editor; o rascunho em andamento continua no computador e aparece como "Continuar".
+const emEditor = () => location.hash.startsWith('#/editor');
+let editorPronto = false;
+let erroCatalogo = null;
+
+function rota() {
+  const ed = emEditor();
+  document.getElementById('pp-lista').hidden = ed;
+  document.getElementById('pp-editor').hidden = !ed;
+  document.title = ed ? 'Nova proposta · Vendas — Odisse' : 'Propostas · Vendas — Odisse';
+  if (ed) abrirEditor(); else Lista.abrir();
+  window.scrollTo(0, 0);
+}
+
+function abrirEditor() {
+  const container = document.getElementById('step-container');
+  if (erroCatalogo || !CAT) {
+    container.innerHTML = `<p class="step__eyebrow">Proposta</p><h1 class="step__title">Não consegui ler o catálogo do Universo</h1>
+      <p class="step__desc">Serviços, etapas e honorários vêm das versões publicadas em Bases, Plano Geral de Trabalho e Honorários (${escHtml(erroCatalogo ? erroCatalogo.message : 'carregando')}).
+      Confira se as três já foram publicadas e recarregue a página.</p>`;
+    document.getElementById('orc-nav').hidden = true;
+    return;
+  }
+  // o rascunho é a fonte: pode ter vindo do funil, de uma revisão ou de um quadro de serviço
+  const rascunho = carregarRascunho();
+  let salvo = rascunho ? rascunho.state : null;
+  document.getElementById('orc-aviso').hidden = true;
+  if (salvo && salvo.versao !== 2 && Object.keys(salvo).some(k => !['cliente', '_oportunidadeId', '_clienteId', '_maxUnlocked'].includes(k))) {
+    salvo = Catalogo.migrar(salvo, estadoInicial());
+    avisoTopo('Este orçamento foi feito antes da leitura do PGT: serviço, tipologia e etapas foram trazidos para a estrutura nova. Confira as entregas e os prazos.');
+  } else if (salvo && salvo.versao !== 2) {
+    const c = salvo.cliente || {};
+    salvo = { ...salvo, versao: 2, cliente: { nome: c.nome || '', email: c.email || '', telefone: c.telefone || '', representacao: c.representacao || 'PF', documento: c.documento || '' } };
+  }
+  STATE = mesclarComPadrao(estadoInicial(), salvo);
+  STATE._userName = getUserName();
+  currentStepIndex = rascunho && Number.isInteger(rascunho.currentStepIndex) ? Math.max(0, Math.min(rascunho.currentStepIndex, STEPS.length - 1)) : 0;
+  const t = document.getElementById('orc-trilha-atual');
+  if (t) t.textContent = STATE._revisaoDeCodigo ? `Revisão de ${STATE._revisaoDeCodigo}` : STATE.numeroProposta || (STATE._simulacao ? 'Nova simulação' : 'Nova proposta');
+  if (!editorPronto) {
+    container.addEventListener('input', salvarRascunho);
+    container.addEventListener('change', salvarRascunho);
+    editorPronto = true;
+  }
+  renderStep();
+}
+
+// Começa uma proposta nova (descarta o rascunho), já com o serviço escolhido no quadro.
+function novaProposta({ servicoId = '', simulacao = false } = {}) {
+  STATE = estadoInicial();
+  STATE._simulacao = simulacao;
+  if (servicoId) { STATE.servicoId = servicoId; aplicarServico(STATE); }
+  currentStepIndex = 0;
+  salvarRascunho();
+  location.hash = '#/editor';
+}
+
+// Rascunho em andamento (para o quadro "Continuar"), sem montar o editor.
+function rascunhoEmAndamento() {
+  const r = carregarRascunho();
+  const s = r && r.state;
+  if (!s || s.numeroProposta && s._pdfCongelado) return null;
+  const tem = s.servicoId || (s.cliente && s.cliente.nome) || s._oportunidadeId || s._revisaoDe;
+  return tem ? { s, passo: Number.isInteger(r.currentStepIndex) ? r.currentStepIndex : 0 } : null;
+}
+
+const Lista = (() => {
+  const POR_PAGINA = 10;
+  let de = 0, q = '', filtro = 'todas', ultimo = null, ligado = false, tBusca = null, rodada = 0;
+
+  const situacaoChip = (p) => {
+    const cls = p.situacao === 'aceita' ? 'chip--ok' : p.situacao === 'recusada' || p.situacao === 'expirada' ? 'chip--perda' : p.situacao === 'enviada' ? 'chip--cobre' : '';
+    return `<span class="chip ${cls}">${escHtml(nomeDe(SITUACOES_PROPOSTA, p.situacao))}</span>`;
+  };
+
+  function quadros() {
+    const box = document.getElementById('pp-tiles');
+    const r = rascunhoEmAndamento();
+    const srvNome = (id) => { const x = CAT && Catalogo.servico(id); return x ? x.nome : ''; };
+    const continuar = r ? `<div class="pp-tile pp-tile--rascunho">
+        <span class="pp-tile__sigla">Rascunho</span>
+        <span class="pp-tile__nome">${escHtml(r.s._revisaoDeCodigo ? 'Revisão de ' + r.s._revisaoDeCodigo : [srvNome(r.s.servicoId), r.s.cliente && r.s.cliente.nome].filter(Boolean).join(' · ') || 'Proposta em andamento')}</span>
+        <span class="pp-tile__sub">parado em ${escHtml((STEPS[r.passo] || STEPS[0]).title)}</span>
+        <span class="pp-tile__acoes"><button type="button" class="btn btn--small u-botao forte btn--primary" data-continuar>Continuar</button>
+          <button type="button" class="btn-link" data-descartar>descartar</button></span>
+      </div>` : '';
+    const servicos = CAT ? CAT.servicos : [];
+    box.innerHTML = continuar + servicos.map(x => `<button type="button" class="pp-tile" data-servico="${x.id}" title="${escHtml(x.descricao || '')}">
+        <span class="pp-tile__sigla">${escHtml(x.sigla)}</span><span class="pp-tile__nome">${escHtml(x.nome)}</span>
+        ${x.com_preco ? '' : '<span class="pp-tile__sub">sem preço calculado</span>'}</button>`).join('')
+      + `<button type="button" class="pp-tile pp-tile--sim" data-simulacao><span class="pp-tile__sigla">Sim</span><span class="pp-tile__nome">Simulação</span><span class="pp-tile__sub">sem cliente, para estimar custo</span></button>`
+      + (erroCatalogo ? `<p class="small muted">Não consegui ler os serviços do Universo (${escHtml(erroCatalogo.message)}).</p>` : '');
+    const confirmar = () => !r || confirm('Começar uma proposta nova descarta o rascunho em andamento. Continuar?');
+    box.querySelectorAll('[data-servico]').forEach(b => { b.onclick = () => { if (confirmar()) novaProposta({ servicoId: b.dataset.servico }); }; });
+    box.querySelector('[data-simulacao]').onclick = () => { if (confirmar()) novaProposta({ simulacao: true }); };
+    const c = box.querySelector('[data-continuar]');
+    if (c) c.onclick = () => { location.hash = '#/editor'; };
+    const d = box.querySelector('[data-descartar]');
+    if (d) d.onclick = () => { if (confirm('Descartar o rascunho em andamento?')) { limparRascunho(); quadros(); } };
+  }
+
+  function parametros() {
+    const p = { de, limite: POR_PAGINA };
+    if (q) p.q = q;
+    if (filtro === 'propostas') p.simulacoes = '0';
+    if (filtro === 'simulacoes') p.simulacoes = 'so';
+    return p;
+  }
+
+  function desenhar(r) {
+    ultimo = r;
+    const box = document.getElementById('pp-itens');
+    const info = document.getElementById('pp-info');
+    const pag = document.getElementById('pp-pag');
+    const fim = Math.min(r.de + r.itens.length, r.total);
+    info.textContent = r.total ? `${r.total} ${r.total === 1 ? 'proposta' : 'propostas'}${q ? ` para “${q}”` : ''}` : '';
+    pag.innerHTML = r.total ? `<span class="pp-pag__faixa">${r.de + 1}–${fim} de ${r.total}</span>
+      <button type="button" class="pp-pag__seta" data-pag="-1" ${r.de === 0 ? 'disabled' : ''} title="Mais novas" aria-label="Mais novas">‹</button>
+      <button type="button" class="pp-pag__seta" data-pag="1" ${fim >= r.total ? 'disabled' : ''} title="Mais antigas" aria-label="Mais antigas">›</button>` : '';
+    pag.querySelectorAll('[data-pag]').forEach(b => { b.onclick = () => { de = Math.max(0, de + Number(b.dataset.pag) * POR_PAGINA); carregar(); }; });
+    if (!r.itens.length) { box.innerHTML = `<div class="pp-vazio">${q || filtro !== 'todas' ? 'Nenhuma proposta encontrada.' : 'Nenhuma proposta ainda.'}</div>`; return; }
+    box.innerHTML = r.itens.map(p => `
+      <div class="pp-linha${p.simulacao ? ' pp-linha--sim' : ''}">
+        <div class="pp-linha__cod"><strong>${escHtml(p.codigo)}</strong><span class="small muted">${p.data ? new Date(p.data + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span></div>
+        <div class="pp-linha__quem">
+          <span class="pp-linha__cliente">${p.simulacao ? 'Simulação' : escHtml(p.cliente_nome || '—')}</span>
+          <span class="small muted">${escHtml(p.titulo || '')}${p.oportunidade_id && !p.simulacao ? ` · <a href="crm.html#${p.oportunidade_id}">${escHtml(p.oportunidade_titulo || 'oportunidade')}</a>` : ''}${p.importada_de ? ' · importada' : ''}</span>
+        </div>
+        <div class="pp-linha__valor tabular">${fmtCentavos(p.valor_total)}</div>
+        <div>${situacaoChip(p)}</div>
+        <div class="pp-linha__acoes">
+          <button class="btn btn--ghost btn--small" data-pdf="${p.id}" title="${p.arquivo_pdf_id ? 'PDF guardado, como foi para o cliente' : 'Sem PDF guardado: remonta pelo cálculo'}">PDF</button>
+          <button class="btn btn--ghost btn--small" data-rev="${p.id}" title="Abre no editor com o mesmo número e a revisão seguinte">Revisão</button>
+        </div>
+      </div>`).join('');
+    box.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => {
+      const rotulo = b.textContent; b.textContent = 'Baixando…'; b.disabled = true;
+      try {
+        const completo = await Universo.ler('propostas', b.dataset.pdf);
+        const como = await Comercial.baixarPdf(completo, DATA);
+        if (como === 'remontado') alert('Esta proposta não tem PDF guardado: o PDF foi remontado a partir do cálculo salvo.');
+      } catch (e) { alert('Não consegui baixar: ' + e.message); }
+      b.textContent = rotulo; b.disabled = false;
+    });
+    box.querySelectorAll('[data-rev]').forEach(b => b.onclick = async () => {
+      const p = await Universo.ler('propostas', b.dataset.rev);
+      if (confirm(`Abrir ${p.codigo} no editor como revisão? O rascunho em andamento (se houver) será substituído.`)) Comercial.abrirNoOrcamento(p, { comoRevisao: true });
+    });
+  }
+
+  async function carregar() {
+    const minha = ++rodada;
+    const p = parametros();
+    const padrao = de === 0 && !q && filtro === 'todas';
+    const box = document.getElementById('pp-itens');
+    try {
+      const buscar = () => Universo.propostas(p);
+      const r = padrao ? await comCopia('propostas:p1', buscar, (novo) => { if (minha === rodada) desenhar(novo); }) : await buscar();
+      if (minha === rodada) desenhar(r);
+    } catch (e) {
+      if (minha === rodada) box.innerHTML = `<div class="pp-vazio">Não consegui carregar o histórico agora (${escHtml(e.message)}).</div>`;
+    }
+  }
+
+  function ligar() {
+    if (ligado) return;
+    ligado = true;
+    const busca = document.getElementById('pp-busca');
+    busca.oninput = () => { clearTimeout(tBusca); tBusca = setTimeout(() => { q = busca.value.trim(); de = 0; carregar(); }, 300); };
+    document.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => {
+      filtro = b.dataset.filtro; de = 0;
+      document.querySelectorAll('[data-filtro]').forEach(x => x.classList.toggle('is-on', x === b));
+      carregar();
+    });
+    avisoMigracao();
+  }
+
+  async function avisoMigracao() {
+    try {
+      const res = await fetch(`${CONFIG.workerUrl}/kv/estado`, { headers: cabecalhosAuth() });
+      if (!res.ok) return;
+      const kv = await res.json();
+      if (!kv.encerrado && kv.total) document.getElementById('pp-aviso').innerHTML =
+        `<div class="aviso">Há ${kv.total} propostas no histórico antigo que ainda precisam ser trazidas para o Universo. <a href="migrar.html" style="color:var(--destaque-texto)">Abrir a migração →</a></div>`;
+    } catch (_) { /* sem aviso */ }
+  }
+
+  function abrir() { ligar(); quadros(); carregar(); }
+  return { abrir, quadros };
+})();
+
 async function initApp() {
   document.getElementById('app').hidden = false;
   document.getElementById('btn-next').onclick = () => irParaEtapa(currentStepIndex + 1);
@@ -363,43 +550,21 @@ async function initApp() {
     window.scrollTo(0, 0);
   };
 
-  DATA = await OdisseData.load();
-  const container = document.getElementById('step-container');
-  try {
-    CAT = await Catalogo.carregar({
+  // tabelas do vendas e catálogo do Universo: as duas abrem na hora pela cópia local
+  [DATA, CAT] = await Promise.all([
+    OdisseData.load(),
+    Catalogo.carregar({
       aoAtualizar: (novo) => {
         CAT = novo;
-        avisoTopo(`Nova versão publicada no Universo (PGT v${novo.versoes.pgt.numero}, Bases v${novo.versoes.bases.numero}, Honorários v${novo.versoes.honorarios.numero}). O orçamento passa a usá-la.`);
-        renderStep();
+        if (emEditor()) {
+          avisoTopo(`Nova versão publicada no Universo (PGT v${novo.versoes.pgt.numero}, Bases v${novo.versoes.bases.numero}, Honorários v${novo.versoes.honorarios.numero}). O orçamento passa a usá-la.`);
+          renderStep();
+        } else Lista.quadros();
       }
-    });
-  } catch (e) {
-    container.innerHTML = `<p class="step__eyebrow">Orçamento</p><h1 class="step__title">Não consegui ler o catálogo do Universo</h1>
-      <p class="step__desc">Serviços, etapas e honorários vêm das versões publicadas em Bases, Plano Geral de Trabalho e Honorários (${escHtml(e.message)}).
-      Confira se as três já foram publicadas e recarregue a página.</p>`;
-    document.getElementById('orc-nav').hidden = true;
-    return;
-  }
-
-  const rascunho = carregarRascunho();
-  let salvo = rascunho ? rascunho.state : null;
-  if (salvo && salvo.versao !== 2 && Object.keys(salvo).some(k => !['cliente', '_oportunidadeId', '_clienteId', '_maxUnlocked'].includes(k))) {
-    salvo = Catalogo.migrar(salvo, estadoInicial());
-    avisoTopo('Este orçamento foi feito antes da leitura do PGT: serviço, tipologia e etapas foram trazidos para a estrutura nova. Confira as entregas e os prazos.');
-  } else if (salvo && salvo.versao !== 2) {
-    // vindo do funil: só o cliente e a oportunidade
-    const c = salvo.cliente || {};
-    salvo = { ...salvo, versao: 2, cliente: { nome: c.nome || '', email: c.email || '', telefone: c.telefone || '', representacao: c.representacao || 'PF', documento: c.documento || '' } };
-  }
-  STATE = mesclarComPadrao(estadoInicial(), salvo);
-  STATE._userName = getUserName();
-  if (rascunho && Number.isInteger(rascunho.currentStepIndex)) {
-    currentStepIndex = Math.max(0, Math.min(rascunho.currentStepIndex, STEPS.length - 1));
-  }
-  // vindo do funil com a oportunidade: começa pelo projeto (o cliente já está no fim)
-  container.addEventListener('input', salvarRascunho);
-  container.addEventListener('change', salvarRascunho);
-  renderStep();
+    }).catch((e) => { erroCatalogo = e; return null; })
+  ]);
+  window.addEventListener('hashchange', rota);
+  rota();
 }
 
 function avisoTopo(texto) {

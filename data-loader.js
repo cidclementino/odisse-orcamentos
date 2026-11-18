@@ -27,18 +27,37 @@ const OdisseData = (() => {
     return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 12);
   }
 
+  // Cópia local dos arquivos (localStorage): abre na hora com a última cópia e confere por baixo
+  // (o robô do CUB muda cub.json todo mês; a cópia nova vale a partir da próxima abertura).
+  const CHAVE = 'vendas:dados';
+  const lerTudo = () => { try { return JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (_) { return null; } };
+  const gravarTudo = (t) => { try { localStorage.setItem(CHAVE, JSON.stringify(t)); } catch (_) { /* cheio */ } };
+
+  async function baixar(fresco) {
+    const textos = {};
+    await Promise.all(Object.entries(FILES).map(async ([key, path]) => {
+      const res = await fetch(path, fresco ? { cache: 'no-cache' } : undefined);
+      if (!res.ok) throw new Error(`Falha ao carregar ${path}`);
+      textos[key] = await res.text();
+    }));
+    return textos;
+  }
+  async function montar(textos) {
+    for (const [key, path] of Object.entries(FILES)) impressoes[path] = await sha(textos[key]).catch(() => null);
+    return Object.fromEntries(Object.entries(textos).map(([k, t]) => [k, JSON.parse(t)]));
+  }
+
   async function load() {
     if (cache) return cache;
-    const entries = await Promise.all(
-      Object.entries(FILES).map(async ([key, path]) => {
-        const res = await fetch(path);
-        if (!res.ok) throw new Error(`Falha ao carregar ${path}`);
-        const texto = await res.text();
-        impressoes[path] = await sha(texto).catch(() => null);
-        return [key, JSON.parse(texto)];
-      })
-    );
-    cache = Object.fromEntries(entries);
+    const guardado = lerTudo();
+    if (guardado && Object.keys(FILES).every((k) => k in guardado)) {
+      cache = await montar(guardado);
+      baixar(true).then((novo) => { if (JSON.stringify(novo) !== JSON.stringify(guardado)) gravarTudo(novo); }).catch(() => {});
+      return cache;
+    }
+    const textos = await baixar(false);
+    gravarTudo(textos);
+    cache = await montar(textos);
     return cache;
   }
 
