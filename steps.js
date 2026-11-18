@@ -1,5 +1,6 @@
 // ==========================================================================
-// Definição das etapas do formulário. Cada etapa expõe:
+// Passos do orçamento (projeto → escopo → complexidade → cronograma → honorários → cliente e emissão → revisão).
+// Definição dos passos. Cada etapa expõe:
 //   render(state, data)              -> string HTML
 //   bind(container, state, data, ctx) -> liga os eventos daquele HTML
 //   validate(state)                  -> true | string (mensagem de erro)
@@ -47,28 +48,6 @@ function maskDocumento(v, tipo) {
 }
 
 const IC_LABELS = { baixo: 0.7, medio: 1.0, alto: 1.3 };
-
-// Nomes de exibição das macro categorias (as chaves em data/tipologias.json
-// são identificadores sem espaço, ex: "HabitacionalUnifamiliar").
-const MACRO_CATEGORIA_LABELS = {
-  HabitacionalUnifamiliar: 'Habitacional Unifamiliar',
-  HabitacionalMultifamiliar: 'Habitacional Multifamiliar',
-  Hospedagem: 'Hospedagem',
-  HabitaçõesEspeciais: 'Habitações Especiais',
-  Comércio: 'Comércio',
-  Serviços: 'Serviços',
-  Educação: 'Educação',
-  Saúde: 'Saúde',
-  Esportes: 'Esportes',
-  Lazer: 'Lazer',
-  Cultura: 'Cultura',
-  Diversos: 'Diversos'
-};
-
-// input[type=date] em alguns navegadores deixa digitar mais de 4 dígitos no
-// ano momentaneamente (ex: "952026") antes de normalizar — isso sanitiza o
-// valor bruto (YYYY-MM-DD), descartando qualquer coisa com ano fora de uma
-// faixa razoável em vez de deixar passar pro estado.
 function dataValidaOuVazia(valor) {
   if (!valor) return '';
   const m = /^(\d{4,})-(\d{2})-(\d{2})$/.exec(valor);
@@ -96,77 +75,6 @@ const REPETICOES_FAIXAS = [
   { label: 'Acima de 128', value: 129 }
 ];
 
-const ARQ_ETAPA_IDS = ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica', 'projeto_basico_legal', 'pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
-const ETAPAS_EXECUTIVAS_IDS = ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo'];
-
-// Usado só pelos serviços que AINDA NÃO têm fórmula própria (ver
-// servico.formula_percentual_por_etapa) — atalho antigo de escopo de
-// contratação, mantido como provisório até esses serviços ganharem sua
-// própria estrutura.
-const ETAPAS_POR_ESCOPO = {
-  'Projeto Completo': ARQ_ETAPA_IDS,
-  'Até Estudo Preliminar': ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica'],
-  'Até Projeto Legal': ['programacao_projetual', 'concepcao_esquematica', 'concepcao_basica', 'projeto_basico_legal'],
-  'Só Projeto Legal': ['projeto_basico_legal'],
-  'Só Projeto Executivo': ['pre_executivo', 'projeto_executivo_arquitetura', 'detalhamento_executivo']
-};
-
-function semanasDefault(etapa, ic) {
-  return Math.max(1, Math.min(10, Math.round(etapa.semanas_base * ic)));
-}
-
-// Filtra/ordena os pesos só pelas etapas aplicáveis ao serviço atual — sem
-// isso, percentualPorEtapas() usaria as chaves do arquivo pesos-etapas.json
-// inteiro (todas as etapas de todos os serviços), tratando as etapas de
-// OUTRO serviço como "lacuna" (etapa anterior não contratada) e inflando o
-// incremento indevidamente.
-function pesosDoServico(servico, pesosEtapas) {
-  if (!servico || !servico.etapas_aplicaveis) return pesosEtapas;
-  const filtrado = {};
-  servico.etapas_aplicaveis.forEach(id => {
-    if (pesosEtapas[id] != null) filtrado[id] = pesosEtapas[id];
-  });
-  return filtrado;
-}
-
-// ---------- Indicadores calculados (Grau de Detalhamento / Empenho ao Projeto vs Porte) ----------
-// NOTA: os cortes de contagem do Empenho (3 / 4-6 / 7+) foram definidos ainda com a lista
-// antiga de escopo (~14 itens) e ficaram pendentes de recalibração — a base de contagem
-// mudou (agora soma entregáveis de todas as etapas + assessoramento, tipicamente um número
-// bem maior). Mantido assim por ora, por acordo explícito, até revisarmos os cortes.
-function computeGrauDetalhamento(etapasSelecionadas) {
-  if (etapasSelecionadas.includes('detalhamento_executivo')) return 'alto';
-  if (ETAPAS_EXECUTIVAS_IDS.some(id => etapasSelecionadas.includes(id))) return 'medio';
-  return 'baixo';
-}
-
-function countEntregaveisSelecionados(state) {
-  const etapas = Object.values(state.etapasEntregaveis || {}).reduce((s, arr) => s + arr.length, 0);
-  const assess = (state.assessoramentoSelecionados || []).length;
-  return etapas + assess;
-}
-
-function computeEmpenhoPorte(total) {
-  if (total <= 3) return 'baixo';
-  if (total <= 6) return 'medio';
-  return 'alto';
-}
-
-function recomputeIndicadores(state) {
-  state.icValores.grau_detalhamento = IC_LABELS[computeGrauDetalhamento(state.etapasSelecionadas)];
-  state.icValores.empenho_porte = IC_LABELS[computeEmpenhoPorte(countEntregaveisSelecionados(state))];
-}
-
-// Recalcula o percentual do serviço a partir das etapas marcadas, só para
-// os serviços com fórmula própria (Base + Incremento). Para os demais, não
-// mexe em state.reducaoEscopoPercentual (continua vindo do dropdown antigo).
-function recomputePercentualServico(state, data) {
-  const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
-  if (servico && servico.formula_percentual_por_etapa) {
-    const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
-    state.reducaoEscopoPercentual = r.percentual;
-  }
-}
 
 const PRAZO_CLIENTE_OPCOES = [
   { label: '30 dias', semanas: 4 },
@@ -179,11 +87,54 @@ const PRAZO_CLIENTE_OPCOES = [
   { label: 'Indefinido', semanas: null }
 ];
 
+// ---------- serviço, tipologia e escopo padrão (tudo vem do catálogo publicado) ----------
+const labelIc = (v) => (v === 0.7 ? 'baixo' : v === 1.3 ? 'alto' : 'medio');
+const nivel = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// IC padrão: preset da categoria da tipologia + ajustes do serviço. Empenho e detalhamento são calculados.
+function aplicarIcPadrao(state) {
+  const p = Catalogo.icPadrao(state.servicoId, state.categoriaId);
+  for (const [k, v] of Object.entries(p)) if (IC_LABELS[v] != null) state.icValores[k] = IC_LABELS[v];
+  recomputeIndicadores(state);
+}
+
+// Serviço novo: etapas e entregas pertinentes (P) marcadas, opcionais (O) desmarcadas, prazos do PGT.
+function aplicarServico(state) {
+  const etapas = Catalogo.etapasDoServico(state.servicoId);
+  state.etapasSelecionadas = etapas.filter(e => e.pert === 'P').map(e => e.id);
+  state.entregasSelecionadas = {};
+  for (const e of etapas) state.entregasSelecionadas[e.id] = Catalogo.entregasPadrao(e.id, state.servicoId, state.categoriaId);
+  state.clausulasSelecionadas = [];
+  state.semanasManual = {};
+  const cat = Catalogo.atual();
+  if (cat && cat.parcelaEntrada != null) state.pctEntrada = cat.parcelaEntrada;
+  aplicarIcPadrao(state);
+}
+
+// Categoria nova: mantém as entregas marcadas que continuam valendo e marca as pertinentes que passaram a valer.
+function ajustarEntregasACategoria(state) {
+  for (const e of Catalogo.etapasDoServico(state.servicoId)) {
+    const validas = Catalogo.entregasDaEtapa(e.id, state.servicoId, state.categoriaId);
+    const antes = state.entregasSelecionadas[e.id] || [];
+    state.entregasSelecionadas[e.id] = validas.filter(x => antes.includes(x.id) || (x.pert === 'P' && x.categorias && x.categorias.length)).map(x => x.id);
+  }
+}
+
+// Indicadores calculados do IC: detalhamento pelas etapas executivas; empenho pela quantidade de entregas.
+// NOTA: os cortes do empenho (3 / 4-6 / 7+) vêm da lista antiga de escopo e seguem pendentes de recalibração.
+function recomputeIndicadores(state) {
+  const siglas = state.etapasSelecionadas.map(id => (Catalogo.etapa(id) || {}).sigla);
+  const det = siglas.includes('DE') ? 'alto' : (siglas.includes('PE') || siglas.includes('PX')) ? 'medio' : 'baixo';
+  const n = state.etapasSelecionadas.reduce((s, id) => s + (state.entregasSelecionadas[id] || []).length, 0);
+  const emp = n <= 3 ? 'baixo' : n <= 6 ? 'medio' : 'alto';
+  state.icValores.grau_detalhamento = IC_LABELS[det];
+  state.icValores.empenho_porte = IC_LABELS[emp];
+  return { det, emp, n };
+}
+
 const STEPS = [];
 
-// -------------------------------------------------------------------------
-// 1. Cliente & Projeto
-// Bloco "Ligado ao Universo" / busca de cliente cadastrado (etapa 1).
+// Bloco "Ligado ao Universo" / busca de cliente cadastrado (passo Cliente).
 function ligarVinculoUniverso(el, state, ctx) {
   const texto = el.querySelector('#vinculo-texto');
   if (texto) {
@@ -249,769 +200,390 @@ function ligarVinculoUniverso(el, state, ctx) {
   };
 }
 
+
+
+// -------------------------------------------------------------------------
+// 1. Projeto — o que se vai projetar (o cliente fica para o fim)
 // -------------------------------------------------------------------------
 STEPS.push({
-  id: 'cliente',
-  eyebrow: 'Etapa 1 de 7',
-  title: 'Cliente & projeto',
-  desc: 'Dados de identificação que vão para o cabeçalho da proposta. O número da proposta é gerado automaticamente na revisão final.',
+  id: 'projeto',
+  title: 'Projeto',
+  desc: 'O que vai ser projetado: serviço, tipologia, áreas e o imóvel. Serviços, tipologias e etapas vêm do Plano Geral de Trabalho e das Bases publicados no Universo.',
   render(state) {
-    const c = state.cliente;
-    const travaSimulacao = !!(state._oportunidadeId || state.numeroProposta);
-    const chaveSimulacao = `
-      <div class="card simulacao-chave">
-        <label class="check-row">
-          <input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${travaSimulacao ? 'disabled' : ''}>
-          <span class="check-row__box">${checkSvg()}</span>
-          <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou ter uma ideia de custo. Recebe número como qualquer proposta, mas não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span>
-        </label>
-        ${travaSimulacao && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
-      </div>`;
-    const vinculo = state._simulacao ? '' : (state._oportunidadeId || state._clienteId)
-      ? `<div class="card vinculo">
-          <p class="small muted" style="margin:0 0 4px">Ligado ao Universo</p>
-          <p style="margin:0"><span id="vinculo-texto">${state._oportunidadeId ? 'Oportunidade' : 'Cliente'} carregando…</span></p>
-          ${state._revisaoDeCodigo ? `<p class="small" style="margin:6px 0 0">Revisão de <strong>${escHtml(state._revisaoDeCodigo)}</strong></p>` : ''}
-          ${state.numeroProposta ? '' : '<button type="button" class="btn-link" id="btn-desligar">Desligar e começar como cliente novo</button>'}
-        </div>`
-      : `<div class="field-group">
-          <div class="field">
-            <label class="field__label">Cliente já cadastrado? Busque no Universo (opcional)</label>
-            <input type="search" id="f-busca-cliente" placeholder="Nome, e-mail, telefone ou CNPJ" autocomplete="off">
-            <div id="busca-cliente-res" class="busca-res"></div>
-            <p class="field__hint">Sem busca, o cliente é cadastrado no Universo ao finalizar o orçamento (com aviso se já houver alguém parecido).</p>
-          </div>
-        </div>`;
+    const cat = Catalogo.atual();
+    const srv = Catalogo.servico(state.servicoId);
+    const grupos = {};
+    for (const c of cat.categorias) (grupos[c.grupo] ||= []).push(c);
+    const usos = cat.usos.filter(u => u.categoria_id === state.categoriaId);
+    const critEscopo = DATA.icCriterios[8];
+    const escLabel = labelIc(state.icValores.indefinicao_escopo);
+    const im = state.imovel;
     return `
-      ${chaveSimulacao}
-      ${vinculo}
       <div class="field-group">
         <div class="field">
-          <label class="field__label">Nome do cliente / empresa${state._simulacao ? ' (opcional na simulação)' : ''}</label>
-          <input type="text" id="f-nome" value="${c.nome || ''}" placeholder="Ex: Odisse, Estúdio de Arquitetura e Design">
+          <label class="field__label">Serviço</label>
+          <select id="f-servico"><option value="">Selecione…</option>
+            ${cat.servicos.map(s => `<option value="${s.id}" ${state.servicoId === s.id ? 'selected' : ''}>${escHtml(s.sigla)} · ${escHtml(s.nome)}</option>`).join('')}</select>
+          <p class="field__hint">${srv ? escHtml(srv.descricao || '') + (srv.com_preco ? '' : ' Este serviço não tem preço calculado: o valor é informado em Honorários.') : 'Define as etapas, as entregas e o padrão de complexidade, tudo ajustável depois.'}</p>
         </div>
         <div class="row-2">
           <div class="field">
-            <label class="field__label">E-mail</label>
-            <input type="email" id="f-email" value="${c.email || ''}">
-          </div>
-          <div class="field">
-            <label class="field__label">Telefone</label>
-            <input type="tel" id="f-telefone" value="${c.telefone || ''}" placeholder="(83) 99999-9999">
-          </div>
-        </div>
-        <div class="field">
-          <label class="field__label">Representação legal</label>
-          ${segmented('representacao', [{ value: 'PF', label: 'Pessoa Física' }, { value: 'PJ', label: 'Pessoa Jurídica' }], c.representacao || 'PF')}
-        </div>
-        <div class="field">
-          <label class="field__label">CPF / CNPJ</label>
-          <input type="text" id="f-doc" value="${c.documento || ''}">
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="row-2">
-          <div class="field">
-            <label class="field__label">CEP do imóvel / empreendimento</label>
-            <input type="text" id="f-cep" value="${c.cep || ''}" placeholder="58000-000" maxlength="9">
-            <p class="field__hint" id="cep-status"></p>
-          </div>
-          <div class="field">
-            <label class="field__label">Bairro</label>
-            <input type="text" id="f-bairro" value="${c.bairro || ''}">
-          </div>
-        </div>
-        <div class="field">
-          <label class="field__label">Logradouro</label>
-          <input type="text" id="f-logradouro" value="${c.logradouro || ''}" placeholder="Preenchido automaticamente pelo CEP — edite se precisar">
-        </div>
-        <div class="row-2">
-          <div class="field">
-            <label class="field__label">Número</label>
-            <input type="text" id="f-numero-end" value="${c.numero || ''}">
-          </div>
-          <div class="field">
-            <label class="field__label">Complemento</label>
-            <input type="text" id="f-complemento" value="${c.complemento || ''}" placeholder="Apto, bloco, sala…">
-          </div>
-        </div>
-        <div class="field">
-          <label class="field__label">Cidade – UF</label>
-          <input type="text" id="f-cidade-uf" value="${c.cidadeUf || ''}">
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Data da proposta</label>
-          <input type="date" id="f-data-proposta" value="${state.dataProposta || ''}" min="2020-01-01" max="2035-12-31">
-        </div>
-        <div class="row-2">
-          <div class="field">
-            <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
-            <input type="text" inputmode="numeric" id="f-teto" value="${state.tetoOrcamentario || ''}" placeholder="Digite só números — a formatação é automática">
-          </div>
-          <div class="field">
-            <label class="field__label">Prazo esperado pelo cliente (opcional)</label>
-            <select id="f-prazo-cliente">
-              <option value="">Não informado</option>
-              ${PRAZO_CLIENTE_OPCOES.map(o => `<option value="${o.label}" ${state.prazoEsperadoCliente === o.label ? 'selected' : ''}>${o.label}</option>`).join('')}
+            <label class="field__label">Categoria</label>
+            <select id="f-categoria"><option value="">Selecione…</option>
+              ${Object.entries(grupos).map(([g, l]) => `<optgroup label="${escHtml(Catalogo.GRUPOS[g] || g)}">${l.map(c => `<option value="${c.id}" ${state.categoriaId === c.id ? 'selected' : ''}>${escHtml(c.nome)}</option>`).join('')}</optgroup>`).join('')}
             </select>
           </div>
+          <div class="field">
+            <label class="field__label">Uso (tipologia)</label>
+            <select id="f-uso" ${usos.length ? '' : 'disabled'}><option value="">${state.categoriaId ? 'Selecione…' : 'Escolha a categoria primeiro'}</option>
+              ${usos.map(u => `<option value="${u.id}" ${state.usoId === u.id ? 'selected' : ''}>${escHtml(u.item)} · ${escHtml(u.descricao)}</option>`).join('')}</select>
+            <p class="field__hint">Item da tabela do CAU: define o CUB, o fator de adequação e a categoria do fator percentual.</p>
+          </div>
         </div>
-      </div>
-    `;
-  },
-  bind(el, state, data, ctx) {
-    ligarVinculoUniverso(el, state, ctx);
-    const chave = el.querySelector('#f-simulacao');
-    if (chave) chave.onchange = () => {
-      state._simulacao = chave.checked;
-      if (state._simulacao) state._clienteId = null;
-      ctx.rerender();
-    };
-    el.querySelector('#f-nome').oninput = e => state.cliente.nome = e.target.value;
-    el.querySelector('#f-email').oninput = e => state.cliente.email = e.target.value;
-    el.querySelector('#f-data-proposta').oninput = e => {
-      const limpo = dataValidaOuVazia(e.target.value);
-      state.dataProposta = limpo;
-      if (!limpo && e.target.value) e.target.value = state.dataProposta;
-    };
-
-    const telInput = el.querySelector('#f-telefone');
-    telInput.oninput = e => {
-      const formatado = maskTelefone(e.target.value);
-      e.target.value = formatado;
-      state.cliente.telefone = formatado;
-    };
-
-    const docInput = el.querySelector('#f-doc');
-    docInput.oninput = e => {
-      const formatado = maskDocumento(e.target.value, state.cliente.representacao);
-      e.target.value = formatado;
-      state.cliente.documento = formatado;
-    };
-    el.querySelectorAll('input[name="representacao"]').forEach(r => {
-      r.onchange = e => {
-        state.cliente.representacao = e.target.value;
-        const reformatado = maskDocumento(state.cliente.documento, e.target.value);
-        state.cliente.documento = reformatado;
-        docInput.value = reformatado;
-      };
-    });
-
-    el.querySelector('#f-numero-end').oninput = e => state.cliente.numero = e.target.value;
-    el.querySelector('#f-logradouro').oninput = e => state.cliente.logradouro = e.target.value;
-    el.querySelector('#f-complemento').oninput = e => state.cliente.complemento = e.target.value;
-    el.querySelector('#f-bairro').oninput = e => state.cliente.bairro = e.target.value;
-    el.querySelector('#f-cidade-uf').oninput = e => state.cliente.cidadeUf = e.target.value;
-
-    const cepInput = el.querySelector('#f-cep');
-    const cepStatus = el.querySelector('#cep-status');
-    cepInput.oninput = e => {
-      let v = e.target.value.replace(/\D/g, '').slice(0, 8);
-      if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
-      e.target.value = v;
-      state.cliente.cep = v;
-      const digits = v.replace(/\D/g, '');
-      if (digits.length === 8) buscarCep(digits);
-    };
-
-    async function buscarCep(cep) {
-      cepStatus.textContent = 'Buscando endereço…';
-      try {
-        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-        const dados = await res.json();
-        if (dados.erro) {
-          cepStatus.textContent = 'CEP não encontrado — preencha manualmente.';
-          return;
-        }
-        state.cliente.logradouro = dados.logradouro || '';
-        state.cliente.bairro = dados.bairro || '';
-        state.cliente.cidadeUf = dados.localidade && dados.uf ? `${dados.localidade} – ${dados.uf}` : '';
-        el.querySelector('#f-logradouro').value = state.cliente.logradouro;
-        el.querySelector('#f-bairro').value = state.cliente.bairro;
-        el.querySelector('#f-cidade-uf').value = state.cliente.cidadeUf;
-        cepStatus.textContent = 'Endereço preenchido — confira e edite se precisar.';
-      } catch (err) {
-        cepStatus.textContent = 'Não consegui buscar o CEP agora — preencha manualmente.';
-      }
-    }
-
-    const tetoInput = el.querySelector('#f-teto');
-    tetoInput.oninput = e => {
-      const digits = e.target.value.replace(/\D/g, '');
-      if (!digits) { state.tetoOrcamentario = ''; state.tetoOrcamentarioNumero = 0; e.target.value = ''; return; }
-      const valor = parseInt(digits, 10) / 100;
-      const formatado = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-      e.target.value = formatado;
-      state.tetoOrcamentario = formatado;
-      state.tetoOrcamentarioNumero = valor;
-    };
-
-    el.querySelector('#f-prazo-cliente').onchange = e => {
-      state.prazoEsperadoCliente = e.target.value;
-    };
-  },
-  validate(state) {
-    if (!state.cliente.nome && !state._simulacao) return 'Informe o nome do cliente (ou marque "Simulação").';
-    return true;
-  }
-});
-
-// -------------------------------------------------------------------------
-// 2. Classificação do serviço (inclui entendimento do projeto e áreas)
-// -------------------------------------------------------------------------
-STEPS.push({
-  id: 'classificacao',
-  eyebrow: 'Etapa 2 de 7',
-  title: 'Classificação do serviço',
-  desc: 'Define a base de honorários (CUB/tipologia), o entendimento do projeto e o porte do trabalho.',
-  render(state, data) {
-    const servicoOpts = data.servicosOdisse.map(s => `<option value="${s.id}" ${state.servicoId === s.id ? 'selected' : ''}>${s.nome}</option>`).join('');
-    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
-    const macros = (servico && servico.macro_categorias.length) ? servico.macro_categorias : Object.keys(data.tipologias);
-
-    // Se só existe 1 macro categoria possível pro serviço, já deixa pré-selecionada.
-    if (servico && macros.length === 1 && !state.macroCategoriaSelecionada) {
-      state.macroCategoriaSelecionada = macros[0];
-    }
-    const macroAtual = macros.includes(state.macroCategoriaSelecionada) ? state.macroCategoriaSelecionada : '';
-
-    const macroOpts = macros.map(m => `<option value="${m}" ${macroAtual === m ? 'selected' : ''}>${MACRO_CATEGORIA_LABELS[m] || m}</option>`).join('');
-
-    const itensTipologia = macroAtual ? (data.tipologias[macroAtual] || []) : [];
-    const tipoOpts = itensTipologia.map(t => `<option value="${t.item}" ${state.tipologiaItem && state.tipologiaItem.item === t.item ? 'selected' : ''}>${t.descricao}</option>`).join('');
-
-    let intervencaoHtml = '';
-    if (servico && (servico.modificadores || []).length > 1) {
-      const opts = servico.modificadores.map(m => ({ value: m.valor, label: m.nome }));
-      intervencaoHtml = `
         <div class="field">
-          <label class="field__label">Tipo de intervenção</label>
-          ${segmented('intervencao', opts, state.modificadorIntervencao)}
-        </div>`;
-    }
-
-    const critEscopo = data.icCriterios[8]; // indefinição do escopo
-    const currentEsc = state.icValores.indefinicao_escopo != null ? state.icValores.indefinicao_escopo : 1.0;
-    const currentEscLabel = currentEsc === 0.7 ? 'baixo' : currentEsc === 1.3 ? 'alto' : 'medio';
-
-    return `
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Serviço Odisse</label>
-          <select id="f-servico"><option value="">Selecione…</option>${servicoOpts}</select>
-          <p class="field__hint">Define os valores padrão de complexidade, etapas e entregáveis — tudo ajustável depois. As opções de tipologia abaixo também são filtradas por este serviço.</p>
+          <label class="field__label">Nome do projeto (opcional)</label>
+          <input type="text" id="f-nome-projeto" value="${escHtml(state.nomeProjeto || '')}" placeholder="Ex.: Residência Silva">
+          <p class="field__hint">Sai no assunto da proposta e vira o nome do projeto quando o contrato for assinado.</p>
         </div>
       </div>
       <div class="field-group">
-        <div class="field">
-          <label class="field__label">Macro categoria</label>
-          <select id="f-macro" ${servico ? '' : 'disabled'}><option value="">${servico ? 'Selecione…' : 'Escolha o serviço Odisse primeiro'}</option>${macroOpts}</select>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Área edificada prevista (m²)</label><input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}"></div>
+          <div class="field"><label class="field__label">Área do imóvel ou terreno (m²)</label><input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}"></div>
+        </div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Área externa de intervenção (m²)</label><input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}"></div>
+          <div class="field"><label class="field__label">Contagem de repetições</label>
+            <select id="f-repeticoes">${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${state.contagemRepeticoes === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}</select>
+            <p class="field__hint">Unidades ou áreas que se repetem integralmente no mesmo projeto.</p></div>
         </div>
         <div class="field">
-          <label class="field__label">Tipologia específica</label>
-          <select id="f-tipo" ${macroAtual ? '' : 'disabled'}><option value="">${macroAtual ? 'Selecione…' : 'Escolha a macro categoria primeiro'}</option>${tipoOpts}</select>
+          <label class="field__label">${critEscopo.criterio}</label>
+          ${segmented('ic-indefinicao_escopo', [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], escLabel)}
+          <p class="field__hint" id="ic-hint-indefinicao_escopo">${critEscopo[escLabel]}</p>
         </div>
-        ${intervencaoHtml}
+      </div>
+      <div class="field-group">
+        <p class="card__title">Imóvel</p>
+        <div class="row-2">
+          <div class="field"><label class="field__label">CEP</label><input type="text" id="f-cep" value="${escHtml(im.cep || '')}" placeholder="58000-000" maxlength="9"><p class="field__hint" id="cep-status"></p></div>
+          <div class="field"><label class="field__label">Bairro</label><input type="text" id="f-bairro" value="${escHtml(im.bairro || '')}"></div>
+        </div>
+        <div class="field"><label class="field__label">Logradouro</label><input type="text" id="f-logradouro" value="${escHtml(im.logradouro || '')}" placeholder="Preenchido pelo CEP; edite se precisar"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Número</label><input type="text" id="f-numero-end" value="${escHtml(im.numero || '')}"></div>
+          <div class="field"><label class="field__label">Complemento</label><input type="text" id="f-complemento" value="${escHtml(im.complemento || '')}" placeholder="Apto, bloco, sala…"></div>
+        </div>
+        <div class="field"><label class="field__label">Cidade – UF</label><input type="text" id="f-cidade-uf" value="${escHtml(im.cidadeUf || '')}"></div>
       </div>
       <div class="field-group">
         <div class="field">
           <label class="field__label">Entendimento do projeto</label>
-          <textarea id="f-entendimento" rows="8" placeholder="Ex: O projeto arquitetônico objeto desta proposta trata-se de...">${state.entendimentoProjeto || ''}</textarea>
-        </div>
-      </div>
-      <div class="field-group">
-        <div class="row-2">
-          <div class="field">
-            <label class="field__label">Área do imóvel ou terreno (m²)</label>
-            <input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}">
-          </div>
-          <div class="field">
-            <label class="field__label">Área Edificada Prevista (m²)</label>
-            <input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}">
-          </div>
+          <textarea id="f-entendimento" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
         </div>
         <div class="row-2">
           <div class="field">
-            <label class="field__label">Área Externa de Intervenção (m²)</label>
-            <input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}">
+            <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
+            <input type="text" inputmode="numeric" id="f-teto" value="${escHtml(state.tetoOrcamentario || '')}" placeholder="Só números; a formatação é automática">
           </div>
           <div class="field">
-            <label class="field__label">Contagem de repetições</label>
-            <select id="f-repeticoes">
-              ${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${state.contagemRepeticoes === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}
-            </select>
-            <p class="field__hint">Unidades/áreas que se repetem integralmente no mesmo projeto.</p>
+            <label class="field__label">Prazo esperado pelo cliente (opcional)</label>
+            <select id="f-prazo-cliente"><option value="">Não informado</option>
+              ${PRAZO_CLIENTE_OPCOES.map(o => `<option value="${o.label}" ${state.prazoEsperadoCliente === o.label ? 'selected' : ''}>${o.label}</option>`).join('')}</select>
           </div>
-        </div>
-        <div class="field">
-          <label class="field__label">${critEscopo.criterio}</label>
-          ${segmented('ic-indefinicao_escopo', [
-            { value: 'baixo', label: 'Baixo' },
-            { value: 'medio', label: 'Médio' },
-            { value: 'alto', label: 'Alto' }
-          ], currentEscLabel)}
-          <p class="field__hint" id="ic-hint-indefinicao_escopo">${critEscopo[currentEscLabel]}</p>
         </div>
       </div>
     `;
   },
   bind(el, state, data, ctx) {
-    const servicoSel = el.querySelector('#f-servico');
-
-    servicoSel.onchange = e => {
+    el.querySelector('#f-servico').onchange = e => {
       state.servicoId = e.target.value;
-      state.tipologiaItem = null;
-      state.macroCategoriaSelecionada = '';
-      const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
-      if (servico) {
-        const icNum = {};
-        Object.entries(servico.ic_preset).forEach(([k, v]) => { icNum[k] = IC_LABELS[v]; });
-        state.icValores = { ...state.icValores, ...icNum };
-        state.etapasSelecionadas = [...servico.etapas_default];
-        state.etapasSemanas = {};
-        state.etapasEntregaveis = {};
-        const icCalc = OdisseCalc.mediaIC(state.icValores);
-        servico.etapas_default.forEach(id => {
-          const etapa = data.etapas.find(x => x.id === id);
-          if (etapa) {
-            state.etapasSemanas[id] = semanasDefault(etapa, icCalc);
-            state.etapasEntregaveis[id] = etapa.entregaveis.map(en => en.id);
-          }
-        });
-        const mods = servico.modificadores || [];
-        state.modificadorIntervencao = mods.length ? mods[0].valor : 1;
-        recomputeIndicadores(state);
-        recomputePercentualServico(state, data);
-      }
+      aplicarServico(state);
       ctx.rerender();
     };
-
-    const macroSel = el.querySelector('#f-macro');
-    if (macroSel) {
-      macroSel.onchange = e => {
-        state.macroCategoriaSelecionada = e.target.value;
-        state.tipologiaItem = null;
-        ctx.rerender();
-      };
-    }
-
-    const tipoSel = el.querySelector('#f-tipo');
-    if (tipoSel) {
-      tipoSel.onchange = e => {
-        const list = data.tipologias[state.macroCategoriaSelecionada] || [];
-        state.tipologiaItem = list.find(t => t.item === e.target.value) || null;
-        ctx.updateTicket();
-      };
-    }
-    el.querySelectorAll('input[name="intervencao"]').forEach(r => {
-      r.onchange = e => { state.modificadorIntervencao = parseFloat(e.target.value); ctx.updateTicket(); };
-    });
-
-    el.querySelector('#f-entendimento').oninput = e => state.entendimentoProjeto = e.target.value;
-
+    el.querySelector('#f-categoria').onchange = e => {
+      state.categoriaId = e.target.value;
+      state.usoId = '';
+      ajustarEntregasACategoria(state);
+      aplicarIcPadrao(state);
+      ctx.rerender();
+    };
+    el.querySelector('#f-uso').onchange = e => { state.usoId = e.target.value; ctx.updateTicket(); };
+    el.querySelector('#f-nome-projeto').oninput = e => { state.nomeProjeto = e.target.value; };
+    el.querySelector('#f-entendimento').oninput = e => { state.entendimentoProjeto = e.target.value; ctx.updateTicket(); };
     el.querySelector('#f-area').oninput = e => { state.areaConstruida = parseFloat(e.target.value) || 0; ctx.updateTicket(); };
     el.querySelector('#f-area-ext').oninput = e => { state.areaExterna = parseFloat(e.target.value) || 0; ctx.updateTicket(); };
     el.querySelector('#f-area-terreno').oninput = e => { state.areaTerreno = parseFloat(e.target.value) || 0; };
     el.querySelector('#f-repeticoes').onchange = e => { state.contagemRepeticoes = parseInt(e.target.value, 10) || 0; ctx.updateTicket(); };
-
-    const critEscopo = data.icCriterios[8];
+    const crit = data.icCriterios[8];
     el.querySelectorAll('input[name="ic-indefinicao_escopo"]').forEach(r => {
-      r.onchange = e => {
-        state.icValores.indefinicao_escopo = IC_LABELS[e.target.value];
-        el.querySelector('#ic-hint-indefinicao_escopo').textContent = critEscopo[e.target.value];
-        ctx.updateTicket();
-      };
+      r.onchange = e => { state.icValores.indefinicao_escopo = IC_LABELS[e.target.value]; el.querySelector('#ic-hint-indefinicao_escopo').textContent = crit[e.target.value]; ctx.updateTicket(); };
     });
+    const im = state.imovel;
+    for (const [id, k] of [['#f-numero-end', 'numero'], ['#f-logradouro', 'logradouro'], ['#f-complemento', 'complemento'], ['#f-bairro', 'bairro'], ['#f-cidade-uf', 'cidadeUf']]) {
+      el.querySelector(id).oninput = e => { im[k] = e.target.value; };
+    }
+    const cepStatus = el.querySelector('#cep-status');
+    el.querySelector('#f-cep').oninput = e => {
+      let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+      e.target.value = v;
+      im.cep = v;
+      if (v.replace(/\D/g, '').length === 8) buscarCep(v.replace(/\D/g, ''));
+    };
+    async function buscarCep(cep) {
+      cepStatus.textContent = 'Buscando endereço…';
+      try {
+        const d = await (await fetch(`https://viacep.com.br/ws/${cep}/json/`)).json();
+        if (d.erro) { cepStatus.textContent = 'CEP não encontrado; preencha à mão.'; return; }
+        im.logradouro = d.logradouro || ''; im.bairro = d.bairro || ''; im.cidadeUf = d.localidade && d.uf ? `${d.localidade} – ${d.uf}` : '';
+        el.querySelector('#f-logradouro').value = im.logradouro;
+        el.querySelector('#f-bairro').value = im.bairro;
+        el.querySelector('#f-cidade-uf').value = im.cidadeUf;
+        cepStatus.textContent = 'Endereço preenchido; confira.';
+      } catch (_) { cepStatus.textContent = 'Não consegui buscar o CEP agora; preencha à mão.'; }
+    }
+    el.querySelector('#f-teto').oninput = e => {
+      const digits = e.target.value.replace(/\D/g, '');
+      if (!digits) { state.tetoOrcamentario = ''; state.tetoOrcamentarioNumero = 0; e.target.value = ''; ctx.updateTicket(); return; }
+      const valor = parseInt(digits, 10) / 100;
+      e.target.value = state.tetoOrcamentario = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      state.tetoOrcamentarioNumero = valor;
+      ctx.updateTicket();
+    };
+    el.querySelector('#f-prazo-cliente').onchange = e => { state.prazoEsperadoCliente = e.target.value; ctx.updateTicket(); };
   },
   validate(state) {
-    if (!state.tipologiaItem) return 'Selecione a tipologia do projeto.';
-    if (!state.areaConstruida || state.areaConstruida <= 0) return 'Informe a área edificada prevista.';
-    if (!state.entendimentoProjeto || state.entendimentoProjeto.trim().length < 10) return 'Escreva um resumo do entendimento do projeto.';
+    const srv = Catalogo.servico(state.servicoId);
+    if (!srv) return 'Escolha o serviço.';
+    if (srv.com_preco && !state.usoId) return 'Escolha a tipologia (categoria e uso).';
+    if (srv.com_preco && !(state.areaConstruida > 0)) return 'Informe a área edificada prevista.';
+    if (!state.entendimentoProjeto || state.entendimentoProjeto.trim().length < 10) return 'Escreva o entendimento do projeto.';
     return true;
   }
 });
 
 // -------------------------------------------------------------------------
-// 3. Etapas (entregáveis de cada etapa + assessoramento + duração).
-//    O percentual do honorário é calculado automaticamente pelas etapas
-//    marcadas, para os serviços com fórmula própria (Base + Incremento).
+// 2. Escopo — etapas, entregas e cláusulas do PGT
 // -------------------------------------------------------------------------
 STEPS.push({
-  id: 'etapas',
-  eyebrow: 'Etapa 3 de 7',
-  title: 'Etapas',
-  desc: 'Todas as etapas típicas do serviço já vêm marcadas. Desmarque o que não for contratado — o percentual do honorário se ajusta sozinho.',
-  render(state, data) {
-    const ic = OdisseCalc.mediaIC(state.icValores);
-    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
-    const usaFormula = servico && servico.formula_percentual_por_etapa;
-
-    let escopoHtml;
-    if (usaFormula) {
-      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
-      escopoHtml = `
-        <div class="field-group">
-          <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong id="valor-percentual-etapas">${Math.round(r.percentual * 100)}%</strong></span></div>
-          <p class="field__hint" id="detalhe-percentual-etapas">Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.</p>
-        </div>
-      `;
-    } else {
-      const reducaoOpts = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo];
-      let escopoAtualNome = 'Personalizado';
-      for (const r of reducaoOpts) { if (r.percentual === state.reducaoEscopoPercentual) { escopoAtualNome = r.nome; break; } }
-      const todasOpcoes = [...reducaoOpts, { nome: 'Personalizado' }];
-      escopoHtml = `
-        <div class="field-group">
-          <div class="field">
-            <label class="field__label">Escopo de contratação</label>
-            <select id="f-escopo-contratacao">
-              ${todasOpcoes.map(r => `<option value="${r.nome}" ${escopoAtualNome === r.nome ? 'selected' : ''}>${r.nome}${r.percentual != null ? ' (' + Math.round(r.percentual * 100) + '%)' : ''}</option>`).join('')}
-            </select>
-            <input type="number" min="1" max="100" step="1" id="f-escopo-custom" value="${Math.round((state.reducaoEscopoPercentual || 1) * 100)}" style="margin-top:10px" ${escopoAtualNome === 'Personalizado' ? '' : 'hidden'}>
-            <p class="field__hint">Este serviço ainda usa o percentual fixo por escopo — a fórmula por etapa ainda não foi desenhada para ele.</p>
-          </div>
-        </div>
-      `;
+  id: 'escopo',
+  title: 'Escopo',
+  desc: 'Etapas e entregas do Plano Geral de Trabalho para este serviço. As pertinentes já vêm marcadas; as opcionais aparecem desmarcadas. O percentual do honorário se ajusta às etapas contratadas.',
+  render(state) {
+    const srv = Catalogo.servico(state.servicoId);
+    if (!srv) return '<p class="muted">Escolha o serviço em Projeto para ver as etapas.</p>';
+    const etapas = Catalogo.etapasDoServico(state.servicoId);
+    if (!etapas.length) return '<p class="muted">Este serviço não tem etapas no Plano Geral de Trabalho publicado.</p>';
+    const pct = Catalogo.percentual(state.servicoId, state.etapasSelecionadas);
+    const fases = [];
+    for (const e of etapas) {
+      let f = fases.find(x => x.id === e.fase_id);
+      if (!f) fases.push(f = { ...e.fase, etapas: [] });
+      f.etapas.push(e);
     }
-
-    const grauDetalhamento = computeGrauDetalhamento(state.etapasSelecionadas);
-    const empenhoPorte = computeEmpenhoPorte(countEntregaveisSelecionados(state));
-    const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
-
-    const etapasAplicaveis = servico ? (servico.etapas_aplicaveis || []) : [];
-    const etapasVisiveis = data.etapas.filter(e => etapasAplicaveis.includes(e.id));
-    const fasesOrdem = [];
-    const etapasPorFase = {};
-    etapasVisiveis.forEach(e => {
-      if (!etapasPorFase[e.fase]) { etapasPorFase[e.fase] = []; fasesOrdem.push(e.fase); }
-      etapasPorFase[e.fase].push(e);
-    });
-
-    const listaEtapasHtml = fasesOrdem.length ? fasesOrdem.map(fase => {
-      const etapasDaFase = etapasPorFase[fase];
-      const todasMarcadas = etapasDaFase.every(e => state.etapasSelecionadas.includes(e.id));
-      const algumaMarcada = etapasDaFase.some(e => state.etapasSelecionadas.includes(e.id));
-      const estadoFase = todasMarcadas ? '' : algumaMarcada ? 'fase-toggle--indeterminado' : '';
-      return `
-        <div class="fase-group">
-          <label class="check-row check-row__toggle fase-toggle ${estadoFase}">
-            <input type="checkbox" data-fase="${fase}" ${todasMarcadas ? 'checked' : ''}>
-            <span class="check-row__box">${checkSvg()}</span>
-            <span class="check-row__text fase-toggle__text">${fase}</span>
-          </label>
-          <div class="fase-etapas">
-            ${etapasDaFase.map(etapa => {
-              const selecionada = state.etapasSelecionadas.includes(etapa.id);
-              const semanasAtual = state.etapasSemanas[etapa.id] != null ? state.etapasSemanas[etapa.id] : semanasDefault(etapa, ic);
-              const entregaveisSel = state.etapasEntregaveis[etapa.id] || [];
-              return `
-                <div class="etapa-row ${selecionada ? '' : 'etapa-row--off'}">
-                  <label class="check-row check-row__toggle">
-                    <input type="checkbox" data-etapa="${etapa.id}" ${selecionada ? 'checked' : ''}>
-                    <span class="check-row__box">${checkSvg()}</span>
-                    <span class="check-row__text">${etapa.nome}</span>
-                  </label>
-                  ${selecionada ? `
-                    <select class="etapa-semanas" data-semanas="${etapa.id}">
-                      ${Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<option value="${n}" ${semanasAtual === n ? 'selected' : ''}>${n} sem.</option>`).join('')}
-                    </select>
-                  ` : ''}
-                </div>
-                ${selecionada ? `
-                  <div class="entregaveis-list" data-entregaveis-de="${etapa.id}">
-                    ${etapa.entregaveis.map(en => `
-                      <label class="check-row check-row--sub">
-                        <input type="checkbox" data-entregavel="${etapa.id}::${en.id}" ${entregaveisSel.includes(en.id) ? 'checked' : ''}>
-                        <span class="check-row__box">${checkSvg()}</span>
-                        <span class="check-row__text small">${en.texto}</span>
-                      </label>
-                    `).join('')}
-                  </div>
-                ` : ''}
-              `;
-            }).join('')}
-          </div>
-        </div>
-      `;
-    }).join('') : `<p class="muted">Este serviço não usa etapas de projeto — o escopo é definido diretamente na proposta.</p>`;
-
+    const tag = (p) => (p === 'O' ? '<span class="tag-opcional">opcional</span>' : '');
+    const ind = recomputeIndicadores(state);
+    const clausulas = Catalogo.clausulas(state.etapasSelecionadas, state.servicoId);
     return `
-      ${escopoHtml}
+      ${pct.porEtapa ? `<div class="field-group">
+        <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong>${Math.round(pct.percentual * 100)}%</strong></span></div>
+        <p class="field__hint">Soma dos pesos das etapas marcadas (${Math.round(pct.base * 100)}%) + metade das etapas anteriores não contratadas (${Math.round(pct.incremento * 100)}%). Pesos publicados em Honorários.</p>
+      </div>` : `<p class="field__hint">${srv.com_preco ? 'Este serviço tem preço único: as etapas não mudam o honorário.' : ''}</p>`}
       <div class="field-group">
-        ${listaEtapasHtml}
-        <p class="field__hint" id="etapas-total" style="margin-top:12px"></p>
+        ${fases.map(f => {
+          const ids = f.etapas.map(e => e.id);
+          const todas = ids.every(id => state.etapasSelecionadas.includes(id)), alguma = ids.some(id => state.etapasSelecionadas.includes(id));
+          return `<div class="fase-group">
+            <label class="check-row check-row__toggle fase-toggle ${!todas && alguma ? 'fase-toggle--indeterminado' : ''}">
+              <input type="checkbox" data-fase="${f.id}" ${todas ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
+              <span class="check-row__text fase-toggle__text">Fase ${escHtml(f.nome)}</span>
+            </label>
+            <div class="fase-etapas">${f.etapas.map(e => {
+              const on = state.etapasSelecionadas.includes(e.id);
+              const ents = Catalogo.entregasDaEtapa(e.id, state.servicoId, state.categoriaId);
+              const sel = state.entregasSelecionadas[e.id] || [];
+              const p = Catalogo.peso(e.id, state.servicoId);
+              return `<div class="etapa-row ${on ? '' : 'etapa-row--off'}">
+                  <label class="check-row check-row__toggle"><input type="checkbox" data-etapa="${e.id}" ${on ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
+                    <span class="check-row__text"><b class="sigla">${escHtml(e.sigla)}</b> ${escHtml(e.nome)} ${tag(e.pert)}</span></label>
+                  <span class="etapa-meta small muted">${pct.porEtapa ? (p != null ? `peso ${p}` : 'sem peso') : ''}${on ? ` · ${sel.length}/${ents.length}` : ''}</span>
+                </div>
+                ${on ? `<div class="entregaveis-list">${ents.map(x => `
+                  <label class="check-row check-row--sub"><input type="checkbox" data-entrega="${e.id}::${x.id}" ${sel.includes(x.id) ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
+                    <span class="check-row__text small"><span class="codigo">${escHtml(x.codigo)}</span> ${escHtml(x.texto)} ${tag(x.pert)}</span></label>`).join('') || '<p class="small muted">Sem entregas para este serviço.</p>'}</div>` : ''}`;
+            }).join('')}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="field-group">
+        <p class="card__title">Cláusulas</p>
+        <p class="field__hint" style="margin-bottom:12px">Vêm dos eventos das etapas contratadas. As obrigatórias já estão incluídas; as opcionais entram na proposta (e o evento no escopo) quando marcadas.</p>
+        ${clausulas.length ? clausulas.map(c => {
+          const on = c.pert === 'P' || state.clausulasSelecionadas.includes(c.id);
+          const n = state.clausulasQtd[c.id];
+          return `<div class="clausula-row">
+            <label class="check-row ${c.pert === 'P' ? 'is-travado' : ''}"><input type="checkbox" data-clausula="${c.id}" ${on ? 'checked' : ''} ${c.pert === 'P' ? 'disabled' : ''}><span class="check-row__box">${checkSvg()}</span>
+              <span class="check-row__text small">${escHtml(Catalogo.textoClausula(c.clausula, n))} <span class="codigo">${escHtml(c.codigo)}</span> ${c.pert === 'P' ? '<span class="tag-obrigatoria">obrigatória</span>' : ''}</span></label>
+            ${on && Catalogo.temQuantidade(c.clausula) ? `<input type="number" min="1" step="1" class="clausula-n" data-qtd="${c.id}" value="${n != null ? n : ''}" placeholder="N">` : ''}
+          </div>`;
+        }).join('') : '<p class="small muted">Nenhuma cláusula nas etapas marcadas.</p>'}
       </div>
       <div class="field-group">
         <p class="card__title" style="margin-bottom:12px">Conferência de complexidade</p>
         <div class="row-2">
-          <div class="indicador-calculado">
-            <span class="indicador-calculado__label">Grau de Detalhamento</span>
-            <span class="indicador-calculado__valor" id="badge-detalhamento">${labelCap(grauDetalhamento)}</span>
-          </div>
-          <div class="indicador-calculado">
-            <span class="indicador-calculado__label">Empenho ao Projeto vs Porte</span>
-            <span class="indicador-calculado__valor" id="badge-empenho">${labelCap(empenhoPorte)}</span>
-          </div>
+          <div class="indicador-calculado"><span class="indicador-calculado__label">Grau de detalhamento</span><span class="indicador-calculado__valor">${nivel(ind.det)}</span></div>
+          <div class="indicador-calculado"><span class="indicador-calculado__label">Empenho ao projeto vs porte</span><span class="indicador-calculado__valor">${nivel(ind.emp)}</span></div>
         </div>
-        <p class="field__hint">Calculados automaticamente a partir das fases, etapas e entregáveis marcados acima.</p>
-      </div>
-      <div class="field-group">
-        <div class="card__title" style="margin-bottom:6px">${data.assessoramento.titulo}</div>
-        <p class="field__hint" style="margin-bottom:14px">Bloco independente — não entra no cronograma nem na soma de semanas.</p>
-        <div class="check-list">
-          ${data.assessoramento.subitens.map(si => `
-            <label class="check-row">
-              <input type="checkbox" data-assess="${si.id}" ${(state.assessoramentoSelecionados || []).includes(si.id) ? 'checked' : ''}>
-              <span class="check-row__box">${checkSvg()}</span>
-              <span class="check-row__text">${si.texto_curto}</span>
-            </label>
-          `).join('')}
-        </div>
+        <p class="field__hint">Calculados das etapas e das ${ind.n} entregas marcadas.</p>
       </div>
     `;
   },
   bind(el, state, data, ctx) {
-    const servico = data.servicosOdisse.find(s => s.id === state.servicoId);
-    const usaFormula = servico && servico.formula_percentual_por_etapa;
-    const ic = OdisseCalc.mediaIC(state.icValores);
-
-    function atualizarBadges() {
-      const detEl = el.querySelector('#badge-detalhamento');
-      const empEl = el.querySelector('#badge-empenho');
-      const labelCap = s => s.charAt(0).toUpperCase() + s.slice(1);
-      if (detEl) detEl.textContent = labelCap(computeGrauDetalhamento(state.etapasSelecionadas));
-      if (empEl) empEl.textContent = labelCap(computeEmpenhoPorte(countEntregaveisSelecionados(state)));
-    }
-    function atualizarPercentualEtapas() {
-      if (!usaFormula) return;
-      const r = OdisseCalc.percentualPorEtapas(state.etapasSelecionadas, pesosDoServico(servico, data.pesosEtapas));
-      state.reducaoEscopoPercentual = r.percentual;
-      const valorEl = el.querySelector('#valor-percentual-etapas');
-      const detalheEl = el.querySelector('#detalhe-percentual-etapas');
-      if (valorEl) valorEl.textContent = `${Math.round(r.percentual * 100)}%`;
-      if (detalheEl) detalheEl.textContent = `Base ${Math.round(r.base * 100)}% + incremento de ${Math.round(r.incremento * 100)}% (por etapas anteriores não contratadas). Ajusta sozinho conforme você marca/desmarca abaixo.`;
-    }
-    function atualizarTotal() {
-      const total = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
-        .reduce((s, e) => s + (state.etapasSemanas[e.id] || 0), 0);
-      const totalEl = el.querySelector('#etapas-total');
-      if (totalEl) totalEl.textContent = `Total: ${total} semana${total === 1 ? '' : 's'}`;
-    }
-    function garantirEntregaveis(id) {
-      if (state.etapasEntregaveis[id] == null) {
-        const etapa = data.etapas.find(x => x.id === id);
-        state.etapasEntregaveis[id] = etapa.entregaveis.map(en => en.id);
+    const marcarEtapa = (id, on) => {
+      const ja = state.etapasSelecionadas.includes(id);
+      if (on && !ja) {
+        state.etapasSelecionadas.push(id);
+        if (!state.entregasSelecionadas[id] || !state.entregasSelecionadas[id].length) state.entregasSelecionadas[id] = Catalogo.entregasPadrao(id, state.servicoId, state.categoriaId);
       }
-    }
-
-    if (!usaFormula) {
-      const selectEscopo = el.querySelector('#f-escopo-contratacao');
-      const inputCustom = el.querySelector('#f-escopo-custom');
-      selectEscopo.onchange = e => {
-        const nome = e.target.value;
-        if (nome === 'Personalizado') {
-          inputCustom.hidden = false;
-          state.reducaoEscopoPercentual = (parseFloat(inputCustom.value) || 100) / 100;
-          ctx.updateTicket();
-          return;
-        }
-        inputCustom.hidden = true;
-        const opt = [{ nome: 'Projeto Completo', percentual: 1 }, ...data.reducaoEscopo].find(r => r.nome === nome);
-        state.reducaoEscopoPercentual = opt.percentual;
-        const etapasArq = ETAPAS_POR_ESCOPO[nome] || [];
-        const outras = state.etapasSelecionadas.filter(id => !ARQ_ETAPA_IDS.includes(id));
-        state.etapasSelecionadas = [...new Set([...outras, ...etapasArq])];
-        etapasArq.forEach(id => {
-          if (state.etapasSemanas[id] == null) {
-            const etapa = data.etapas.find(x => x.id === id);
-            state.etapasSemanas[id] = semanasDefault(etapa, ic);
-          }
-          garantirEntregaveis(id);
-        });
-        recomputeIndicadores(state);
-        ctx.rerender();
-      };
-      inputCustom.oninput = e => {
-        state.reducaoEscopoPercentual = (parseFloat(e.target.value) || 0) / 100;
-        ctx.updateTicket();
-      };
-    }
-
+      if (!on && ja) state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
+      // mantém a ordem do PGT
+      const ordem = Catalogo.etapasDoServico(state.servicoId).map(e => e.id);
+      state.etapasSelecionadas.sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
+    };
     el.querySelectorAll('input[data-fase]').forEach(cb => {
       cb.onchange = e => {
-        const fase = e.target.dataset.fase;
-        const etapasDaFase = data.etapas.filter(x => x.fase === fase && (servico.etapas_aplicaveis || []).includes(x.id));
-        etapasDaFase.forEach(etapa => {
-          const id = etapa.id;
-          if (e.target.checked) {
-            if (!state.etapasSelecionadas.includes(id)) state.etapasSelecionadas.push(id);
-            if (state.etapasSemanas[id] == null) state.etapasSemanas[id] = semanasDefault(etapa, ic);
-            garantirEntregaveis(id);
-          } else {
-            state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
-          }
-        });
+        Catalogo.etapasDoServico(state.servicoId).filter(x => x.fase_id === e.target.dataset.fase).forEach(x => marcarEtapa(x.id, e.target.checked));
         recomputeIndicadores(state);
         ctx.rerender();
       };
     });
     el.querySelectorAll('input[data-etapa]').forEach(cb => {
+      cb.onchange = e => { marcarEtapa(e.target.dataset.etapa, e.target.checked); recomputeIndicadores(state); ctx.rerender(); };
+    });
+    el.querySelectorAll('input[data-entrega]').forEach(cb => {
       cb.onchange = e => {
-        const id = e.target.dataset.etapa;
-        if (e.target.checked) {
-          state.etapasSelecionadas.push(id);
-          if (state.etapasSemanas[id] == null) {
-            const etapa = data.etapas.find(x => x.id === id);
-            state.etapasSemanas[id] = semanasDefault(etapa, ic);
-          }
-          garantirEntregaveis(id);
-        } else {
-          state.etapasSelecionadas = state.etapasSelecionadas.filter(x => x !== id);
-        }
+        const [etapaId, id] = e.target.dataset.entrega.split('::');
+        const l = new Set(state.entregasSelecionadas[etapaId] || []);
+        if (e.target.checked) l.add(id); else l.delete(id);
+        const ordem = Catalogo.entregasDaEtapa(etapaId, state.servicoId, state.categoriaId).map(x => x.id);
+        state.entregasSelecionadas[etapaId] = ordem.filter(x => l.has(x));
         recomputeIndicadores(state);
         ctx.rerender();
       };
     });
-    el.querySelectorAll('select[data-semanas]').forEach(sel => {
-      sel.onchange = e => {
-        state.etapasSemanas[e.target.dataset.semanas] = parseInt(e.target.value, 10) || 1;
-        atualizarTotal();
-        ctx.updateTicket();
-      };
-    });
-    el.querySelectorAll('input[data-entregavel]').forEach(cb => {
+    el.querySelectorAll('input[data-clausula]').forEach(cb => {
       cb.onchange = e => {
-        const [etapaId, entregavelId] = e.target.dataset.entregavel.split('::');
-        garantirEntregaveis(etapaId);
-        if (e.target.checked) {
-          if (!state.etapasEntregaveis[etapaId].includes(entregavelId)) state.etapasEntregaveis[etapaId].push(entregavelId);
-        } else {
-          state.etapasEntregaveis[etapaId] = state.etapasEntregaveis[etapaId].filter(x => x !== entregavelId);
-        }
-        recomputeIndicadores(state);
-        atualizarBadges();
-        ctx.updateTicket();
+        const id = e.target.dataset.clausula;
+        const l = new Set(state.clausulasSelecionadas);
+        if (e.target.checked) l.add(id); else l.delete(id);
+        state.clausulasSelecionadas = [...l];
+        ctx.rerender();
       };
     });
-    el.querySelectorAll('input[data-assess]').forEach(cb => {
-      cb.onchange = e => {
-        const id = e.target.dataset.assess;
-        state.assessoramentoSelecionados = state.assessoramentoSelecionados || [];
-        if (e.target.checked) {
-          if (!state.assessoramentoSelecionados.includes(id)) state.assessoramentoSelecionados.push(id);
-        } else {
-          state.assessoramentoSelecionados = state.assessoramentoSelecionados.filter(x => x !== id);
-        }
-        recomputeIndicadores(state);
-        atualizarBadges();
-        ctx.updateTicket();
-      };
+    el.querySelectorAll('input[data-qtd]').forEach(inp => {
+      inp.onchange = e => { const v = parseInt(e.target.value, 10); if (v > 0) state.clausulasQtd[e.target.dataset.qtd] = v; else delete state.clausulasQtd[e.target.dataset.qtd]; ctx.rerender(); };
     });
-
-    atualizarTotal();
-    atualizarPercentualEtapas();
   },
   validate(state) {
-    if (!state.etapasSelecionadas.length) return 'Selecione ao menos uma etapa.';
+    if (!state.servicoId) return 'Escolha o serviço em Projeto.';
+    if (Catalogo.etapasDoServico(state.servicoId).length && !state.etapasSelecionadas.length) return 'Marque ao menos uma etapa.';
+    const semN = Catalogo.clausulas(state.etapasSelecionadas, state.servicoId)
+      .filter(c => (c.pert === 'P' || state.clausulasSelecionadas.includes(c.id)) && Catalogo.temQuantidade(c.clausula) && !state.clausulasQtd[c.id]);
+    if (semN.length) return `Informe a quantidade (N) da cláusula "${semN[0].clausula}".`;
     return true;
   }
 });
 
 // -------------------------------------------------------------------------
-// 4. Índice de complexidade (8 critérios manuais — indefinição de escopo
-//    fica na Classificação; empenho e detalhamento viraram indicadores
-//    calculados, exibidos em Etapas)
+// 3. Índice de complexidade
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'complexidade',
-  eyebrow: 'Etapa 4 de 7',
-  title: 'Índice de complexidade',
-  desc: 'Padrão pré-carregado a partir do serviço escolhido. Ajuste qualquer critério se o padrão não refletir o projeto — refine por último, depois de fechar as etapas.',
+  title: 'Complexidade',
+  desc: 'Padrão pré-carregado pela categoria da tipologia e pelo serviço (Bases). Ajuste o que não refletir o projeto.',
   render(state, data) {
     return `
       <div class="field-group">
         ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
-          const i = IC_KEYS_ALL.indexOf(key);
-          const crit = data.icCriterios[i];
-          const current = state.icValores[key] != null ? state.icValores[key] : 1.0;
-          const currentLabel = current === 0.7 ? 'baixo' : current === 1.3 ? 'alto' : 'medio';
-          return `
-            <div class="field">
-              <label class="field__label">${crit.criterio}</label>
-              ${segmented('ic-' + key, [
-                { value: 'baixo', label: 'Baixo' },
-                { value: 'medio', label: 'Médio' },
-                { value: 'alto', label: 'Alto' }
-              ], currentLabel)}
-              <p class="field__hint" id="ic-hint-${key}">${crit[currentLabel]}</p>
-            </div>
-          `;
+          const crit = data.icCriterios[IC_KEYS_ALL.indexOf(key)];
+          const atual = labelIc(state.icValores[key] != null ? state.icValores[key] : 1);
+          return `<div class="field"><label class="field__label">${crit.criterio}</label>
+            ${segmented('ic-' + key, [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], atual)}
+            <p class="field__hint" id="ic-hint-${key}">${crit[atual]}</p></div>`;
         }).join('')}
       </div>
-      <p class="field__hint">Os critérios "Empenho ao Projeto vs Porte" e "Grau de Detalhamento" não aparecem aqui — são calculados automaticamente a partir das etapas e entregáveis selecionados em "Etapas".</p>
+      <p class="field__hint">Indefinição do escopo fica em Projeto; empenho e detalhamento são calculados do Escopo.
+        <button type="button" class="btn-link" id="btn-ic-padrao">Voltar ao padrão das Bases</button></p>
     `;
   },
   bind(el, state, data, ctx) {
     MANUAL_COMPLEXIDADE_KEYS.forEach(key => {
-      const i = IC_KEYS_ALL.indexOf(key);
-      const crit = data.icCriterios[i];
+      const crit = data.icCriterios[IC_KEYS_ALL.indexOf(key)];
       el.querySelectorAll(`input[name="ic-${key}"]`).forEach(r => {
-        r.onchange = e => {
-          state.icValores[key] = IC_LABELS[e.target.value];
-          el.querySelector(`#ic-hint-${key}`).textContent = crit[e.target.value];
-          ctx.updateTicket();
-        };
+        r.onchange = e => { state.icValores[key] = IC_LABELS[e.target.value]; el.querySelector(`#ic-hint-${key}`).textContent = crit[e.target.value]; ctx.updateTicket(); };
       });
     });
+    el.querySelector('#btn-ic-padrao').onclick = () => { aplicarIcPadrao(state); ctx.rerender(); };
   },
   validate() { return true; }
 });
 
 // -------------------------------------------------------------------------
-// 5. Cronograma (data de início + datas de cada etapa contratada)
+// 4. Cronograma — prazo de cada etapa pelo PGT (× faixa de área), ajustável
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'cronograma',
-  eyebrow: 'Etapa 5 de 7',
   title: 'Cronograma',
-  desc: 'Defina a data de início do serviço — as datas de cada etapa contratada se ajustam automaticamente a partir dela.',
+  desc: 'O prazo de cada etapa vem da sequência das entregas marcadas no PGT, multiplicado pela faixa de área. Digite outro valor para ajustar; deixe em branco para voltar ao do PGT.',
   render(state) {
+    const etapas = etapasContratadas(state);
+    const f = Catalogo.faixa(state.areaConstruida);
     return `
       <div class="field-group">
-        <div class="field">
-          <label class="field__label">Data de início do serviço</label>
-          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}" min="2020-01-01" max="2035-12-31">
-        </div>
+        <div class="field"><label class="field__label">Data de início do serviço</label>
+          <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}" min="2020-01-01" max="2035-12-31"></div>
+        <p class="field__hint">${state.areaConstruida > 0 ? `Área de ${state.areaConstruida} m²: faixa ${f.indice} das Bases, prazo das entregas × ${String(f.mult).replace('.', ',')} (entregas de prazo fixo e eventos não mudam).` : 'Sem área informada, os prazos do PGT valem sem multiplicador.'}</p>
       </div>
-      <div class="field-group" id="cronograma-preview"></div>
+      <div class="field-group" id="cronograma-preview">
+        ${etapas.length ? `<div class="timeline">${etapas.map(e => {
+          const calc = prazoCalculado(state, e.id);
+          const manual = state.semanasManual[e.id] != null && state.semanasManual[e.id] !== '';
+          return `<div class="timeline__row">
+            <div><div class="timeline__name"><b class="sigla">${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</div>
+              <span class="timeline__fase">Fase ${escHtml(e.fase.nome)} · PGT: ${calc.semanas ? fmtSemanas(calc.semanas, true) : 'sem prazo'}${calc.semPrazo ? ` (${calc.semPrazo} entrega${calc.semPrazo === 1 ? '' : 's'} sem duração)` : ''}${manual ? ' · <button type="button" class="btn-link" data-limpar="' + e.id + '">usar o do PGT</button>' : ''}</span></div>
+            <div class="timeline__weeks"><input type="number" min="0" step="0.5" data-semanas="${e.id}" value="${manual ? state.semanasManual[e.id] : ''}" placeholder="${calc.semanas || ''}"> <span class="small muted">sem.</span></div>
+            <div class="timeline__dates" data-datas="${e.id}"></div>
+          </div>`;
+        }).join('')}</div>` : '<p class="muted">Marque as etapas em Escopo para montar o cronograma.</p>'}
+      </div>
     `;
   },
   bind(el, state, data, ctx) {
-    function renderCronograma() {
-      const box = el.querySelector('#cronograma-preview');
-      const selecionadas = data.etapas.filter(e => state.etapasSelecionadas.includes(e.id))
-        .map(e => ({ ...e, semanas: state.etapasSemanas[e.id] }));
-      if (!state.dataInicio || !selecionadas.length) { box.innerHTML = '<p class="muted">Preencha a etapa "Etapas" e a data acima para ver o cronograma.</p>'; return; }
-      const linhas = OdisseCalc.montarCronograma(state.dataInicio, selecionadas);
-      box.innerHTML = `<div class="card__title">Prévia do cronograma</div><div class="timeline">` +
-        linhas.map(l => `
-          <div class="timeline__row">
-            <div><div class="timeline__name">${l.nome}</div><span class="timeline__fase">${l.fase}</span></div>
-            <div class="timeline__weeks small muted">${l.semanas} sem.</div>
-            <div class="timeline__dates">${OdisseCalc.fmtData(l.inicio)} – ${OdisseCalc.fmtData(l.fim)}</div>
-          </div>
-        `).join('') + `</div>`;
-    }
+    const datas = () => {
+      const etapas = etapasContratadas(state);
+      const linhas = state.dataInicio ? OdisseCalc.montarCronograma(state.dataInicio, etapas.filter(e => e.semanas > 0)) : [];
+      for (const e of etapas) {
+        const box = el.querySelector(`[data-datas="${e.id}"]`);
+        const l = linhas.find(x => x.id === e.id);
+        if (box) box.textContent = l ? `${OdisseCalc.fmtData(l.inicio)} – ${OdisseCalc.fmtData(l.fim)}` : '—';
+      }
+    };
     el.querySelector('#f-data-inicio').oninput = e => {
       const limpo = dataValidaOuVazia(e.target.value);
       state.dataInicio = limpo;
-      if (!limpo && e.target.value) e.target.value = state.dataInicio;
-      renderCronograma();
-      ctx.updateTicket();
+      datas(); ctx.updateTicket();
     };
-    renderCronograma();
+    el.querySelectorAll('input[data-semanas]').forEach(inp => {
+      inp.oninput = e => {
+        const v = e.target.value;
+        if (v === '') delete state.semanasManual[e.target.dataset.semanas];
+        else state.semanasManual[e.target.dataset.semanas] = Math.max(0, parseFloat(v) || 0);
+        datas(); ctx.updateTicket();
+      };
+    });
+    el.querySelectorAll('[data-limpar]').forEach(b => { b.onclick = () => { delete state.semanasManual[b.dataset.limpar]; ctx.rerender(); }; });
+    datas();
   },
   validate(state) {
     if (!state.dataInicio) return 'Informe a data de início.';
@@ -1020,210 +592,259 @@ STEPS.push({
 });
 
 // -------------------------------------------------------------------------
-// 6. Ajuste de mercado & condições de pagamento
+// 5. Honorários e pagamento
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'pagamento',
-  eyebrow: 'Etapa 6 de 7',
-  title: 'Ajuste de mercado & pagamento',
-  desc: 'Ajuste o valor final e defina as condições de pagamento — o preview abaixo atualiza a cada mudança.',
+  title: 'Honorários e pagamento',
+  desc: 'Ajuste de mercado e condições de pagamento. A prévia ao lado acompanha cada mudança.',
   render(state, data) {
+    const srv = Catalogo.servico(state.servicoId);
     const fatorAtual = state.fatorAjuste || 1.25;
-    const r = state._calcResult;
-    const previewHtml = r ? `
-      <div class="card">
-        <div class="card__title">Honorário final (preview)</div>
-        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorCau)}</span></div>
-        <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorMercado)}</span></div>
-        <div class="data-row"><span class="data-row__label">Percentual do serviço (${Math.round(state.reducaoEscopoPercentual * 100)}%)</span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
-      </div>
-    ` : `<p class="muted">Complete a classificação do serviço para ver o preview do honorário.</p>`;
-
+    const entrada = state.pctEntrada != null ? state.pctEntrada : 0.35;
+    const parcelas = Catalogo.parcelas(state.etapasSelecionadas);
     return `
-      ${previewHtml}
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Fator de ajuste de mercado</label>
-          <div class="segmented" data-seg="fator-preset">
-            ${[1, 1.25, 2.25].map(v => `
-              <input type="radio" name="fator-preset" id="fator-${v}" value="${v}" ${fatorAtual === v ? 'checked' : ''}>
-              <label for="fator-${v}">${v === 1 ? 'Sem ajuste' : '÷ ' + v}</label>
-            `).join('')}
-            <input type="radio" name="fator-preset" id="fator-custom" value="custom" ${![1, 1.25, 2.25].includes(fatorAtual) ? 'checked' : ''}>
-            <label for="fator-custom">Outro</label>
-          </div>
-          <input type="number" step="0.01" min="1" id="f-fator-custom" value="${fatorAtual}" style="margin-top:10px" ${[1, 1.25, 2.25].includes(fatorAtual) ? 'hidden' : ''}>
-          <p class="field__hint">O valor calculado pela tabela CAU é dividido por este fator. 1.25 e 2.25 refletem os dois patamares que a Odisse já costuma praticar.</p>
+      ${srv && !srv.com_preco ? `<div class="field-group"><div class="field">
+        <label class="field__label">Honorário (valor fixo)</label>
+        <input type="text" inputmode="numeric" id="f-valor-fixo" value="${state.valorFixo ? OdisseCalc.fmtMoeda(state.valorFixo) : ''}" placeholder="Só números">
+        <p class="field__hint">${escHtml(srv.nome)} não tem preço calculado nos Honorários.</p></div></div>` : `
+      <div class="field-group"><div class="field">
+        <label class="field__label">Fator de ajuste de mercado</label>
+        <div class="segmented" data-seg="fator-preset">
+          ${[1, 1.25, 2.25].map(v => `<input type="radio" name="fator-preset" id="fator-${v}" value="${v}" ${fatorAtual === v ? 'checked' : ''}><label for="fator-${v}">${v === 1 ? 'Sem ajuste' : '÷ ' + v}</label>`).join('')}
+          <input type="radio" name="fator-preset" id="fator-custom" value="custom" ${![1, 1.25, 2.25].includes(fatorAtual) ? 'checked' : ''}><label for="fator-custom">Outro</label>
         </div>
-      </div>
+        <input type="number" step="0.01" min="1" id="f-fator-custom" value="${fatorAtual}" style="margin-top:10px" ${[1, 1.25, 2.25].includes(fatorAtual) ? 'hidden' : ''}>
+        <p class="field__hint">O valor da tabela do CAU é dividido por este fator. 1,25 e 2,25 são os dois patamares que o Odisse costuma praticar.</p>
+      </div></div>`}
       <div class="field-group">
         <div class="row-2">
-          <div class="field">
-            <label class="field__label">Desconto à vista (%)</label>
-            <input type="number" min="0" max="100" step="1" id="f-desconto" value="${Math.round((state.descontoAvista != null ? state.descontoAvista : 0.08) * 100)}">
-          </div>
-          <div class="field">
-            <label class="field__label">Entrada (% do valor, no plano entrada + boletos)</label>
-            <input type="number" min="0" max="100" step="1" id="f-entrada" value="${Math.round((state.pctEntrada != null ? state.pctEntrada : 0.35) * 100)}">
-          </div>
+          <div class="field"><label class="field__label">Desconto à vista (%)</label><input type="number" min="0" max="100" step="1" id="f-desconto" value="${Math.round((state.descontoAvista != null ? state.descontoAvista : 0.08) * 100)}"></div>
+          <div class="field"><label class="field__label">Entrada (%, no plano entrada + boletos)</label><input type="number" min="0" max="100" step="1" id="f-entrada" value="${Math.round(entrada * 100)}"></div>
         </div>
-      </div>
-      <div class="field-group">
         <div class="row-2">
-          <div class="field">
-            <label class="field__label">Qtd. de parcelas disponibilizadas — cartão</label>
-            <select id="f-max-parcelas-cartao">
-              ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${(state.maxParcelasCartao || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}
-            </select>
-          </div>
-          <div class="field">
-            <label class="field__label">Qtd. de parcelas disponibilizadas — boleto</label>
-            <select id="f-max-parcelas-boleto">
-              ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${(state.maxParcelasBoleto || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}
-            </select>
-          </div>
+          <div class="field"><label class="field__label">Parcelas oferecidas no cartão</label>
+            <select id="f-max-parcelas-cartao">${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}" ${(state.maxParcelasCartao || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
+          <div class="field"><label class="field__label">Parcelas oferecidas no boleto</label>
+            <select id="f-max-parcelas-boleto">${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}" ${(state.maxParcelasBoleto || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
         </div>
-        <p class="field__hint">Controla quantas opções de parcelamento aparecem no PDF da proposta, tanto no plano cartão quanto no plano entrada + boletos.</p>
+        ${parcelas.length ? `<p class="field__hint">Referência dos Honorários (desembolso por fase): ${parcelas.map(p => `${escHtml(p.nome)} ${Math.round(p.percentual * 100)}%`).join(' · ')}.</p>` : ''}
       </div>
       <div class="field-group">
         <div class="switch-row">
-          <div class="switch-row__text">
-            <div class="switch-row__title">Incluir cláusula de despesas reembolsáveis</div>
-            <div class="switch-row__hint">Desmarque os itens abaixo que não devem entrar na cláusula desta proposta</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="f-reembolsaveis" ${state.incluirDespesasReembolsaveis !== false ? 'checked' : ''}>
-            <span class="switch__track"></span><span class="switch__thumb"></span>
-          </label>
+          <div class="switch-row__text"><div class="switch-row__title">Despesas reembolsáveis</div><div class="switch-row__hint">Desmarque os itens que não entram nesta proposta</div></div>
+          <label class="switch"><input type="checkbox" id="f-reembolsaveis" ${state.incluirDespesasReembolsaveis !== false ? 'checked' : ''}><span class="switch__track"></span><span class="switch__thumb"></span></label>
         </div>
         <div class="entregaveis-list" id="despesas-reembolsaveis-lista" ${state.incluirDespesasReembolsaveis === false ? 'hidden' : ''} style="margin-top:10px">
-          ${(data.despesasReembolsaveis || []).map(dr => `
-            <label class="check-row check-row--sub">
-              <input type="checkbox" data-despesa="${dr.id}" ${(state.despesasReembolsaveisSelecionadas || []).includes(dr.id) ? 'checked' : ''}>
-              <span class="check-row__box">${checkSvg()}</span>
-              <span class="check-row__text small">${dr.texto}</span>
-            </label>
-          `).join('')}
+          ${(data.despesasReembolsaveis || []).map(dr => `<label class="check-row check-row--sub"><input type="checkbox" data-despesa="${dr.id}" ${(state.despesasReembolsaveisSelecionadas || []).includes(dr.id) ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span><span class="check-row__text small">${escHtml(dr.texto)}</span></label>`).join('')}
         </div>
       </div>
     `;
   },
   bind(el, state, data, ctx) {
+    const fixo = el.querySelector('#f-valor-fixo');
+    if (fixo) fixo.oninput = e => {
+      const d = e.target.value.replace(/\D/g, '');
+      state.valorFixo = d ? parseInt(d, 10) / 100 : 0;
+      e.target.value = d ? OdisseCalc.fmtMoeda(state.valorFixo) : '';
+      ctx.updateTicket();
+    };
     el.querySelectorAll('input[name="fator-preset"]').forEach(r => {
       r.onchange = e => {
         const custom = el.querySelector('#f-fator-custom');
-        if (e.target.value === 'custom') {
-          custom.hidden = false;
-        } else {
-          custom.hidden = true;
-          state.fatorAjuste = parseFloat(e.target.value);
-          ctx.updateTicket();
-          ctx.rerender();
-        }
+        if (e.target.value === 'custom') { custom.hidden = false; return; }
+        custom.hidden = true;
+        state.fatorAjuste = parseFloat(e.target.value);
+        ctx.updateTicket();
       };
     });
-    el.querySelector('#f-fator-custom').oninput = e => {
-      state.fatorAjuste = parseFloat(e.target.value) || 1;
-      ctx.updateTicket();
-    };
-    el.querySelector('#f-fator-custom').onchange = () => ctx.rerender();
+    const fc = el.querySelector('#f-fator-custom');
+    if (fc) fc.oninput = e => { state.fatorAjuste = parseFloat(e.target.value) || 1; ctx.updateTicket(); };
     el.querySelector('#f-desconto').oninput = e => { state.descontoAvista = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
-    el.querySelector('#f-max-parcelas-cartao').onchange = e => { state.maxParcelasCartao = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
-    el.querySelector('#f-max-parcelas-boleto').onchange = e => { state.maxParcelasBoleto = parseInt(e.target.value, 10) || 8; ctx.updateTicket(); };
-    el.querySelector('#f-reembolsaveis').onchange = e => {
-      state.incluirDespesasReembolsaveis = e.target.checked;
-      const lista = el.querySelector('#despesas-reembolsaveis-lista');
-      if (lista) lista.hidden = !e.target.checked;
-    };
-    el.querySelectorAll('#despesas-reembolsaveis-lista input[data-despesa]').forEach(cb => {
+    el.querySelector('#f-max-parcelas-cartao').onchange = e => { state.maxParcelasCartao = parseInt(e.target.value, 10) || 8; };
+    el.querySelector('#f-max-parcelas-boleto').onchange = e => { state.maxParcelasBoleto = parseInt(e.target.value, 10) || 8; };
+    el.querySelector('#f-reembolsaveis').onchange = e => { state.incluirDespesasReembolsaveis = e.target.checked; el.querySelector('#despesas-reembolsaveis-lista').hidden = !e.target.checked; };
+    el.querySelectorAll('input[data-despesa]').forEach(cb => {
       cb.onchange = e => {
-        const id = e.target.getAttribute('data-despesa');
-        const atual = new Set(state.despesasReembolsaveisSelecionadas || []);
-        if (e.target.checked) atual.add(id); else atual.delete(id);
-        state.despesasReembolsaveisSelecionadas = Array.from(atual);
+        const s = new Set(state.despesasReembolsaveisSelecionadas || []);
+        if (e.target.checked) s.add(e.target.dataset.despesa); else s.delete(e.target.dataset.despesa);
+        state.despesasReembolsaveisSelecionadas = [...s];
       };
     });
   },
-  validate() { return true; }
+  validate(state) {
+    const srv = Catalogo.servico(state.servicoId);
+    if (srv && !srv.com_preco && !(state.valorFixo > 0)) return 'Informe o valor do honorário (serviço sem preço calculado).';
+    return true;
+  }
 });
 
 // -------------------------------------------------------------------------
-// 7. Revisão & download (número gerado só ao clicar em "Finalizar orçamento")
+// 6. Cliente e emissão — para quem vai e quem do estúdio emite
+// -------------------------------------------------------------------------
+const SELETOR_ASSINANTES = 'https://universo.odisse.com.br/base/v1/assinantes.js';
+let moduloAssinantes = null;
+
+STEPS.push({
+  id: 'cliente',
+  title: 'Cliente e emissão',
+  desc: 'Para quem vai a proposta e quem da equipe a emite e assina.',
+  render(state) {
+    const c = state.cliente;
+    const trava = !!(state._oportunidadeId || state.numeroProposta);
+    const vinculo = state._simulacao ? '' : (state._oportunidadeId || state._clienteId)
+      ? `<div class="card vinculo">
+          <p class="small muted" style="margin:0 0 4px">Ligado ao Universo</p>
+          <p style="margin:0"><span id="vinculo-texto">${state._oportunidadeId ? 'Oportunidade' : 'Cliente'} carregando…</span></p>
+          ${state._revisaoDeCodigo ? `<p class="small" style="margin:6px 0 0">Revisão de <strong>${escHtml(state._revisaoDeCodigo)}</strong></p>` : ''}
+          ${state.numeroProposta ? '' : '<button type="button" class="btn-link" id="btn-desligar">Desligar e começar como cliente novo</button>'}
+        </div>`
+      : `<div class="field"><label class="field__label">Cliente já cadastrado? Busque no Universo (opcional)</label>
+          <input type="search" id="f-busca-cliente" placeholder="Nome, e-mail, telefone ou CNPJ" autocomplete="off">
+          <div id="busca-cliente-res" class="busca-res"></div>
+          <p class="field__hint">Sem busca, o cliente é cadastrado no Universo ao finalizar (com aviso se já houver alguém parecido).</p></div>`;
+    return `
+      <div class="card simulacao-chave">
+        <label class="check-row"><input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${trava ? 'disabled' : ''}><span class="check-row__box">${checkSvg()}</span>
+          <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou estimar custo. Recebe número como qualquer proposta, não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span></label>
+        ${trava && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
+      </div>
+      <div class="field-group">
+        <p class="card__title">Cliente</p>
+        ${vinculo}
+        <div class="field"><label class="field__label">Nome do cliente ou empresa${state._simulacao ? ' (opcional na simulação)' : ''}</label><input type="text" id="f-nome" value="${escHtml(c.nome || '')}"></div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">E-mail</label><input type="email" id="f-email" value="${escHtml(c.email || '')}"></div>
+          <div class="field"><label class="field__label">Telefone</label><input type="tel" id="f-telefone" value="${escHtml(c.telefone || '')}" placeholder="(83) 99999-9999"></div>
+        </div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Representação</label>${segmented('representacao', [{ value: 'PF', label: 'Pessoa física' }, { value: 'PJ', label: 'Pessoa jurídica' }], c.representacao || 'PF')}</div>
+          <div class="field"><label class="field__label">CPF / CNPJ</label><input type="text" id="f-doc" value="${escHtml(c.documento || '')}"></div>
+        </div>
+      </div>
+      <div class="field-group">
+        <p class="card__title">Emissão</p>
+        <div class="field"><label class="field__label">Data da proposta</label><input type="date" id="f-data-proposta" value="${state.dataProposta || ''}" min="2020-01-01" max="2035-12-31"></div>
+        <div class="field"><label class="field__label">Quem assina</label><div id="f-assinantes"><p class="small muted">Carregando a equipe…</p></div>
+          <p class="field__hint">Da Equipe do Universo (quem pode assinar propostas). A rubrica entra no PDF só na emissão.</p></div>
+      </div>
+    `;
+  },
+  bind(el, state, data, ctx) {
+    ligarVinculoUniverso(el, state, ctx);
+    const chave = el.querySelector('#f-simulacao');
+    if (chave) chave.onchange = () => { state._simulacao = chave.checked; if (state._simulacao) state._clienteId = null; ctx.rerender(); };
+    el.querySelector('#f-nome').oninput = e => { state.cliente.nome = e.target.value; ctx.updateTicket(); };
+    el.querySelector('#f-email').oninput = e => { state.cliente.email = e.target.value; };
+    el.querySelector('#f-telefone').oninput = e => { e.target.value = state.cliente.telefone = maskTelefone(e.target.value); };
+    const doc = el.querySelector('#f-doc');
+    doc.oninput = e => { e.target.value = state.cliente.documento = maskDocumento(e.target.value, state.cliente.representacao); };
+    el.querySelectorAll('input[name="representacao"]').forEach(r => {
+      r.onchange = e => { state.cliente.representacao = e.target.value; doc.value = state.cliente.documento = maskDocumento(state.cliente.documento, e.target.value); };
+    });
+    el.querySelector('#f-data-proposta').oninput = e => { state.dataProposta = dataValidaOuVazia(e.target.value); };
+
+    // seletor comum de quem assina (Universo, base/v1)
+    const caixa = el.querySelector('#f-assinantes');
+    (async () => {
+      try {
+        moduloAssinantes = moduloAssinantes || await import(SELETOR_ASSINANTES);
+        caixa.innerHTML = '';
+        moduloAssinantes.seletorAssinantes(caixa, {
+          uso: 'proposta',
+          carregar: () => Universo.get('equipe/assinantes', { para: 'proposta' }),
+          foto: (p) => Universo.bruto(`equipe/${p.id}/foto?variante=s`).then(r => r.blob()).then(b => URL.createObjectURL(b)),
+          valor: state.assinantes || [],
+          novo: !(state.assinantes || []).length,
+          aoMudar: (copias) => { state.assinantes = copias; salvarRascunho(); renderGuia(); },
+        });
+      } catch (e) {
+        caixa.innerHTML = `<p class="small muted">Não consegui carregar a equipe (${escHtml(e.message)}).</p>`;
+      }
+    })();
+  },
+  validate(state) {
+    if (!state.cliente.nome && !state._simulacao) return 'Informe o nome do cliente (ou marque Simulação).';
+    if (!state.dataProposta) return 'Informe a data da proposta.';
+    if (!(state.assinantes || []).some(a => a && a.nome)) return 'Escolha quem assina a proposta.';
+    return true;
+  }
+});
+
+// -------------------------------------------------------------------------
+// 7. Revisão e PDF (o número sai só ao finalizar)
 // -------------------------------------------------------------------------
 STEPS.push({
   id: 'revisao',
-  eyebrow: 'Etapa 7 de 7',
-  title: 'Revisão & geração do PDF',
-  desc: 'Confira os valores calculados. Finalize o orçamento para gerar o número da proposta e liberar o PDF.',
-  render(state, data) {
+  title: 'Revisão e PDF',
+  desc: 'Confira o cálculo e o que falta. Finalize para numerar a proposta e liberar o PDF.',
+  render(state) {
     const r = state._calcResult;
-    if (!r) return `<p class="muted">Complete as etapas anteriores para ver o resumo do cálculo.</p>`;
-
-    const revisao = state._revisaoDeCodigo
-      ? `<p class="field__hint" style="margin: 4px 0 8px">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>`
-      : '';
-    const numeroBloco = state.numeroProposta
-      ? `<div class="numero-proposta"><span class="numero-proposta__label">${state._simulacao ? 'Nº da simulação' : 'Nº da proposta'}</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
-      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta ainda não foi gerado.'}</p>`;
-    const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…'
-      : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
-
-    return `
+    const falta = pendencias(state).filter(p => p.i !== STEPS.length - 1);
+    const fmt = OdisseCalc.fmtMoeda;
+    const memoria = r && !r.semPreco ? `
       <div class="card">
         <div class="card__title">Memória de cálculo</div>
-        <div class="data-row"><span class="data-row__label">Base de Honorários (BH) — CUB vigente</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.bh)}/m²</span></div>
-        <div class="data-row"><span class="data-row__label">Custo estimado da obra (CEO)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.ceo)}</span></div>
+        <div class="data-row"><span class="data-row__label">Base de honorários (BH), CUB vigente</span><span class="data-row__value tabular">${fmt(r.bh)}/m²</span></div>
+        <div class="data-row"><span class="data-row__label">Custo estimado da obra (CEO)</span><span class="data-row__value tabular">${fmt(r.ceo)}</span></div>
         <div class="data-row"><span class="data-row__label">Fator percentual (fp)</span><span class="data-row__value tabular">${(r.fp * 100).toFixed(2)}%</span></div>
         <div class="data-row"><span class="data-row__label">Índice de complexidade (IC)</span><span class="data-row__value tabular">${r.ic.toFixed(3)}</span></div>
         <div class="data-row"><span class="data-row__label">Redutor de repetição</span><span class="data-row__value tabular">${r.redutor}</span></div>
         <div class="data-row"><span class="data-row__label">Razão área projetada/construída (R)</span><span class="data-row__value tabular">${r.R.toFixed(3)}</span></div>
-        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorCau)}</span></div>
-        <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${OdisseCalc.fmtMoeda(r.valorMercado)}</span></div>
+        <div class="data-row"><span class="data-row__label">Modificador do serviço</span><span class="data-row__value tabular">${(Catalogo.servico(state.servicoId) || {}).modificador || 1}</span></div>
+        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${fmt(r.valorCau)}</span></div>
+        <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${fmt(r.valorMercado)}</span></div>
         <div class="data-row"><span class="data-row__label">Percentual do serviço</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
-        <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${OdisseCalc.fmtMoeda(r.valorFinal)}</strong></span></div>
-      </div>
-      ${revisao}
-      ${numeroBloco}
+        <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div>
+      </div>` : r ? `<div class="card"><div class="data-row"><span class="data-row__label"><strong>Honorário (valor fixo)</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
+    const numero = state.numeroProposta
+      ? `<div class="numero-proposta"><span class="numero-proposta__label">${state._simulacao ? 'Nº da simulação' : 'Nº da proposta'}</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
+      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta sai ao finalizar.'}</p>`;
+    const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…' : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
+    return `
+      ${falta.length ? `<div class="card pendencias"><div class="card__title">Falta para finalizar</div>
+        ${falta.map(p => `<button type="button" class="pendencia" data-ir="${p.i}"><b>${escHtml(p.titulo)}</b> ${escHtml(p.msg)}</button>`).join('')}</div>` : ''}
+      ${memoria}
+      ${state._revisaoDeCodigo ? `<p class="field__hint" style="margin: 4px 0 8px">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
+      ${numero}
       <div class="row-2">
-        <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
-        <button class="btn btn--primary" id="btn-gerar-pdf" type="button" ${state.numeroProposta && state._pdfStatus !== 'guardando' ? '' : 'disabled'}>${state._pdfStatus === 'guardando' ? 'Guardando…' : 'Gerar PDF da proposta'}</button>
+        <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' || falta.length ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
+        <button class="btn btn--primary u-botao forte" id="btn-gerar-pdf" type="button" ${state.numeroProposta && state._pdfStatus !== 'guardando' ? '' : 'disabled'}>${state._pdfStatus === 'guardando' ? 'Guardando…' : 'Gerar PDF da proposta'}</button>
       </div>
       ${pdfStatus ? `<p class="field__hint" style="margin-top:10px">${pdfStatus}</p>` : ''}
-      ${state._simulacao ? '<p class="field__hint" style="margin-top:14px"><strong>Simulação:</strong> ao finalizar, recebe um número (que conta na sequência das propostas) e fica no histórico marcada como simulação, sem cliente e fora do funil. O PDF sai com o aviso de simulação na primeira página.</p>' : ''}
-      <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo, ligada ao cliente e a uma oportunidade do funil. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores desta proposta não mudam mais (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
+      ${state._simulacao ? '<p class="field__hint" style="margin-top:14px"><strong>Simulação:</strong> ao finalizar, recebe um número (que conta na sequência das propostas) e fica no histórico marcada como simulação, sem cliente e fora do funil.</p>' : ''}
+      <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo com as versões do PGT, das Bases e dos Honorários usadas. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores não mudam (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
     `;
   },
   bind(el, state, data, ctx) {
-    const btnFinalizar = el.querySelector('#btn-finalizar');
-    if (btnFinalizar) {
-      btnFinalizar.onclick = async () => {
-        state.numeroPropostaStatus = 'gerando';
-        state._erroFinalizar = '';
-        ctx.rerender();
-        try {
-          const proposta = await Comercial.registrarProposta(state, data);
-          state._propostaId = proposta.id;
-          state.numeroProposta = proposta.codigo;
-          state.numeroPropostaStatus = 'ok';
-        } catch (e) {
-          state.numeroPropostaStatus = 'erro';
-          state._erroFinalizar = e.message;
-          console.error(e);
-        }
-        ctx.rerender();
-      };
-    }
+    el.querySelectorAll('[data-ir]').forEach(b => { b.onclick = () => irParaEtapa(parseInt(b.dataset.ir, 10)); });
+    const fin = el.querySelector('#btn-finalizar');
+    if (fin) fin.onclick = async () => {
+      if (pendencias(state).filter(p => p.i !== STEPS.length - 1).length) return;
+      state.numeroPropostaStatus = 'gerando';
+      state._erroFinalizar = '';
+      ctx.rerender();
+      try {
+        recalcular(state);
+        const proposta = await Comercial.registrarProposta(state, data);
+        state._propostaId = proposta.id;
+        state.numeroProposta = proposta.codigo;
+        state.numeroPropostaStatus = 'ok';
+      } catch (e) {
+        state.numeroPropostaStatus = 'erro';
+        state._erroFinalizar = e.message;
+        console.error(e);
+      }
+      ctx.rerender();
+    };
     const btn = el.querySelector('#btn-gerar-pdf');
     if (btn) btn.onclick = async () => {
+      btn.disabled = true;
+      // rubricas de quem assina: lidas da Equipe só agora, ligadas à proposta no histórico
+      if (state._propostaId && !state._simulacao) state._rubricas = await Comercial.lerRubricas(state).catch(() => ({}));
       let montado;
-      try {
-        montado = OdissePdf.montar(state, data);
-      } catch (e) {
-        alert(e.message);
-        return;
-      }
-      // guarda no Universo o PDF que vai para o cliente (uma vez só; se já foi, só baixa de novo)
+      try { montado = OdissePdf.montar(state, data); } catch (e) { alert(e.message); btn.disabled = false; return; }
       if (state._propostaId && !state._pdfCongelado) {
         state._pdfStatus = 'guardando';
         ctx.rerender();
@@ -1240,6 +861,7 @@ STEPS.push({
         }
       }
       montado.doc.save(montado.nomeArquivo);
+      delete state._rubricas;
       if (typeof limparRascunho === 'function') limparRascunho();
       if (typeof mostrarConfirmacao === 'function') mostrarConfirmacao();
     };

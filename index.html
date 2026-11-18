@@ -14,37 +14,30 @@
 <body>
 
 <!-- ================= APP ================= -->
-<div id="app" class="app" hidden>
+<div id="app" class="app app--no-sidebar" hidden>
 
   <header class="topo" data-pagina="orcamento"></header>
   <script src="topo.js"></script>
 
-  <nav class="sidebar">
-    <div class="sidebar__steps" id="sidebar-steps"></div>
-    <div class="sidebar__ticket" id="ticket">
-      <div class="ticket__block">
-        <span class="ticket__label">Honorário estimado</span>
-        <span class="ticket__value" id="ticket-total">R$ 0,00</span>
-      </div>
-      <div class="ticket__block">
-        <span class="ticket__label">Prazo total</span>
-        <span class="ticket__value ticket__value--small" id="ticket-prazo-duracao">—</span>
-        <span class="ticket__value ticket__value--dates" id="ticket-prazo-datas"></span>
-      </div>
-      <div id="ticket-alerta-orcamento"></div>
-      <div id="ticket-alerta-prazo"></div>
-      <div class="ticket__sub" id="ticket-sub">Preencha a classificação do serviço para iniciar o cálculo</div>
-      <div class="ticket__nav">
-        <button class="btn btn--primary" id="btn-next" type="button">Continuar</button>
-        <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
-        <button class="btn btn--ghost" id="btn-reset" type="button">Recomeçar</button>
-      </div>
-    </div>
-  </nav>
+  <div class="orc-aviso" id="orc-aviso" hidden></div>
+  <div class="orc">
+    <nav class="orc-guia" aria-label="Passos do orçamento">
+      <p class="orc-guia__titulo">Orçamento</p>
+      <div class="orc-guia__passos" id="orc-guia-passos"></div>
+      <p class="orc-guia__versoes" id="orc-versoes"></p>
+      <button class="btn btn--text" id="btn-reset" type="button">Recomeçar</button>
+    </nav>
 
-  <main class="stage">
-    <div class="stage__col" id="step-container"></div>
-  </main>
+    <main class="orc-form">
+      <div id="step-container"></div>
+      <div class="orc-nav" id="orc-nav">
+        <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
+        <button class="btn btn--ghost" id="btn-next" type="button">Continuar</button>
+      </div>
+    </main>
+
+    <aside class="orc-previa" id="orc-previa" aria-label="Prévia de custos e prazos"></aside>
+  </div>
 
 </div>
 
@@ -57,6 +50,7 @@
 <script src="store.js"></script>
 <script src="comercial.js"></script>
 <script src="calc.js"></script>
+<script src="catalogo.js"></script>
 <script src="fonts-inter.js"></script>
 <script src="pdf.js"></script>
 <script src="steps.js"></script>

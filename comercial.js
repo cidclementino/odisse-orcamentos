@@ -155,7 +155,12 @@ const Comercial = (() => {
   }
 
   function nomeServico(state, data) {
-    const s = (data.servicosOdisse || []).find((x) => x.id === state.servicoId);
+    if (state && state.versao === 2) {
+      if (state.resumo && state.resumo.servico) return state.resumo.servico;
+      const s = typeof Catalogo !== 'undefined' ? Catalogo.servico(state.servicoId) : null;
+      return s ? s.nome : 'Proposta';
+    }
+    const s = ((data && data.servicosOdisse) || []).find((x) => x.id === state.servicoId);
     return s ? s.nome : 'Proposta';
   }
 
@@ -167,16 +172,40 @@ const Comercial = (() => {
       ferramenta: 'vendas.odisse',
       cub: regiao ? { regiao: data.cub.regiao_ativa, fonte: regiao.fonte || null, competencia: regiao.competencia_referencia || null } : null,
       tabelas: (typeof OdisseData !== 'undefined' && OdisseData.impressoes) ? OdisseData.impressoes() : null,
+      // versões publicadas no Universo usadas no orçamento (Bases, PGT, Honorários)
+      universo: state._versoes || null,
       gerada_em: new Date().toISOString()
     };
   }
 
   // Retrato do estado do orçamento (o que remonta a proposta). Tira o que é só da tela.
   function retrato(state) {
-    const r = JSON.parse(JSON.stringify(state));
+    const s = { ...state }; delete s._rubricas;
+    const r = JSON.parse(JSON.stringify(s));
     delete r._maxUnlocked;
     delete r.numeroPropostaStatus;
+    // resumo legível sem o catálogo (PDF remontado, funil, contrato → projeto): o que a proposta promete
+    if (state.versao === 2 && typeof resumoProposta === 'function') r.resumo = resumoProposta(state);
     return r;
+  }
+
+  // Rubricas (iniciais) de quem assina, lidas da Equipe do Universo só na emissão, ligadas à proposta
+  // no histórico. A primeira emissão guarda qual rubrica saiu (rubrica_id); as seguintes pedem a mesma.
+  // Devolve { equipe_id: dataURL }. Quem não tem rubrica sai só com o nome.
+  async function lerRubricas(state) {
+    const urls = {};
+    for (const a of state.assinantes || []) {
+      if (!a || !a.equipe_id || !a.rubrica || urls[a.equipe_id]) continue;
+      const fixa = a.rubrica_id ? `&arquivo=${encodeURIComponent(a.rubrica_id)}` : '';
+      try {
+        const res = await Universo.bruto(`equipe/${a.equipe_id}/assinatura?uso=proposta&registro=${encodeURIComponent(state._propostaId)}${fixa}`);
+        const saiu = res.headers.get('X-Rubrica');
+        if (saiu && !a.rubrica_id) a.rubrica_id = saiu;
+        const blob = await res.blob();
+        urls[a.equipe_id] = await new Promise((ok, erro) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = erro; f.readAsDataURL(blob); });
+      } catch (e) { console.warn('rubrica', a.nome, e); }
+    }
+    return urls;
   }
 
   // Finalizar: cliente → oportunidade → proposta numerada. Devolve a proposta.
@@ -254,8 +283,10 @@ const Comercial = (() => {
     estado._revisaoDe = comoRevisao ? proposta.id : null;
     estado._revisaoDeCodigo = comoRevisao ? proposta.codigo : null;
     estado._revisaoDeSimulacao = !!proposta.simulacao;
+    // revisão é documento novo: a rubrica sai a atual; o resumo é refeito com o catálogo do momento
+    if (Array.isArray(estado.assinantes)) estado.assinantes = estado.assinantes.map(({ rubrica_id, ...a }) => a);
+    delete estado.resumo;
     estado.dataProposta = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
-    estado._maxUnlocked = 6;
     localStorage.setItem('odisse-orcamento-rascunho', JSON.stringify({ state: estado, currentStepIndex: 0 }));
     window.location.href = 'index.html';
   }
@@ -276,7 +307,7 @@ const Comercial = (() => {
       }
     }
     localStorage.setItem('odisse-orcamento-rascunho', JSON.stringify({
-      state: { cliente, _oportunidadeId: oportunidade.id, _clienteId: oportunidade.cliente_id || null, _maxUnlocked: 0 },
+      state: { versao: 2, cliente: { nome: cliente.nome, email: cliente.email, telefone: cliente.telefone, representacao: cliente.representacao, documento: cliente.documento }, _oportunidadeId: oportunidade.id, _clienteId: oportunidade.cliente_id || null },
       currentStepIndex: 0
     }));
     window.location.href = 'index.html';
@@ -290,6 +321,20 @@ const Comercial = (() => {
     const c = typeof proposta.calculo === 'string' ? JSON.parse(proposta.calculo || 'null') : proposta.calculo;
     const p = { nome: nome || null, inicio: inicio || null, servico: proposta.titulo || null };
     if (!c) return p;
+    if (c.versao === 2) {
+      const res = c.resumo || {};
+      p.etapas = (res.etapas || []).map((e) => ({ nome: e.nome, fase: e.fase || null, ref_vendas: e.id, semanas: e.semanas || null }));
+      if (res.servico) p.servico = res.servico;
+      if (res.tipologia) p.tipologia = res.tipologia;
+      if (c.areaConstruida > 0) p.area_m2 = Number(c.areaConstruida);
+      if (!p.nome && c.nomeProjeto) p.nome = c.nomeProjeto;
+      const im = c.imovel || {};
+      const { cidade, uf } = separarCidadeUf(im.cidadeUf);
+      Object.assign(p, { bairro: im.bairro || null, cidade, uf: uf && /^[A-Z]{2}$/.test(uf) ? uf : null });
+      const cep = digitos(im.cep);
+      p.local = { logradouro: im.logradouro || null, numero: im.numero || null, complemento: im.complemento || null, cep: cep.length === 8 ? cep : null };
+      return p;
+    }
     const sel = c.etapasSelecionadas || [];
     p.etapas = (data.etapas || []).filter((e) => sel.includes(e.id)).map((e) => ({
       nome: e.nome, fase: e.fase || null, ref_vendas: e.id,
@@ -323,6 +368,6 @@ const Comercial = (() => {
   return {
     dadosDoProjeto, registrarContrato,
     fmtTel, fmtCpf, fmtCnpj, separarCidadeUf, criarContato, criarTolerante, garantirCliente, garantirOportunidade, nomeServico,
-    referencias, retrato, registrarProposta, congelarPdf, baixarPdf, abrirNoOrcamento, novoOrcamentoDaOportunidade
+    referencias, retrato, lerRubricas, registrarProposta, congelarPdf, baixarPdf, abrirNoOrcamento, novoOrcamentoDaOportunidade
   };
 })();

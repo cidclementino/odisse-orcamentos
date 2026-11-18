@@ -57,7 +57,7 @@ async function universo(request, env, url) {
   const res = await env.UNIVERSO.fetch(destino, { method: request.method, headers: cab, body: temCorpo ? request.body : undefined });
   const saida = new Headers(res.headers);
   for (const [k, v] of Object.entries(CORS)) saida.set(k, v);
-  saida.set('Access-Control-Expose-Headers', 'Content-Type, Content-Length');
+  saida.set('Access-Control-Expose-Headers', 'Content-Type, Content-Length, X-Rubrica');
   return new Response(res.body, { status: res.status, headers: saida });
 }
 

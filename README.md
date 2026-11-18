@@ -128,6 +128,27 @@ O endereço da etapa 1 é do imóvel, não do cliente: fica no cálculo salvo da
 proposta. Do orçamento, só o CPF vai para os dados pessoais (restritos) do
 cliente, e só quando ainda não houver.
 
+## Orçamento: catálogo do Universo (desde nov/2026)
+
+Serviços, tipologias, etapas, entregas, cláusulas, prazos e pesos **não vêm mais de `data/*.json`**: o orçamento lê as
+versões publicadas no Universo (`catalogo.js`, rota `publicacoes/ultima` para `bases`, `pgt` e `honorarios`), com cópia
+local (abre na hora e confere por baixo se houve publicação nova). Ficam aqui só as tabelas de referência do cálculo:
+CUB, fator percentual, redutor de repetição, critérios do IC, juros do cartão e despesas reembolsáveis. Os arquivos
+antigos (`etapas.json`, `servicos-odisse.json`, `tipologias.json`, `pesos-etapas.json`, `assessoramento.json`…)
+continuam carregados só para remontar propostas feitas antes disso (`pdf.js`, `montarV1`).
+
+- **Página**: guia dos passos à esquerda (sem travas: ✓ no que está completo), formulário no centro, prévia de custos e
+  prazos à direita. Ordem: Projeto → Escopo → Complexidade → Cronograma → Honorários e pagamento → Cliente e emissão →
+  Revisão e PDF. O que falta é conferido ao finalizar.
+- **Prazo** de cada etapa: sequência das entregas marcadas no PGT (turnos; 10 turnos = 1 semana) × faixa de área das
+  Bases (entregas de prazo fixo e eventos não escalam), ajustável à mão.
+- **Percentual** do honorário: pesos publicados em Honorários (Base + 50% da lacuna, ver PRICING.md).
+- **Cláusulas**: eventos com cláusula das etapas contratadas (P obrigatória, O opcional, N = quantidade digitada).
+- **Quem assina**: seletor da Equipe do Universo (`base/v1/assinantes.js`, uso `proposta`); a rubrica entra no PDF só
+  na emissão, pela ponte (`X-Rubrica` exposto).
+- A proposta guarda no cálculo um `resumo` com os textos do PGT usados (o PDF remonta igual) e, nas referências, as
+  versões de Bases, PGT e Honorários.
+
 ## Endereço com busca automática por CEP
 
 O campo de CEP (na etapa "Cliente & projeto") busca o endereço

@@ -677,3 +677,90 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .ref-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
 .ref-grade h3 { font-size: 13px; font-weight: 650; margin: 0 0 8px; }
 .matriz td { vertical-align: middle; }
+
+/* ==========================================================================
+   ORÇAMENTO (index.html) — três colunas: guia dos passos · formulário · prévia
+   Largura do radar (até 1600 px, margem 32). Os passos não se travam: a guia
+   só marca o que está completo (✓) e o que falta (número).
+   ========================================================================== */
+.orc { display: grid; grid-template-columns: 210px minmax(0, 1fr) 330px; gap: 40px; align-items: start;
+  max-width: 1600px; margin: 0 auto; padding: 32px; }
+.orc-guia, .orc-previa { position: sticky; top: calc(var(--rail-h) + 24px); max-height: calc(100vh - var(--rail-h) - 48px); overflow: auto; }
+.orc-form { min-width: 0; max-width: 780px; width: 100%; justify-self: center; padding-bottom: 48px; }
+.orc-aviso { max-width: 1536px; margin: 16px auto 0; padding: 10px 14px; border-radius: var(--raio-p); background: var(--destaque-fundo);
+  color: var(--destaque-texto); font-size: 13px; display: flex; gap: 12px; justify-content: space-between; align-items: center; }
+.orc-aviso[hidden] { display: none; }
+
+.orc-guia__titulo { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-2); margin: 6px 10px 10px; }
+.orc-guia__passos { display: flex; flex-direction: column; gap: 2px; }
+.guia__passo { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: var(--raio-p);
+  border: 1px solid transparent; background: none; font: inherit; font-size: 13px; line-height: 1.3; text-align: left; color: var(--tinta-2); cursor: pointer; }
+.guia__passo:hover { background: var(--veu); color: var(--tinta); }
+.guia__num { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--linha-forte); display: flex; align-items: center;
+  justify-content: center; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.guia__passo.is-ok { color: var(--tinta); }
+.guia__passo.is-ok .guia__num { background: var(--tinta); border-color: var(--tinta); color: var(--superficie); }
+.guia__passo.is-active { color: var(--tinta); background: var(--elevada); border-color: var(--linha); font-weight: 600; box-shadow: 0 1px 2px rgba(46,48,54,.05); }
+.guia__passo.is-active .guia__num { border-color: var(--tinta); color: var(--tinta); }
+.guia__passo.is-pendente .guia__num { border-color: var(--destaque); color: var(--destaque-texto); }
+.orc-guia__versoes { font-size: 11.5px; line-height: 1.45; color: var(--tinta-2); margin: 20px 10px 6px; padding-top: 14px; border-top: 1px solid var(--linha); }
+.orc-guia__versoes span { color: var(--tinta-3); }
+.orc-guia #btn-reset { margin: 4px 10px; padding: 0; color: var(--tinta-2); }
+.orc-guia #btn-reset:hover { color: var(--perigo); }
+
+.orc-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--linha); }
+.orc-nav[hidden] { display: none; }
+.orc-nav #btn-next { margin-left: auto; }
+
+.orc-previa { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.previa__bloco { display: flex; flex-direction: column; gap: 3px; }
+.previa__bloco + .previa__bloco { padding-top: 16px; border-top: 1px solid var(--linha); }
+.previa__rotulo { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-2); }
+.previa__valor { font-weight: 700; font-size: 24px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--tinta); line-height: 1.2; }
+.previa__valor--m { font-size: 17px; }
+.previa__sub { font-size: 12px; color: var(--tinta-2); line-height: 1.4; }
+.previa__tabela { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 4px; }
+.previa__tabela td { padding: 5px 0; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.previa__tabela td + td { text-align: right; padding-left: 8px; white-space: nowrap; color: var(--tinta-2); }
+.previa__tabela tr:last-child td { border-bottom: 0; }
+.previa__tabela b { font-weight: 650; font-size: 11px; letter-spacing: .02em; }
+.previa__falta { color: var(--destaque-texto); }
+.previa__alerta { font-size: 12px; line-height: 1.4; margin: 0; padding: 8px 10px; border-radius: var(--raio-p); background: var(--nevoa); }
+.previa__alerta + .previa__alerta { margin-top: 6px; }
+.previa__alerta.is-atencao { color: var(--perigo); }
+.previa__alerta.is-ok { color: var(--ok); }
+
+/* escopo: siglas, códigos e marcas de opcional */
+.sigla { font-weight: 650; font-size: 12px; letter-spacing: .03em; margin-right: 4px; }
+.codigo { font-size: 11px; color: var(--tinta-2); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.tag-opcional, .tag-obrigatoria { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 1px; }
+.tag-opcional { background: var(--destaque-fundo); color: var(--destaque-texto); }
+.tag-obrigatoria { background: var(--nevoa); color: var(--tinta-2); }
+.etapa-meta { white-space: nowrap; }
+.clausula-row { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; }
+.clausula-row + .clausula-row { margin-top: 6px; }
+.clausula-row .check-row { flex: 1; }
+.check-row.is-travado { opacity: .8; cursor: default; }
+.clausula-n { width: 72px; flex: none; }
+.card.pendencias { display: flex; flex-direction: column; gap: 6px; }
+.pendencia { all: unset; cursor: pointer; font-size: 13px; line-height: 1.4; padding: 6px 8px; border-radius: var(--raio-p); color: var(--tinta-2); }
+.pendencia:hover { background: var(--veu); color: var(--tinta); }
+.pendencia b { color: var(--tinta); margin-right: 6px; }
+
+@media (max-width: 1180px) {
+  .orc { grid-template-columns: 190px minmax(0, 1fr); gap: 28px; }
+  .orc-previa { grid-column: 1 / -1; order: -1; position: static; max-height: none; flex-direction: row; flex-wrap: wrap; }
+  .orc-previa .previa__bloco { flex: 1 1 220px; }
+  .orc-previa .previa__bloco + .previa__bloco { padding-top: 0; border-top: 0; }
+}
+@media (max-width: 760px) {
+  .orc { grid-template-columns: 1fr; padding: 20px 16px; }
+  .orc-guia { position: static; max-height: none; }
+  .orc-guia__passos { flex-direction: row; overflow-x: auto; }
+  .guia__passo { width: auto; white-space: nowrap; }
+  .orc-guia__versoes, .orc-guia__titulo { display: none; }
+}
+/* ação principal da página: Ocre (padrão do Universo, .u-botao.forte) */
+.btn.u-botao.forte, .btn.u-botao.forte:disabled:hover { background: var(--odisse-ocre, #BB8248); border-color: var(--odisse-ocre, #BB8248); color: #fff; }
+.btn.u-botao.forte:hover { background: var(--odisse-ocre, #BB8248); border-color: var(--odisse-terra, #4A3726); filter: brightness(.94); }

@@ -85,6 +85,8 @@ const Universo = (() => {
     alterar: async (rota, id, corpo) => (await chamar('PATCH', `${rota}/${encodeURIComponent(id)}`, corpo)).registro,
     buscar: (q, tabela) => chamar('GET', `busca?${qs({ q, tabela })}`),
     painel: () => chamar('GET', 'comercial/painel'),
+    // resposta crua (imagens: foto e rubrica da Equipe)
+    bruto: (caminho) => chamar('GET', caminho, null, { bruto: true }),
 
     // Sobe um arquivo (PDF da proposta, contrato…) e devolve o registro já com o conteúdo enviado.
     async enviarArquivo(blob, campos) {
