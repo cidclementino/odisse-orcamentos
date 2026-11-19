@@ -9,7 +9,7 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=05640618bf">
+<link rel="stylesheet" href="styles.css?v=02caea3c2b">
 </head>
 <body>
 
@@ -52,8 +52,6 @@
       <div class="ct-bloco">
         <div class="ct-bloco__cab">
           <h2 class="ct-bloco__titulo">Cláusulas dos eventos <span class="ct-conta" id="conta-eventos"></span></h2>
-          <label class="check-row ct-mostrar"><input type="checkbox" id="mostrar-sem"><span class="check-row__box"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span class="check-row__text small">Mostrar também eventos sem cláusula</span></label>
         </div>
         <div id="eventos"><p class="small muted">Carregando…</p></div>
       </div>
@@ -64,7 +62,7 @@
         <div><p class="ct-notas__titulo">Publicar</p>
           <p>As propostas leem a última versão publicada dos Honorários. Mudou um texto aqui, publique para que ele chegue às propostas novas. Propostas já finalizadas não mudam.</p></div>
         <div><p class="ct-notas__titulo">Cláusulas dos eventos</p>
-          <p>O texto é o mesmo do evento no Plano Geral de Trabalho (Projetos): mudar aqui muda lá. Se a cláusula é obrigatória ou opcional em cada serviço continua no <a href="https://projetos.odisse.com.br/pgt.html" target="_blank" rel="noopener">PGT</a>. N no texto vira a quantidade informada na proposta.</p></div>
+          <p>No <a href="https://projetos.odisse.com.br/pgt.html" target="_blank" rel="noopener">PGT</a> se marca quais eventos são cláusula e se ela é obrigatória ou opcional em cada serviço; o texto se redige só aqui. Marcada e ainda sem texto, aparece como “a redigir” e fica fora das propostas até ter texto. N no texto vira a quantidade informada na proposta.</p></div>
         <div><p class="ct-notas__titulo">Editar</p>
           <p>Lápis abre o texto. Enter grava, Shift+Enter quebra a linha, Esc desfaz; sair do campo também grava. Despesa marcada por padrão já vem marcada nas propostas novas.</p></div>
       </section>
@@ -115,6 +113,7 @@ function desenharPub() {
 async function lerHonorarios() {
   try { HON = await Universo.get('honorarios'); } catch (e) { HON = null; }
   desenharPub();
+  desenharEventos();
 }
 
 // ---------------------------------------------------------------- edição no lugar
@@ -200,38 +199,45 @@ async function lerPgt(fresco) {
   catch (e) { document.getElementById('eventos').innerHTML = `<p class="small muted">Não consegui ler o Plano Geral de Trabalho (${escHtml(e.message)}).</p>`; return; }
   desenharEventos();
 }
+// Eventos marcados como cláusula no PGT (clausula_marcada, 0019). O texto vem da página dos Honorários;
+// marcado sem texto = a redigir. (Antes da 0019 no ar: vale quem tem texto no evento.)
+const marcado = (v) => !v.encerramento && (v.clausula_marcada !== undefined ? !!v.clausula_marcada : !!(v.clausula && v.clausula.trim()));
+const textoDe = (v) => ((HON && HON.clausulas_eventos) ? HON.clausulas_eventos[v.id] : v.clausula) || '';
 function desenharEventos() {
   if (!PGT) return;
-  const todos = document.getElementById('mostrar-sem').checked;
   const sigla = Object.fromEntries((PGT.servicos || []).map((s) => [s.id, s.sigla]));
   const etapas = PGT.etapas || [];
-  const evs = (PGT.eventos || []).filter((v) => !v.encerramento && (todos || (v.clausula && v.clausula.trim())));
-  document.getElementById('conta-eventos').textContent = (PGT.eventos || []).filter((v) => v.clausula && v.clausula.trim()).length || '';
+  const evs = (PGT.eventos || []).filter(marcado);
+  const faltam = evs.filter((v) => !textoDe(v).trim()).length;
+  document.getElementById('conta-eventos').innerHTML = evs.length ? `${evs.length}${faltam ? ` · <span class="ct-conta--falta">${faltam} a redigir</span>` : ''}` : '';
   const pert = (v) => Object.entries(v.servicos || {}).filter(([, p]) => p === 'P' || p === 'O')
     .map(([s, p]) => `<span class="etq ${p === 'P' ? '' : 'etq--opcional'}" title="${p === 'P' ? 'obrigatória' : 'opcional'} em ${escHtml(sigla[s] || s)}">${escHtml(sigla[s] || s)} · ${p === 'P' ? 'obrigatória' : 'opcional'}</span>`).join('');
   const html = (PGT.fases || []).map((f) => {
     const blocos = etapas.filter((e) => e.fase_id === f.id).map((e) => {
       const l = evs.filter((v) => v.etapa_id === e.id);
       if (!l.length) return '';
-      return `<p class="ct-etapa"><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</p>` + l.map((v) => `
-        <div class="ct-cartao ct-cartao--evento" data-id="${v.id}">
-          <button type="button" class="ctl__btn" data-editar title="Editar o texto" aria-label="Editar a cláusula de ${escHtml(v.nome)}">${ICONE.lapis}</button>
-          <div><div class="ct-texto${v.clausula ? '' : ' ct-texto--sem'}" data-texto>${v.clausula ? escHtml(v.clausula) : 'sem cláusula'}</div>
+      return `<p class="ct-etapa"><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</p>` + l.map((v) => {
+        const t = textoDe(v);
+        return `
+        <div class="ct-cartao ct-cartao--evento${t ? '' : ' ct-cartao--falta'}" data-id="${v.id}">
+          <button type="button" class="ctl__btn" data-editar title="${t ? 'Editar o texto' : 'Redigir'}" aria-label="${t ? 'Editar' : 'Redigir'} a cláusula de ${escHtml(v.nome)}">${ICONE.lapis}</button>
+          <div><div class="ct-texto${t ? '' : ' ct-texto--sem'}" data-texto>${t ? escHtml(t) : 'Cláusula a redigir'}</div>
             <div class="ct-evento">${escHtml(v.nome)}</div></div>
-          <span class="ct-etqs"><span class="etq etq--codigo">${escHtml(v.codigo || '')}</span>${pert(v)}</span>
-        </div>`).join('');
+          <span class="ct-etqs">${t ? '' : '<span class="etq etq--atencao">a redigir</span>'}<span class="etq etq--codigo">${escHtml(v.codigo || '')}</span>${pert(v)}</span>
+        </div>`;
+      }).join('');
     }).join('');
     return blocos ? `<div class="ct-grupo"><p class="ct-grupo__titulo">${escHtml(f.nome)}</p>${blocos}</div>` : '';
   }).join('');
   const box = document.getElementById('eventos');
-  box.innerHTML = html || '<div class="ct-vazio"><p>Nenhum evento com cláusula no Plano Geral de Trabalho.</p></div>';
+  box.innerHTML = html || '<div class="ct-vazio"><p>Nenhum evento marcado como cláusula no Plano Geral de Trabalho.</p></div>';
   box.querySelectorAll('.ct-cartao--evento').forEach((c) => {
     const v = PGT.eventos.find((x) => x.id === c.dataset.id);
-    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), v.clausula, async (novo) => {
+    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), textoDe(v), async (novo) => {
       if (!novo) return desenharEventos();
       try { await Universo.alterar('pgt-eventos', v.id, { clausula: novo, versao: v.versao }); aviso(''); }
       catch (e) { aviso(e.status === 409 ? 'Este evento mudou no PGT ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
-      await lerPgt(true); lerHonorarios();
+      await lerPgt(true); await lerHonorarios();
     });
   });
 }
@@ -251,7 +257,6 @@ function ligarAbas() {
   mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : 'contratos');
 }
 
-document.getElementById('mostrar-sem').onchange = desenharEventos;
 if (isAuthenticated()) { document.getElementById('app').hidden = false; ligarAbas(); }
 </script>
 </body>

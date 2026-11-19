@@ -1137,3 +1137,5 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
   .ct-cartao .ct-pos { display: none; }
   .ct-padrao, .ct-ctl, .ct-etqs { grid-column: 2; justify-content: flex-start; }
 }
+.ct-conta--falta { color: var(--destaque-texto); font-weight: 600; }
+.ct-cartao--falta { border-style: dashed; border-color: var(--destaque); }
