@@ -201,7 +201,7 @@ function updateTicket() {
     <div class="previa__bloco">
       <span class="previa__rotulo">Honorário${srv && !srv.com_preco ? ' (valor fixo)' : ''}</span>
       <span class="previa__valor">${fmt(valor)}</span>
-      <span class="previa__sub">${r && !r.semPreco ? `Tabela CAU ${fmt(r.valorCau)} · ÷${String(s.fatorAjuste).replace('.', ',')} · ${Math.round(s.reducaoEscopoPercentual * 100)}% do serviço` : srv && !srv.com_preco ? 'Serviço sem preço calculado: informe o valor em Honorários.' : 'Escolha serviço, tipologia e área para calcular.'}</span>
+      <span class="previa__sub">${r && !r.semPreco ? `Tabela CAU ${fmt(r.valorCau)} · ÷${String(s.fatorAjuste).replace('.', ',')} · ${fmtPct(s.reducaoEscopoPercentual)} do projeto` : srv && !srv.com_preco ? 'Serviço sem preço calculado: informe o valor em Honorários.' : 'Escolha serviço, tipologia e área para calcular.'}</span>
       ${r && !r.semPreco ? `<span class="previa__sub">BH ${fmt(r.bh)}/m² · fp ${(r.fp * 100).toFixed(2).replace('.', ',')}% · IC ${r.ic.toFixed(2).replace('.', ',')}</span>` : ''}
     </div>
     <div class="previa__bloco">
@@ -210,16 +210,17 @@ function updateTicket() {
       <span class="previa__sub">${total && s.dataInicio && fim ? `${OdisseCalc.fmtData(new Date(s.dataInicio + 'T00:00:00'))} – ${OdisseCalc.fmtData(fim)}` : ''}${Catalogo.faixa(s.areaConstruida).indice > 1 ? ` · faixa ${Catalogo.faixa(s.areaConstruida).indice} (×${String(Catalogo.faixa(s.areaConstruida).mult).replace('.', ',')})` : ''}</span>
     </div>
     ${etapas.length ? `<div class="previa__bloco">
-      <span class="previa__rotulo">Etapas${pct.porEtapa ? ` · ${Math.round(pct.percentual * 100)}%` : ''}</span>
+      <span class="previa__rotulo">Etapas${pct.porEtapa ? ` · ${fmtPct(pct.percentual)} do projeto` : ''}</span>
       <table class="previa__tabela"><tbody>
         ${etapas.map((e, i) => `<tr><td><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</td><td>${e.semanas ? fmtSemanas(e.semanas, true) : '<span class="previa__falta">—</span>'}</td><td>${distrib[i] ? (distrib[i].valor > 0 ? fmt(distrib[i].valor) : 'incluído') : ''}</td></tr>`).join('')}
       </tbody></table>
-      ${pct.porEtapa && pct.incremento > 0 ? `<span class="previa__sub">Base ${Math.round(pct.base * 100)}% + ${Math.round(pct.incremento * 100)}% por etapas anteriores não contratadas</span>` : ''}
+      ${pct.porEtapa ? `<span class="previa__sub">${pct.fases.filter(f => !f.acrescimo).map(f => `${escHtml(f.nome)} ${fmtPct(f.peso)}`).join(' · ')}${pct.acrescimo ? ` · acréscimo ${pct.fases.filter(f => f.acrescimo).map(f => `${escHtml(f.nome)} +${fmtPct(f.peso)}`).join(' · ')}` : ''}</span>` : ''}
     </div>` : ''}
     ${alertas ? `<div class="previa__bloco">${alertas}</div>` : ''}
   `;
   renderGuia();
 }
+const fmtPct = (f) => `${(Math.round(f * 1000) / 10).toLocaleString('pt-BR')}%`;
 const fmtSemanas = (n, curto) => `${String(n).replace('.', ',')} ${curto ? 'sem.' : n === 1 ? 'semana' : 'semanas'}`;
 
 // O que a proposta promete, com os textos do PGT do momento (vai no retrato da proposta e alimenta o PDF):
@@ -255,11 +256,11 @@ function resumoProposta(state) {
   };
 }
 
-// Honorário por etapa: pelo peso publicado (serviço com preço por etapa) ou pela duração.
+// Honorário por etapa: fração do projeto de cada etapa (peso da fase × fator ÷ fatores contratados da fase)
+// sobre o total; serviço sem preço por etapa: pela duração.
 function distribuirHonorario(state, valor, etapas) {
-  const pesos = etapas.map(e => Catalogo.peso(e.id, state.servicoId));
-  const soma = pesos.reduce((a, p) => a + (p || 0), 0);
-  if (soma > 0) return etapas.map((e, i) => ({ nome: e.nome, sigla: e.sigla, valor: valor * ((pesos[i] || 0) / soma) }));
+  const p = Catalogo.percentual(state.servicoId, state.etapasSelecionadas);
+  if (p.porEtapa && p.percentual > 0) return etapas.map(e => ({ nome: e.nome, sigla: e.sigla, valor: valor * ((p.noProjeto[e.id] || 0) / p.percentual) }));
   return OdisseCalc.distribuirPorEtapa(valor, etapas.map(e => ({ nome: e.nome, sigla: e.sigla, semanas: e.semanas || 0 })));
 }
 

@@ -9,7 +9,7 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=a4974c73a6">
+<link rel="stylesheet" href="styles.css?v=68c4f35efa">
 </head>
 <body>
 
@@ -24,19 +24,17 @@
     </div>
     <p class="gestao__intro">O custo sobre a estrutura do estúdio. Serviços, tipologias, fases, etapas e entregáveis são definidos na ferramenta
       Projetos (<a href="https://projetos.odisse.com.br/bases.html">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>);
-      aqui ficam o preço de cada serviço, o peso de cada etapa no honorário, as parcelas e a base de honorários de cada uso.</p>
+      aqui ficam o preço de cada serviço, o peso das fases e das etapas no honorário, a entrada e a base de honorários de cada uso.</p>
     <div class="abas gestao__abas" role="tablist">
       <button type="button" data-aba="servicos">Serviços</button>
-      <button type="button" data-aba="pesos">Pesos das etapas</button>
-      <button type="button" data-aba="parcelas">Parcelas</button>
+      <button type="button" data-aba="pesos">Fases e etapas</button>
       <button type="button" data-aba="bh">Base de honorários</button>
       <button type="button" data-aba="tabelas">Tabelas do CAU</button>
     </div>
     <div id="aviso"></div>
 
     <section data-painel="servicos" hidden><div class="rolagem" id="servicos"><p class="muted">Carregando…</p></div></section>
-    <section data-painel="pesos" hidden><div class="rolagem" id="pesos"></div></section>
-    <section data-painel="parcelas" hidden><div id="parcelas"></div></section>
+    <section data-painel="pesos" hidden><div id="entrada"></div><div class="rolagem" id="pesos"></div></section>
     <section data-painel="bh" hidden>
       <div class="gestao__filtros"><input type="search" id="filtro-uso" placeholder="Filtrar usos (descrição, item, CUB)"></div>
       <div id="bh"><p class="muted">Carregando…</p></div>
@@ -59,8 +57,10 @@
 // Honorários (migração 0006 do Universo): o custo que se aplica sobre as
 // Bases e o Plano Geral de Trabalho, que moram na ferramenta Projetos.
 //   - preço dos serviços: modificador, tem preço, repartido por etapa
-//   - pesos das etapas na matriz etapa × serviço (só onde a etapa vale)
-//   - parcelas: entrada (na assinatura) + uma por fase
+//   - fases e etapas (0015): peso de cada fase por serviço (% do projeto; as do fluxo somam 100, a de
+//     acréscimo — Obra — vai além dos 100) e fator 1 ou 2 de cada etapa dentro da fase. A % da etapa é
+//     fórmula: fator ÷ soma dos fatores das etapas contratadas da fase (a que não for contratada se
+//     redistribui entre as que ficaram). Entrada (na assinatura) como parâmetro do pagamento.
 //   - base de honorários de cada uso: CUB vigente (data/cub.json) × fator
 // Publicar grava a versão de honorários que as propostas vão registrar.
 // ==========================================================================
@@ -105,7 +105,6 @@ function desenhar() {
   desenharPublicacao();
   desenharServicos();
   desenharPesos();
-  desenharParcelas();
 }
 
 // ---------------------------------------------------------------- publicação
@@ -123,10 +122,9 @@ function desenharPublicacao() {
     const painel = abrirPainel(`
       <div class="painel__topo"><h2>Publicar a versão ${numero} dos honorários</h2><button class="painel__fechar" aria-label="Fechar">×</button></div>
       <div id="pub-aviso"></div>
-      <p class="small">Publicar grava um retrato do que está aqui agora (preços, pesos, parcelas). É esse retrato que as propostas novas vão usar
+      <p class="small">Publicar grava um retrato do que está aqui agora (preços, pesos das fases e das etapas, entrada). É esse retrato que as propostas novas vão usar
         e registrar, junto com as versões das Bases e do Plano Geral de Trabalho. O rascunho continua editável depois.</p>
-      ${somasRuins().length ? `<div class="aviso aviso--erro">Pesos que não somam 100: ${escHtml(somasRuins().join(', '))}.</div>` : ''}
-      ${parcelasRuins() ? `<div class="aviso aviso--erro">As parcelas somam ${fmtNum(parcelasRuins(), 2)}%, não 100%.</div>` : ''}
+      ${somasRuins().length ? `<div class="aviso aviso--erro">Fases que não somam 100%: ${escHtml(somasRuins().join(', '))}.</div>` : ''}
       <form id="f-pub">
         <div class="field"><label class="field__label">O que mudou (opcional)</label>
           <textarea name="nota" rows="3" maxlength="500" placeholder="Ex.: pesos de Interiores revisados"></textarea></div>
@@ -156,7 +154,7 @@ function desenharServicos() {
       <td class="centro"><input class="cel" data-c="modificador" inputmode="decimal" value="${fmtNum(s.modificador)}" placeholder="—"></td>
       <td class="centro"><select data-c="preco_por_etapa">${opcoes(sn, String(s.preco_por_etapa))}</select></td></tr>`).join('')}</tbody></table>
     <p class="field__hint">Modificador: multiplica o valor do CAU (Nova Edificação = 1,00 é a referência). Repartido por etapa: o honorário se divide
-      pelos pesos das etapas (aba Pesos das etapas). Serviços novos são criados nas Bases, no Projetos, e chegam aqui sem preço.</p>`;
+      pelas fases e etapas (aba Fases e etapas). Serviços novos são criados nas Bases, no Projetos, e chegam aqui sem preço.</p>`;
   document.querySelectorAll('#servicos [data-c]').forEach((c) => c.onchange = async () => {
     const s = H.servicos.find((x) => x.id === c.closest('tr').dataset.id);
     let v = c.value;
@@ -176,93 +174,116 @@ function desenharServicos() {
   });
 }
 
-// ---------------------------------------------------------------- pesos das etapas
+// ---------------------------------------------------------------- fases e etapas (0015)
+// Peso da fase: % do honorário do projeto, por serviço. As fases do fluxo somam 100; a de acréscimo (Obra) vai além.
+// Fator da etapa (1 ou 2): dentro da fase, a etapa leva fator ÷ soma dos fatores das etapas contratadas.
+// As % mostradas consideram as etapas pertinentes (P) contratadas; a opcional (O) mostra quanto levaria se marcada.
 const comPreco = () => H.servicos.filter((s) => s.com_preco);
-function somaDe(s) { return H.etapas.reduce((t, e) => t + ((e.servicos[s.id] && e.servicos[s.id].peso) || 0), 0); }
-function somasRuins() { return H.servicos.filter((s) => s.com_preco && s.preco_por_etapa && !igual(somaDe(s), 100)).map((s) => `${s.sigla} (${fmtNum(somaDe(s))})`); }
+const repartidos = () => comPreco().filter((s) => s.preco_por_etapa);
+const fasesDoFluxo = () => H.fases.filter((f) => !f.ilha);
+const etapasDa = (f, s) => H.etapas.filter((e) => e.fase_id === f.id && e.servicos[s.id]);
+const fator = (x) => (x && x.peso === 2 ? 2 : 1);
+function somaDe(s) { return fasesDoFluxo().filter((f) => !f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
+function acrescimoDe(s) { return fasesDoFluxo().filter((f) => f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
+function somasRuins() { return repartidos().filter((s) => !igual(somaDe(s), 100)).map((s) => `${s.sigla} (${fmtNum(somaDe(s))}%)`); }
+// % da etapa na fase e no projeto, com as pertinentes da fase (e ela mesma, se opcional)
+function partes(e, f, s) {
+  const lista = etapasDa(f, s).filter((x) => x.servicos[s.id].pertinencia === 'P' || x.id === e.id);
+  const total = lista.reduce((t, x) => t + fator(x.servicos[s.id]), 0);
+  const naFase = total ? fator(e.servicos[s.id]) / total : 0;
+  return { naFase, noProjeto: naFase * (f.pesos[s.id] || 0) / 100 };
+}
+const pct = (n) => `${fmtNum(Math.round(n * 1000) / 10)}%`;
+
+function desenharEntrada() {
+  const el = document.getElementById('entrada');
+  el.innerHTML = `<div class="hon-entrada"><label for="p-entrada">${escHtml(H.parametros_rotulos.parcela_entrada)}</label>
+      <input class="cel" id="p-entrada" inputmode="decimal" value="${H.parametros.parcela_entrada === undefined ? '' : fmtNum(H.parametros.parcela_entrada * 100)}"> %
+      <span class="small muted">O restante do pagamento acompanha o peso das fases contratadas.</span></div>`;
+  el.querySelector('#p-entrada').onchange = async (ev) => {
+    const n = lerNum(ev.target.value);
+    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso('Entrada: número de 0 a 100.'); return desenharEntrada(); }
+    try {
+      await Universo.post('honorarios/parametros', { chave: 'parcela_entrada', valor: n / 100 });
+      H.parametros.parcela_entrada = n / 100;
+      aviso(''); marcarPendente(); desenharEntrada();
+    } catch (err) { aviso(mensagemDe(err)); }
+  };
+}
 
 function desenharPesos() {
-  const S = comPreco();
+  desenharEntrada();
+  const S = repartidos();
   const ncol = S.length + 2;
   let html = '';
-  for (const f of H.fases) {
+  for (const f of fasesDoFluxo()) {
     const etapas = H.etapas.filter((e) => e.fase_id === f.id);
     if (!etapas.length) continue;
-    html += `<tr class="grupo"><td colspan="${ncol}"><strong>Fase ${escHtml(f.nome)}</strong>${f.ilha ? ' <span class="small muted">· ilha</span>' : ''}</td></tr>`;
+    html += `<tr class="grupo hon-fase"><td colspan="2"><strong>Fase ${escHtml(f.nome)}</strong>
+        <label class="hon-acrescimo" title="Acréscimo: o peso desta fase vai além dos 100% do projeto (ex.: Obra)">
+          <input type="checkbox" data-acrescimo="${f.id}" ${f.acrescimo ? 'checked' : ''}> acréscimo</label></td>
+      ${S.map((s) => etapasDa(f, s).length
+        ? `<td class="centro"><span class="hon-pct"><input class="cel cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—"
+            title="${escHtml(`Fase ${f.nome} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">%</span></td>`
+        : '<td class="centro muted" title="nenhuma etapa desta fase vale para este serviço">–</td>').join('')}</tr>`;
     html += etapas.map((e) => `<tr>
       <td class="sigla">${escHtml(e.sigla)}</td><td>${escHtml(e.nome)}</td>
       ${S.map((s) => {
         const x = e.servicos[s.id];
         if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
-        return `<td class="centro"><input class="cel cel--peso${x.pertinencia === 'O' ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}" inputmode="decimal"
-          value="${fmtNum(x.peso)}" placeholder="—" title="${escHtml(`${e.sigla} em ${s.sigla}${x.pertinencia === 'O' ? ' (etapa opcional)' : ''}`)}"></td>`;
+        const p = partes(e, f, s);
+        const op = x.pertinencia === 'O';
+        return `<td class="centro"><select class="cel cel--fator${op ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}"
+            title="${escHtml(`${e.sigla} em ${s.sigla}${op ? ' (etapa opcional)' : ''}: fator na fase`)}">
+            <option value="1" ${fator(x) === 1 ? 'selected' : ''}>1</option><option value="2" ${fator(x) === 2 ? 'selected' : ''}>2</option></select>
+          <span class="hon-partes${op ? ' is-opcional' : ''}" title="${op ? 'se marcada: ' : ''}% na fase · % no projeto">${pct(p.naFase)} · ${pct(p.noProjeto)}</span></td>`;
       }).join('')}</tr>`).join('');
   }
-  html += `<tr class="somas"><td colspan="2" class="small">Soma (deve dar 100 nos serviços repartidos por etapa)</td>
-    ${S.map((s) => { const n = somaDe(s); return `<td class="centro ${s.preco_por_etapa && !igual(n, 100) ? 'ruim' : ''}">${s.preco_por_etapa ? fmtNum(n) : '<span class="muted" title="não reparte por etapa">—</span>'}</td>`; }).join('')}</tr>`;
+  html += `<tr class="somas"><td colspan="2" class="small">Soma das fases (deve dar 100%)</td>
+    ${S.map((s) => { const n = somaDe(s); return `<td class="centro ${igual(n, 100) ? '' : 'ruim'}">${fmtNum(n)}%</td>`; }).join('')}</tr>
+    <tr class="somas"><td colspan="2" class="small">Acréscimo (além dos 100%)</td>
+    ${S.map((s) => { const n = acrescimoDe(s); return `<td class="centro">${n ? '+' + fmtNum(n) + '%' : '—'}</td>`; }).join('')}</tr>`;
+  const semRepartir = comPreco().filter((s) => !s.preco_por_etapa);
   const el = document.getElementById('pesos');
-  el.innerHTML = `<table class="tabela matriz"><thead>
-      <tr><th rowspan="2">Sigla</th><th rowspan="2">Etapa</th><th colspan="${S.length}" class="grupo-srv">Serviços</th></tr>
+  el.innerHTML = `<table class="tabela matriz hon-matriz"><thead>
+      <tr><th rowspan="2">Sigla</th><th rowspan="2">Fase / etapa</th><th colspan="${S.length}" class="grupo-srv">Serviços</th></tr>
       <tr>${S.map((s) => `<th class="srv" title="${escHtml(s.nome)}">${escHtml(s.sigla)}</th>`).join('')}</tr></thead>
     <tbody>${html}</tbody></table>
-    <p class="field__hint">Peso: participação da etapa no honorário do serviço, em %. Só aparece campo onde a etapa vale para o serviço
-      (o que vale para cada serviço é marcado no Plano Geral de Trabalho); campo tracejado = etapa opcional. Serviços sem preço não aparecem.</p>`;
-  el.querySelectorAll('.cel--peso').forEach((c) => c.onchange = async () => {
+    <p class="field__hint"><strong>Fase</strong>: % do honorário do projeto; as fases do fluxo somam 100%, e a marcada como acréscimo (Obra) soma por fora.
+      <strong>Etapa</strong>: fator 1 ou 2 dentro da fase; a etapa leva fator ÷ soma dos fatores das etapas contratadas da fase, e o valor da etapa
+      não contratada se redistribui entre as que ficaram. Embaixo de cada fator: % na fase · % no projeto, com as etapas pertinentes; na opcional
+      (tracejada), quanto levaria se marcada. Só aparece campo onde a etapa vale para o serviço (Plano Geral de Trabalho).
+      ${semRepartir.length ? `Sem repartição por etapa (preço único): ${escHtml(semRepartir.map((s) => s.sigla).join(', '))}.` : ''}</p>`;
+  el.querySelectorAll('.cel--fase').forEach((c) => c.onchange = async () => {
+    const f = H.fases.find((x) => x.id === c.dataset.fase);
+    const v = lerNum(c.value);
+    if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso da fase: número de 0 a 100.'); c.value = fmtNum(f.pesos[c.dataset.srv]); return; }
+    c.disabled = true;
+    try {
+      await Universo.post('honorarios/fases', { fase_id: f.id, servico_id: c.dataset.srv, peso: v });
+      if (v === null) delete f.pesos[c.dataset.srv]; else f.pesos[c.dataset.srv] = v;
+      aviso(''); marcarPendente(); desenharPesos();
+    } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
+  });
+  el.querySelectorAll('.cel--fator').forEach((c) => c.onchange = async () => {
     const e = H.etapas.find((x) => x.id === c.dataset.etapa);
     const x = e.servicos[c.dataset.srv];
-    const v = lerNum(c.value);
-    if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso: número de 0 a 100.'); c.value = fmtNum(x.peso); return; }
+    const v = Number(c.value);
     c.disabled = true;
     try {
       await Universo.post('honorarios/pesos', { etapa_id: e.id, servico_id: c.dataset.srv, peso: v });
       x.peso = v;
-      aviso('');
-      marcarPendente();
-      desenharPesos();
-      const prox = document.querySelector(`.cel--peso[data-etapa="${e.id}"][data-srv="${c.dataset.srv}"]`);
-      if (prox && document.activeElement === document.body) prox.focus();
+      aviso(''); marcarPendente(); desenharPesos();
     } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
   });
-}
-
-// ---------------------------------------------------------------- parcelas
-const fasesComParcela = () => H.fases.filter((f) => !f.ilha);
-function totalParcelas() {
-  return ((H.parametros.parcela_entrada || 0) + fasesComParcela().reduce((t, f) => t + (f.parcela || 0), 0)) * 100;
-}
-function parcelasRuins() { const t = totalParcelas(); return igual(t, 100) ? 0 : t; }
-
-function desenharParcelas() {
-  const el = document.getElementById('parcelas');
-  const t = totalParcelas();
-  el.innerHTML = `<table class="tabela" style="max-width:560px">
-    <thead><tr><th>Quando</th><th class="centro">Parcela (%)</th></tr></thead>
-    <tbody>
-      <tr><td>${escHtml(H.parametros_rotulos.parcela_entrada)}</td>
-        <td class="centro"><input class="cel" id="p-entrada" inputmode="decimal" value="${H.parametros.parcela_entrada === undefined ? '' : fmtNum(H.parametros.parcela_entrada * 100)}"></td></tr>
-      ${fasesComParcela().map((f) => `<tr><td>Ao concluir a fase ${escHtml(f.nome)}</td>
-        <td class="centro"><input class="cel" data-fase="${f.id}" inputmode="decimal" value="${f.parcela === null ? '' : fmtNum(f.parcela * 100)}" placeholder="—"></td></tr>`).join('')}
-      <tr class="somas"><td class="small">Total</td><td class="centro ${igual(t, 100) ? '' : 'ruim'}">${fmtNum(t, 2)}%</td></tr>
-    </tbody></table>
-    <p class="field__hint">Fases-ilha (consultorias, laudos) ficam fora das parcelas. Vazio = a fase não tem parcela própria.</p>`;
-  el.querySelector('#p-entrada').onchange = async (ev) => {
-    const n = lerNum(ev.target.value);
-    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso('Parcela de entrada: número de 0 a 100.'); return desenharParcelas(); }
+  el.querySelectorAll('[data-acrescimo]').forEach((c) => c.onchange = async () => {
+    const f = H.fases.find((x) => x.id === c.dataset.acrescimo);
+    c.disabled = true;
     try {
-      await Universo.post('honorarios/parametros', { chave: 'parcela_entrada', valor: n / 100 });
-      H.parametros.parcela_entrada = n / 100;
-      aviso(''); marcarPendente(); desenharParcelas();
-    } catch (err) { aviso(mensagemDe(err)); }
-  };
-  el.querySelectorAll('[data-fase]').forEach((c) => c.onchange = async () => {
-    const f = H.fases.find((x) => x.id === c.dataset.fase);
-    const n = lerNum(c.value);
-    if (Number.isNaN(n) || (n !== null && (n < 0 || n > 100))) { aviso('Parcela: número de 0 a 100.'); return desenharParcelas(); }
-    try {
-      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, parcela: n === null ? null : n / 100 });
-      Object.assign(f, { parcela: r.parcela, versao: r.versao });
-      aviso(''); marcarPendente(); desenharParcelas();
-    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); }
+      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, acrescimo: c.checked ? 1 : 0 });
+      Object.assign(f, { acrescimo: r.acrescimo, versao: r.versao });
+      aviso(''); marcarPendente(); desenharPesos();
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); c.disabled = false; }
   });
 }
 

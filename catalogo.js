@@ -46,6 +46,29 @@ const Catalogo = (() => {
     return C;
   }
 
+  // ---------------------------------------------------------------- honorários
+  // Desde a migração 0015 do Universo: fases_pesos[fase][serviço] = % do projeto; pesos[etapa][serviço] = fator 1 ou 2.
+  // Retrato publicado antes disso (pesos fixos por etapa, % do serviço): converte do mesmo jeito que a migração
+  // (fase = soma dos pesos antigos; fator = peso ÷ menor peso da fase, arredondado, 1 a 2), até a próxima publicação.
+  function normalizarHonorarios(H, P) {
+    const acrescimo = Object.fromEntries((H.fases || []).map((f) => [f.id, f.acrescimo != null ? !!f.acrescimo : f.id === 'pfa_obra']));
+    if (H.fases_pesos) return { acrescimo, fases_pesos: H.fases_pesos, pesos: H.pesos || {} };
+    const faseDe = Object.fromEntries(P.etapas.map((e) => [e.id, e.fase_id]));
+    const ilha = Object.fromEntries(P.fases.map((f) => [f.id, !!f.ilha]));
+    const fases_pesos = {}, menor = {}, pesos = {};
+    for (const [eta, m] of Object.entries(H.pesos || {})) for (const [sv, p] of Object.entries(m)) {
+      const f = faseDe[eta];
+      if (!(p > 0) || !f || ilha[f] || acrescimo[f]) continue;
+      (fases_pesos[f] ||= {})[sv] = Math.min(100, ((fases_pesos[f] || {})[sv] || 0) + p);
+      const k = f + '|' + sv; menor[k] = Math.min(menor[k] ?? Infinity, p);
+    }
+    for (const [eta, m] of Object.entries(H.pesos || {})) for (const [sv, p] of Object.entries(m)) {
+      const k = faseDe[eta] + '|' + sv;
+      if (p > 0 && menor[k]) (pesos[eta] ||= {})[sv] = Math.min(2, Math.max(1, Math.round(p / menor[k])));
+    }
+    return { acrescimo, fases_pesos, pesos };
+  }
+
   // ---------------------------------------------------------------- índices
   function montar(pub) {
     const B = pub.bases.dados, P = pub.pgt.dados, H = pub.honorarios.dados;
@@ -54,8 +77,8 @@ const Catalogo = (() => {
       const h = preco[s.id] || {};
       return { ...s, modificador: h.modificador ?? null, com_preco: !!h.com_preco, preco_por_etapa: !!h.preco_por_etapa };
     });
-    const parcelaFase = Object.fromEntries((H.fases || []).map((f) => [f.id, f.parcela]));
-    const fases = P.fases.map((f) => ({ ...f, parcela: parcelaFase[f.id] ?? null }));
+    const N = normalizarHonorarios(H, P);
+    const fases = P.fases.map((f) => ({ ...f, acrescimo: !!N.acrescimo[f.id], pesos: N.fases_pesos[f.id] || {} }));
     const fasePorId = Object.fromEntries(fases.map((f) => [f.id, f]));
     const etapas = P.etapas.filter((e) => fasePorId[e.fase_id]).map((e) => ({ ...e, fase: fasePorId[e.fase_id] }));
     const por = (l) => Object.fromEntries(l.map((x) => [x.id, x]));
@@ -64,7 +87,7 @@ const Catalogo = (() => {
       versoes: Object.fromEntries(TIPOS.map((t) => [t, { numero: pub[t].numero, publicado_em: pub[t].publicado_em }])),
       servicos, categorias: B.categorias, usos: B.usos, fases, etapas,
       entregas: P.entregaveis || [], eventos: P.eventos || [],
-      faixas: B.faixas_prazo || [], pesos: H.pesos || {},
+      faixas: B.faixas_prazo || [], pesos: N.pesos,
       parcelaEntrada: H.parametros && H.parametros.parcela_entrada != null ? H.parametros.parcela_entrada : null,
       idx: { servico: por(servicos), categoria: cats, uso: por(B.usos), etapa: por(etapas), fase: fasePorId,
         entrega: por(P.entregaveis || []), evento: por(P.eventos || []) },
@@ -159,19 +182,38 @@ const Catalogo = (() => {
   // turnos → semanas, arredondando para cima em meia semana
   const semanasDe = (turnos) => (turnos > 0 ? Math.ceil((turnos / TURNOS_SEMANA) * 2) / 2 : 0);
 
-  // Percentual do honorário pelas etapas contratadas (Base + 50% da lacuna, ver PRICING.md), com os
-  // pesos publicados nos Honorários. Serviço sem preço por etapa: 100%.
+  // Honorário pelas fases e etapas contratadas (Honorários, 0015):
+  //   - cada fase com ao menos uma etapa contratada entra com o seu peso (% do projeto); as fases do fluxo
+  //     somam 100 e a de acréscimo (Obra) vai além — o percentual pode passar de 100%;
+  //   - dentro da fase, a etapa leva fator (1 ou 2) ÷ soma dos fatores das etapas contratadas da fase:
+  //     a etapa não contratada redistribui o seu valor entre as que ficaram.
+  // Devolve { percentual, porEtapa, noProjeto: { etapa → fração do projeto }, fases: [...] }.
+  // Serviço sem preço por etapa: 100%, sem repartição.
+  const fator = (etapaId, srvId) => (C && C.pesos[etapaId] && C.pesos[etapaId][srvId] === 2 ? 2 : 1);
   function percentual(srvId, etapasSel) {
     const s = servico(srvId);
-    if (!s || !s.preco_por_etapa) return { percentual: 1, base: 1, lacuna: 0, incremento: 0, porEtapa: false };
-    const pesos = {};
-    for (const e of etapasDoServico(srvId)) {
-      const p = C.pesos[e.id] && C.pesos[e.id][srvId];
-      if (p != null) pesos[e.id] = p;
+    if (!s || !s.preco_por_etapa) return { percentual: 1, porEtapa: false, noProjeto: {}, fases: [] };
+    const sel = new Set(etapasSel || []);
+    const noProjeto = {}, fases = [];
+    let total = 0, doFluxo = 0, acrescimo = 0;
+    for (const f of C.fases) {
+      if (f.ilha) continue;
+      const ets = etapasDoServico(srvId).filter((e) => e.fase_id === f.id && sel.has(e.id));
+      const peso = (f.pesos[srvId] || 0) / 100;
+      if (!ets.length) continue;
+      const soma = ets.reduce((t, e) => t + fator(e.id, srvId), 0);
+      for (const e of ets) noProjeto[e.id] = peso * fator(e.id, srvId) / soma;
+      fases.push({ id: f.id, nome: f.nome, peso, acrescimo: f.acrescimo, etapas: ets.map((e) => e.id) });
+      total += peso;
+      if (f.acrescimo) acrescimo += peso; else doFluxo += peso;
     }
-    return { ...OdisseCalc.percentualPorEtapas(etapasSel, pesos), porEtapa: true, pesos };
+    return { percentual: total, porEtapa: true, noProjeto, fases, doFluxo, acrescimo };
   }
-  const peso = (etapaId, srvId) => (C && C.pesos[etapaId] && C.pesos[etapaId][srvId] != null ? C.pesos[etapaId][srvId] : null);
+  // Fração do projeto que a etapa levaria se fosse contratada junto com as já marcadas (para mostrar no Escopo).
+  function fracaoSeMarcada(etapaId, srvId, etapasSel) {
+    const l = new Set(etapasSel || []); l.add(etapaId);
+    return percentual(srvId, [...l]).noProjeto[etapaId] || 0;
+  }
 
   // Padrão do IC: preset da categoria da tipologia + ajustes do serviço (rótulos baixo/medio/alto).
   function icPadrao(srvId, categoriaId) {
@@ -180,13 +222,14 @@ const Catalogo = (() => {
     return { ...((cat && cat.ic_preset) || {}), ...((s && s.ic_ajustes) || {}) };
   }
 
-  // Parcelas por fase (Honorários): entrada + uma por fase contratada fora das ilhas.
-  function parcelas(etapasSel) {
+  // Pagamento de referência: entrada (Honorários) + o restante na proporção do peso das fases contratadas.
+  function parcelas(srvId, etapasSel) {
     if (!C) return [];
-    const fasesSel = new Set(etapasSel.map((id) => etapa(id)).filter(Boolean).map((e) => e.fase_id));
-    const l = [];
-    if (C.parcelaEntrada != null) l.push({ nome: 'Entrada (assinatura)', percentual: C.parcelaEntrada });
-    for (const f of C.fases) if (!f.ilha && f.parcela != null && fasesSel.has(f.id)) l.push({ nome: f.nome, percentual: f.parcela, fase_id: f.id });
+    const p = percentual(srvId, etapasSel);
+    const entrada = C.parcelaEntrada != null ? C.parcelaEntrada : 0;
+    const l = entrada ? [{ nome: 'Entrada (assinatura)', percentual: entrada }] : [];
+    if (!p.porEtapa || !(p.percentual > 0)) return l;
+    for (const f of p.fases) l.push({ nome: f.nome, percentual: (1 - entrada) * f.peso / p.percentual, fase_id: f.id });
     return l;
   }
 
@@ -229,5 +272,5 @@ const Catalogo = (() => {
   }
 
   return { carregar, atual, servico, etapa, tipologia, etapasDoServico, entregasDaEtapa, entregasPadrao, clausulas, temQuantidade,
-    textoClausula, faixa, prazoEtapa, semanasDe, percentual, peso, icPadrao, parcelas, migrar, GRUPOS, TURNOS_SEMANA };
+    textoClausula, faixa, prazoEtapa, semanasDe, percentual, fracaoSeMarcada, fator, icPadrao, parcelas, migrar, GRUPOS, TURNOS_SEMANA };
 })();

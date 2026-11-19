@@ -387,8 +387,8 @@ STEPS.push({
     const clausulas = Catalogo.clausulas(state.etapasSelecionadas, state.servicoId);
     return `
       ${pct.porEtapa ? `<div class="field-group">
-        <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong>${Math.round(pct.percentual * 100)}%</strong></span></div>
-        <p class="field__hint">Soma dos pesos das etapas marcadas (${Math.round(pct.base * 100)}%) + metade das etapas anteriores não contratadas (${Math.round(pct.incremento * 100)}%). Pesos publicados em Honorários.</p>
+        <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong>${fmtPct(pct.percentual)}</strong></span></div>
+        <p class="field__hint">Soma do peso das fases com etapa marcada (${fmtPct(pct.doFluxo)})${pct.acrescimo ? ` + acréscimo (${fmtPct(pct.acrescimo)})` : ''}. Dentro da fase, cada etapa leva o seu fator (1 ou 2) sobre a soma dos fatores das etapas marcadas: desmarcar uma etapa redistribui o valor da fase entre as que ficam. Pesos publicados em Honorários.</p>
       </div>` : `<p class="field__hint">${srv.com_preco ? 'Este serviço tem preço único: as etapas não mudam o honorário.' : ''}</p>`}
       <div class="field-group">
         ${fases.map(f => {
@@ -397,17 +397,17 @@ STEPS.push({
           return `<div class="fase-group">
             <label class="check-row check-row__toggle fase-toggle ${!todas && alguma ? 'fase-toggle--indeterminado' : ''}">
               <input type="checkbox" data-fase="${f.id}" ${todas ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
-              <span class="check-row__text fase-toggle__text">Fase ${escHtml(f.nome)}</span>
+              <span class="check-row__text fase-toggle__text">Fase ${escHtml(f.nome)}${pct.porEtapa && f.pesos[state.servicoId] ? ` <span class="small muted">· ${f.acrescimo ? 'acréscimo ' : ''}${f.pesos[state.servicoId]}% do projeto</span>` : ''}</span>
             </label>
             <div class="fase-etapas">${f.etapas.map(e => {
               const on = state.etapasSelecionadas.includes(e.id);
               const ents = Catalogo.entregasDaEtapa(e.id, state.servicoId, state.categoriaId);
               const sel = state.entregasSelecionadas[e.id] || [];
-              const p = Catalogo.peso(e.id, state.servicoId);
+              const fr = on ? (pct.noProjeto[e.id] || 0) : Catalogo.fracaoSeMarcada(e.id, state.servicoId, state.etapasSelecionadas);
               return `<div class="etapa-row ${on ? '' : 'etapa-row--off'}">
                   <label class="check-row check-row__toggle"><input type="checkbox" data-etapa="${e.id}" ${on ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
                     <span class="check-row__text"><b class="sigla">${escHtml(e.sigla)}</b> ${escHtml(e.nome)} ${tag(e.pert)}</span></label>
-                  <span class="etapa-meta small muted">${pct.porEtapa ? (p != null ? `peso ${p}` : 'sem peso') : ''}${on ? ` · ${sel.length}/${ents.length}` : ''}</span>
+                  <span class="etapa-meta small muted" title="fração do honorário do projeto${on ? '' : ' se marcada'}">${pct.porEtapa ? (on ? fmtPct(fr) : `<i>${fmtPct(fr)}</i>`) : ''}${on ? ` · ${sel.length}/${ents.length}` : ''}</span>
                 </div>
                 ${on ? `<div class="entregaveis-list">${ents.map(x => `
                   <label class="check-row check-row--sub"><input type="checkbox" data-entrega="${e.id}::${x.id}" ${sel.includes(x.id) ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
@@ -602,7 +602,7 @@ STEPS.push({
     const srv = Catalogo.servico(state.servicoId);
     const fatorAtual = state.fatorAjuste || 1.25;
     const entrada = state.pctEntrada != null ? state.pctEntrada : 0.35;
-    const parcelas = Catalogo.parcelas(state.etapasSelecionadas);
+    const parcelas = Catalogo.parcelas(state.servicoId, state.etapasSelecionadas);
     return `
       ${srv && !srv.com_preco ? `<div class="field-group"><div class="field">
         <label class="field__label">Honorário (valor fixo)</label>
@@ -628,7 +628,7 @@ STEPS.push({
           <div class="field"><label class="field__label">Parcelas oferecidas no boleto</label>
             <select id="f-max-parcelas-boleto">${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}" ${(state.maxParcelasBoleto || 8) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
         </div>
-        ${parcelas.length ? `<p class="field__hint">Referência dos Honorários (desembolso por fase): ${parcelas.map(p => `${escHtml(p.nome)} ${Math.round(p.percentual * 100)}%`).join(' · ')}.</p>` : ''}
+        ${parcelas.length ? `<p class="field__hint">Referência (entrada + peso das fases contratadas): ${parcelas.map(p => `${escHtml(p.nome)} ${Math.round(p.percentual * 100)}%`).join(' · ')}.</p>` : ''}
       </div>
       <div class="field-group">
         <div class="switch-row">
@@ -795,7 +795,7 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Modificador do serviço</span><span class="data-row__value tabular">${(Catalogo.servico(state.servicoId) || {}).modificador || 1}</span></div>
         <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${fmt(r.valorCau)}</span></div>
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${fmt(r.valorMercado)}</span></div>
-        <div class="data-row"><span class="data-row__label">Percentual do serviço</span><span class="data-row__value tabular">${Math.round(state.reducaoEscopoPercentual * 100)}%</span></div>
+        <div class="data-row"><span class="data-row__label">Percentual do projeto (fases contratadas)</span><span class="data-row__value tabular">${fmtPct(state.reducaoEscopoPercentual)}</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div>
       </div>` : r ? `<div class="card"><div class="data-row"><span class="data-row__label"><strong>Honorário (valor fixo)</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
     const numero = state.numeroProposta
