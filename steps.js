@@ -397,7 +397,7 @@ STEPS.push({
           return `<div class="fase-group">
             <label class="check-row check-row__toggle fase-toggle ${!todas && alguma ? 'fase-toggle--indeterminado' : ''}">
               <input type="checkbox" data-fase="${f.id}" ${todas ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
-              <span class="check-row__text fase-toggle__text">Fase ${escHtml(f.nome)}${pct.porEtapa && f.pesos[state.servicoId] ? ` <span class="small muted">· ${f.acrescimo ? 'acréscimo ' : ''}${f.pesos[state.servicoId]}% do projeto</span>` : ''}</span>
+              <span class="check-row__text fase-toggle__text">${escHtml(Catalogo.nomeFase(f))}${pct.porEtapa && f.pesos[state.servicoId] ? ` <span class="small muted">· ${f.acrescimo ? 'acréscimo ' : ''}${f.pesos[state.servicoId]}% do projeto</span>` : ''}</span>
             </label>
             <div class="fase-etapas">${f.etapas.map(e => {
               const on = state.etapasSelecionadas.includes(e.id);
@@ -551,7 +551,7 @@ STEPS.push({
           const manual = state.semanasManual[e.id] != null && state.semanasManual[e.id] !== '';
           return `<div class="timeline__row">
             <div><div class="timeline__name"><b class="sigla">${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</div>
-              <span class="timeline__fase">Fase ${escHtml(e.fase.nome)} · PGT: ${calc.semanas ? fmtSemanas(calc.semanas, true) : 'sem prazo'}${calc.semPrazo ? ` (${calc.semPrazo} entrega${calc.semPrazo === 1 ? '' : 's'} sem duração)` : ''}${manual ? ' · <button type="button" class="btn-link" data-limpar="' + e.id + '">usar o do PGT</button>' : ''}</span></div>
+              <span class="timeline__fase">${escHtml(Catalogo.nomeFase(e.fase))} · PGT: ${calc.semanas ? fmtSemanas(calc.semanas, true) : 'sem prazo'}${calc.semPrazo ? ` (${calc.semPrazo} entrega${calc.semPrazo === 1 ? '' : 's'} sem duração)` : ''}${manual ? ' · <button type="button" class="btn-link" data-limpar="' + e.id + '">usar o do PGT</button>' : ''}</span></div>
             <div class="timeline__weeks"><input type="number" min="0" step="0.5" data-semanas="${e.id}" value="${manual ? state.semanasManual[e.id] : ''}" placeholder="${calc.semanas || ''}"> <span class="small muted">sem.</span></div>
             <div class="timeline__dates" data-datas="${e.id}"></div>
           </div>`;

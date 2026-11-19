@@ -595,7 +595,7 @@ const OdissePdf = (() => {
     y = tituloSecao(doc, 'Escopo', y);
     y = linhaTexto(doc, 'Compreende o serviço:', LEFT, y, { negrito: true });
     y += 16;
-    y = listaBullets(doc, R.fases.length ? R.fases.map(f => `Fase ${f.nome}: ${lista(f.etapas.map(e => e.nome))}`) : ['—'], y);
+    y = listaBullets(doc, R.fases.length ? R.fases.map(f => `${Catalogo.nomeFase(f)}: ${lista(f.etapas.map(e => e.nome))}`) : ['—'], y);
     if (R.naoInclui.length) {
       y = linhaTexto(doc, 'O escopo desta proposta não inclui:', LEFT, y, { negrito: true });
       y += 16;
@@ -611,7 +611,7 @@ const OdissePdf = (() => {
     y += 10;
     y = tituloSecao(doc, 'Etapas de Desenvolvimento do Projeto', y);
     for (const f of R.fases) {
-      y = linhaTexto(doc, `Fase ${f.nome}`, LEFT, y, { tamanho: 10.5, negrito: true });
+      y = linhaTexto(doc, Catalogo.nomeFase(f), LEFT, y, { tamanho: 10.5, negrito: true });
       y += 14;
       if (f.descricao) { y = paragrafo(doc, f.descricao, LEFT, y, CONTENT_W, 10.5); y += 8; }
       for (const e of f.etapas) {

@@ -282,6 +282,9 @@ const Catalogo = (() => {
     return s;
   }
 
-  return { carregar, atual, servico, etapa, tipologia, etapasDoServico, entregasDaEtapa, entregasPadrao, clausulas, temQuantidade,
+  // o nome da fase pode já começar com "Fase" — evita "Fase Fase Legal"
+  const nomeFase = (f) => { const n = (f && (f.nome || f)) || ''; return /^fase\b/i.test(n) ? n : `Fase ${n}`; };
+
+  return { carregar, atual, nomeFase, servico, etapa, tipologia, etapasDoServico, entregasDaEtapa, entregasPadrao, clausulas, temQuantidade,
     textoClausula, faixa, prazoEtapa, semanasDe, percentual, fracaoSeMarcada, fator, icPadrao, parcelas, migrar, GRUPOS, TURNOS_SEMANA };
 })();

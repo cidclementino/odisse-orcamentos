@@ -9,7 +9,7 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=68c4f35efa">
+<link rel="stylesheet" href="styles.css?v=b018d8c56c">
 </head>
 <body>
 
@@ -22,9 +22,8 @@
       <h1>Honorários</h1>
       <div class="gestao__pub" id="pub"></div>
     </div>
-    <p class="gestao__intro">O custo sobre a estrutura do estúdio. Serviços, tipologias, fases, etapas e entregáveis são definidos na ferramenta
-      Projetos (<a href="https://projetos.odisse.com.br/bases.html">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>);
-      aqui ficam o preço de cada serviço, o peso das fases e das etapas no honorário, a entrada e a base de honorários de cada uso.</p>
+    <p class="gestao__intro">O custo sobre a estrutura do estúdio. A estrutura (serviços, fases, etapas, entregas) vem do Projetos:
+      <a href="https://projetos.odisse.com.br/bases.html">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>.</p>
     <div class="abas gestao__abas" role="tablist">
       <button type="button" data-aba="servicos">Serviços</button>
       <button type="button" data-aba="pesos">Fases e etapas</button>
@@ -195,16 +194,19 @@ function partes(e, f, s) {
 }
 const pct = (n) => `${fmtNum(Math.round(n * 1000) / 10)}%`;
 
-// Parâmetros da aba: entrada do pagamento e o acréscimo do "só tal fase" (0016).
+// Parâmetros da aba (cartões, como os da Equipe no Universo): entrada do pagamento e o acréscimo do "só tal fase" (0016).
 const PARAMS_ABA = [
-  { chave: 'parcela_entrada', nota: 'O restante do pagamento acompanha o peso das fases contratadas.' },
-  { chave: 'acrescimo_lacuna', nota: 'Contratar uma fase sem as anteriores (ex.: só a Legal) acrescenta esta fração do peso das fases anteriores não contratadas. NE 40 · 20 · 40, a 50%: só Legal = 20 + 20 = 40%; Conceitual + Executiva = 80 + 10 = 90%. Obra fica fora da conta.' },
+  { chave: 'parcela_entrada', rotulo: 'Entrada na assinatura', nota: 'O restante do pagamento acompanha o peso das fases contratadas.' },
+  { chave: 'acrescimo_lacuna', rotulo: 'Fase anterior não contratada', nota: 'Acréscimo sobre o peso das fases puladas. Em NE, só a Legal: 20% + 50% × 40% = 40%.' },
 ];
 function desenharEntrada() {
   const el = document.getElementById('entrada');
-  el.innerHTML = PARAMS_ABA.filter((p) => H.parametros_rotulos[p.chave]).map((p) => `<div class="hon-entrada"><label for="p-${p.chave}">${escHtml(H.parametros_rotulos[p.chave])}</label>
-      <input class="cel" id="p-${p.chave}" data-param="${p.chave}" inputmode="decimal" value="${H.parametros[p.chave] === undefined ? '' : fmtNum(H.parametros[p.chave] * 100)}"> %
-      <span class="small muted">${escHtml(p.nota)}</span></div>`).join('');
+  el.innerHTML = `<div class="hon-params">${PARAMS_ABA.filter((p) => H.parametros_rotulos[p.chave]).map((p) => `
+    <label class="hon-param" for="p-${p.chave}">
+      <span class="hon-param__rotulo">${escHtml(p.rotulo)}</span>
+      <span class="hon-param__valor"><input id="p-${p.chave}" data-param="${p.chave}" inputmode="decimal" value="${H.parametros[p.chave] === undefined ? '' : fmtNum(H.parametros[p.chave] * 100)}"><span>%</span></span>
+      <span class="hon-param__nota">${escHtml(p.nota)}</span>
+    </label>`).join('')}</div>`;
   el.querySelectorAll('[data-param]').forEach((c) => c.onchange = async (ev) => {
     const chave = c.dataset.param;
     const n = lerNum(ev.target.value);
@@ -216,50 +218,80 @@ function desenharEntrada() {
     } catch (err) { aviso(mensagemDe(err)); }
   });
 }
+// "Fase Conceitual" sem repetir "Fase" quando o nome já traz a palavra
+const nomeFase = (f) => /^fase\b/i.test(f.nome) ? f.nome : `Fase ${f.nome}`;
+
+// Fases abertas/fechadas (lembradas no computador). Fechada, a fase mostra só o seu peso por serviço.
+const CHAVE_ABERTAS = 'vendas:honorarios:fases-abertas';
+const abertas = new Set((() => { try { return JSON.parse(localStorage.getItem(CHAVE_ABERTAS) || '[]'); } catch (_) { return []; } })());
+const lembrarAbertas = () => { try { localStorage.setItem(CHAVE_ABERTAS, JSON.stringify([...abertas])); } catch (_) { /* sem cópia */ } };
 
 function desenharPesos() {
   desenharEntrada();
   const S = repartidos();
-  const ncol = S.length + 2;
   let html = '';
   for (const f of fasesDoFluxo()) {
     const etapas = H.etapas.filter((e) => e.fase_id === f.id);
     if (!etapas.length) continue;
-    html += `<tr class="grupo hon-fase"><td colspan="2"><strong>Fase ${escHtml(f.nome)}</strong>
-        <label class="hon-acrescimo" title="Acréscimo: o peso desta fase vai além dos 100% do projeto (ex.: Obra)">
-          <input type="checkbox" data-acrescimo="${f.id}" ${f.acrescimo ? 'checked' : ''}> acréscimo</label></td>
+    const aberta = abertas.has(f.id);
+    html += `<tbody class="hon-grupo${aberta ? ' is-aberta' : ''}${f.acrescimo ? ' is-acrescimo' : ''}" data-grupo="${f.id}">
+      <tr class="hon-fase"><td><div class="hon-fase__cab">
+        <button type="button" class="hon-abrir" data-abrir="${f.id}" aria-expanded="${aberta}" aria-label="${aberta ? 'Fechar' : 'Abrir'} ${escHtml(nomeFase(f))}">
+          <span class="hon-seta" aria-hidden="true">▸</span><strong>${escHtml(nomeFase(f))}</strong><span class="hon-conta">${etapas.length} etapa${etapas.length === 1 ? '' : 's'}</span></button>
+        <label class="hon-chave" title="Acréscimo: o peso desta fase vai além dos 100% do projeto (ex.: Obra)">
+          <input type="checkbox" data-acrescimo="${f.id}" ${f.acrescimo ? 'checked' : ''}><span>${f.acrescimo ? 'acréscimo, além dos 100%' : 'dentro dos 100%'}</span></label></div></td>
       ${S.map((s) => etapasDa(f, s).length
-        ? `<td class="centro"><span class="hon-pct"><input class="cel cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—"
-            title="${escHtml(`Fase ${f.nome} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">%</span></td>`
-        : '<td class="centro muted" title="nenhuma etapa desta fase vale para este serviço">–</td>').join('')}</tr>`;
-    html += etapas.map((e) => `<tr>
-      <td class="sigla">${escHtml(e.sigla)}</td><td>${escHtml(e.nome)}</td>
-      ${S.map((s) => {
-        const x = e.servicos[s.id];
-        if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
-        const p = partes(e, f, s);
-        const op = x.pertinencia === 'O';
-        return `<td class="centro"><select class="cel cel--fator${op ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}"
-            title="${escHtml(`${e.sigla} em ${s.sigla}${op ? ' (etapa opcional)' : ''}: fator na fase`)}">
-            <option value="1" ${fator(x) === 1 ? 'selected' : ''}>1</option><option value="2" ${fator(x) === 2 ? 'selected' : ''}>2</option></select>
-          <span class="hon-partes${op ? ' is-opcional' : ''}" title="${op ? 'se marcada: ' : ''}% na fase · % no projeto">${pct(p.naFase)} · ${pct(p.noProjeto)}</span></td>`;
-      }).join('')}</tr>`).join('');
+        ? `<td class="centro"><label class="hon-campo-pct" title="${escHtml(`${nomeFase(f)} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">
+            <input class="cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—"><span>%</span></label></td>`
+        : '<td class="centro muted" title="nenhuma etapa desta fase vale para este serviço">–</td>').join('')}</tr>
+      ${etapas.map((e) => `<tr class="hon-etapa">
+        <td><span class="hon-sigla">${escHtml(e.sigla)}</span>${escHtml(e.nome)}</td>
+        ${S.map((s) => {
+          const x = e.servicos[s.id];
+          if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
+          const p = partes(e, f, s);
+          const op = x.pertinencia === 'O';
+          return `<td class="centro"><select class="cel cel--fator${op ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}"
+              title="${escHtml(`${e.sigla} em ${s.sigla}${op ? ' (etapa opcional)' : ''}: peso dentro da fase`)}">
+              <option value="1" ${fator(x) === 1 ? 'selected' : ''}>1</option><option value="2" ${fator(x) === 2 ? 'selected' : ''}>2</option></select>
+            <span class="hon-partes${op ? ' is-opcional' : ''}" title="${op ? 'Etapa opcional: quanto levaria se marcada' : 'Com as etapas pertinentes da fase'}">
+              <span><b>${pct(p.naFase)}</b> da fase</span><span><b>${pct(p.noProjeto)}</b> do projeto</span></span></td>`;
+        }).join('')}</tr>`).join('')}
+    </tbody>`;
   }
-  html += `<tr class="somas"><td colspan="2" class="small">Soma das fases (deve dar 100%)</td>
-    ${S.map((s) => { const n = somaDe(s); return `<td class="centro ${igual(n, 100) ? '' : 'ruim'}">${fmtNum(n)}%</td>`; }).join('')}</tr>
-    <tr class="somas"><td colspan="2" class="small">Acréscimo (além dos 100%)</td>
-    ${S.map((s) => { const n = acrescimoDe(s); return `<td class="centro">${n ? '+' + fmtNum(n) + '%' : '—'}</td>`; }).join('')}</tr>`;
   const semRepartir = comPreco().filter((s) => !s.preco_por_etapa);
   const el = document.getElementById('pesos');
   el.innerHTML = `<table class="tabela matriz hon-matriz"><thead>
-      <tr><th rowspan="2">Sigla</th><th rowspan="2">Fase / etapa</th><th colspan="${S.length}" class="grupo-srv">Serviços</th></tr>
+      <tr><th rowspan="2">Fase / etapa</th><th colspan="${S.length}" class="grupo-srv">Peso por serviço</th></tr>
       <tr>${S.map((s) => `<th class="srv" title="${escHtml(s.nome)}">${escHtml(s.sigla)}</th>`).join('')}</tr></thead>
-    <tbody>${html}</tbody></table>
-    <p class="field__hint"><strong>Fase</strong>: % do honorário do projeto; as fases do fluxo somam 100%, e a marcada como acréscimo (Obra) soma por fora.
-      <strong>Etapa</strong>: fator 1 ou 2 dentro da fase; a etapa leva fator ÷ soma dos fatores das etapas contratadas da fase, e o valor da etapa
-      não contratada se redistribui entre as que ficaram. Embaixo de cada fator: % na fase · % no projeto, com as etapas pertinentes; na opcional
-      (tracejada), quanto levaria se marcada. Só aparece campo onde a etapa vale para o serviço (Plano Geral de Trabalho).
-      ${semRepartir.length ? `Sem repartição por etapa (preço único): ${escHtml(semRepartir.map((s) => s.sigla).join(', '))}.` : ''}</p>`;
+    ${html}
+    <tfoot class="hon-total">
+      <tr><td><strong>Soma das fases</strong><span>deve dar 100%</span></td>
+        ${S.map((s) => { const n = somaDe(s); return `<td class="centro"><span class="hon-total__n ${igual(n, 100) ? 'ok' : 'ruim'}">${fmtNum(n)}%</span>${acrescimoDe(s) ? `<span class="hon-total__acr">+${fmtNum(acrescimoDe(s))}% acréscimo</span>` : ''}</td>`; }).join('')}</tr>
+    </tfoot></table>
+    <div class="hon-notas">
+      <section><h3>Como ler a tabela</h3><ul>
+        <li><span class="hon-ex hon-ex--pct">40<i>%</i></span>Na linha da fase: quanto a fase vale no honorário do projeto, por serviço.</li>
+        <li><span class="hon-ex">1 · 2</span>Na linha da etapa: o peso dela dentro da fase.</li>
+        <li><span class="hon-ex hon-ex--txt"><b>25%</b> da fase<br><b>10%</b> do projeto</span>Quanto a etapa leva, contando as etapas pertinentes da fase.</li>
+        <li><span class="hon-ex hon-ex--op">1</span>Tracejada, com as % em itálico: etapa opcional; mostra quanto levaria se marcada.</li>
+        <li><span class="hon-ex">–</span>A etapa não vale para o serviço (marcado no Plano Geral de Trabalho).</li>
+      </ul></section>
+      <section><h3>Como o preço é calculado</h3><ul>
+        <li>As fases do fluxo somam 100%. A fase marcada como acréscimo (Obra) soma por fora, além dos 100%.</li>
+        <li>Dentro da fase, a etapa leva o seu peso ÷ a soma dos pesos das etapas contratadas. Etapa não contratada: o valor da fase se redistribui entre as que ficam.</li>
+        <li>Fase sem nenhuma etapa contratada fica de fora. Se ela vem antes de uma fase contratada (ex.: só a Legal), entra o acréscimo de "Fase anterior não contratada", lá em cima.</li>
+        ${semRepartir.length ? `<li>Preço único, sem repartição por etapa: ${escHtml(semRepartir.map((s) => s.sigla).join(', '))}.</li>` : ''}
+      </ul></section>
+    </div>`;
+  el.querySelectorAll('[data-abrir]').forEach((b) => b.onclick = () => {
+    const id = b.dataset.abrir;
+    if (abertas.has(id)) abertas.delete(id); else abertas.add(id);
+    lembrarAbertas();
+    const g = el.querySelector(`[data-grupo="${id}"]`);
+    g.classList.toggle('is-aberta', abertas.has(id));
+    b.setAttribute('aria-expanded', abertas.has(id));
+  });
   el.querySelectorAll('.cel--fase').forEach((c) => c.onchange = async () => {
     const f = H.fases.find((x) => x.id === c.dataset.fase);
     const v = lerNum(c.value);
