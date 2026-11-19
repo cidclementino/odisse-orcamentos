@@ -15,7 +15,7 @@
 
 <div id="app" class="app app--no-sidebar" hidden>
   <header class="topo" data-pagina="calculo"></header>
-  <script src="topo.js?v=6f1d796085"></script>
+  <script src="topo.js?v=a8a6593a1a"></script>
 
   <main class="stage">
     <div class="stage__col" style="max-width: 760px">
@@ -28,21 +28,14 @@
         <div class="data-row"><span class="data-row__label">1. Base de Honorários (BH)</span><span class="data-row__value">CUB vigente × Fator de Adequação</span></div>
         <div class="data-row"><span class="data-row__label">2. Custo Estimado da Obra (CEO)</span><span class="data-row__value">BH × Área Edificada Prevista</span></div>
         <div class="data-row"><span class="data-row__label">3. Fator Percentual (fp)</span><span class="data-row__value">Tabela por faixa de área × categoria</span></div>
-        <div class="data-row"><span class="data-row__label">4. Índice de Complexidade (IC)</span><span class="data-row__value">Média de 11 critérios</span></div>
+        <div class="data-row"><span class="data-row__label">4. Índice de Complexidade (IC)</span><span class="data-row__value">Média de 11 critérios (editável no projetos.odisse)</span></div>
         <div class="data-row"><span class="data-row__label">5. Valor de tabela (CAU)</span><span class="data-row__value">CEO × fp × IC</span></div>
         <div class="data-row"><span class="data-row__label">6. Ajustes de repetição/projeção</span><span class="data-row__value">× Redutor de Repetição × R</span></div>
-        <div class="data-row"><span class="data-row__label">7. Modificador do serviço</span><span class="data-row__value">× Modificador (ver tabela abaixo)</span></div>
+        <div class="data-row"><span class="data-row__label">7. Modificador do serviço</span><span class="data-row__value">× Modificador (editável na página de cada serviço)</span></div>
         <div class="data-row"><span class="data-row__label">8. Ajuste de mercado</span><span class="data-row__value">÷ Fator de Ajuste (1 / 1,25 / 2,25 / outro)</span></div>
-        <div class="data-row"><span class="data-row__label">9. Honorário Final</span><span class="data-row__value"><strong>× % do serviço (ver tabela de pesos abaixo)</strong></span></div>
+        <div class="data-row"><span class="data-row__label">9. Honorário Final</span><span class="data-row__value"><strong>× % do serviço (ver <a href="honorarios.html">Honorários › Fases e etapas</a>)</strong></span></div>
       </div>
       <p class="field__hint" style="margin-bottom: 28px">Área do imóvel/terreno, teto orçamentário e prazo esperado do cliente não entram nessa conta — servem só para os alertas comparativos na barra lateral.</p>
-
-      <h2 class="step__title" style="font-size:1.3rem; margin-top:8px">Modificador por Serviço Odisse</h2>
-      <p class="step__desc">Cada serviço já carrega seu próprio modificador — não depende mais de escolher um "tipo de intervenção" à parte. Só "Projeto de Interiores e Ambientação" deixa escolher entre duas opções.</p>
-      <div class="card">
-        <div class="card__title">Modificadores</div>
-        <div id="tabela-modificadores"></div>
-      </div>
 
       <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">As 4 camadas até o valor base</h2>
       <p class="step__desc">O honorário de um serviço passa por 4 classificações diferentes, cada uma vinda de uma fonte própria, antes de chegar num valor base:</p>
@@ -71,72 +64,6 @@
         <div class="data-row"><span class="data-row__label">GI</span><span class="data-row__value">Galpão Industrial</span></div>
       </div>
 
-      <h3 class="step__title" style="font-size:1.05rem; margin-top:20px">Como a Tipologia se filtra pelo Serviço</h3>
-      <p class="step__desc">Ao escolher o Serviço Odisse, o formulário mostra só as Macro Categorias relevantes — e dentro dela, só as Tipologias daquele grupo. Os 4 serviços de Nova Edificação restringem a lista (faz sentido, cada um é um tipo de edificação específico); os outros 5 deixam as 12 macro categorias e 49 tipologias completas abertas, porque podem se aplicar a qualquer tipo de imóvel:</p>
-      <div class="card" id="tabela-macro-categorias"></div>
-
-      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Percentual do serviço, por etapa</h2>
-      <p class="step__desc">Vale para os 5 serviços com estrutura Conceitual/Legal/Executivo (Nova Edificação em suas 4 variações, e Reforma). Os outros 4 (Interiores, Consultoria Remota, Estudo de Viabilidade, Laudos) ainda usam o percentual fixo por escopo de contratação, até ganharem sua própria estrutura.</p>
-      <p class="step__desc">Cada etapa vale um peso fixo dentro dos 100% do serviço completo. Todas vêm marcadas por padrão — desmarcar uma etapa a exclui do orçamento.</p>
-      <div class="card">
-        <div class="card__title">Peso de cada etapa</div>
-        <div class="data-row"><span class="data-row__label">Programação Projetual</span><span class="data-row__value">12% <span class="muted">(Projeto Conceitual: 40%)</span></span></div>
-        <div class="data-row"><span class="data-row__label">Concepção Esquemática</span><span class="data-row__value">12%</span></div>
-        <div class="data-row"><span class="data-row__label">Concepção Básica</span><span class="data-row__value">16%</span></div>
-        <div class="data-row"><span class="data-row__label">Projeto Básico/Legal</span><span class="data-row__value">20% <span class="muted">(Projeto Legal: 20%)</span></span></div>
-        <div class="data-row"><span class="data-row__label">Pré-Executivo</span><span class="data-row__value">8% <span class="muted">(Projeto Executivo: 40%)</span></span></div>
-        <div class="data-row"><span class="data-row__label">Projeto Executivo de Arquitetura</span><span class="data-row__value">16%</span></div>
-        <div class="data-row"><span class="data-row__label">Detalhamento Executivo Complementar</span><span class="data-row__value">16%</span></div>
-        <div class="data-row"><span class="data-row__label"><strong>Total (Projeto Completo)</strong></span><span class="data-row__value"><strong>100%</strong></span></div>
-      </div>
-
-      <div class="card">
-        <div class="card__title">A fórmula: Base + Incremento</div>
-        <p class="field__hint" style="margin-bottom:10px">
-<strong>Base</strong> = soma do peso de cada etapa marcada.
-        </p>
-        <p class="field__hint" style="margin-bottom:10px">
-<strong>Lacuna</strong> = soma do peso de cada etapa <em>não marcada</em> que vem antes de alguma etapa marcada (cada uma conta só uma vez, mesmo que fique "atrás" de várias etapas contratadas).
-        </p>
-        <p class="field__hint" style="margin-bottom:10px">
-<strong>Incremento</strong> = 50% da Lacuna — contratar uma etapa pulando as anteriores custa mais, porque exige reconstruir o contexto que elas teriam resolvido.
-        </p>
-        <p class="field__hint"><strong>Percentual final = Base + Incremento</strong> (nunca ultrapassa 100%, mesmo pulando etapas do meio).</p>
-      </div>
-
-      <div class="card">
-        <div class="card__title">Exemplos</div>
-        <div class="data-row"><span class="data-row__label">Só Projeto Básico/Legal</span><span class="data-row__value">20% (base) + 20% (metade do Conceitual, que ficou de fora) = <strong>40%</strong></span></div>
-        <div class="data-row"><span class="data-row__label">Legal + Executivo, sem Conceitual</span><span class="data-row__value">60% (base) + 20% = <strong>80%</strong></span></div>
-        <div class="data-row"><span class="data-row__label">Conceitual + Executivo, pulando o Legal</span><span class="data-row__value">80% (base) + 10% (metade dos 20% do Legal) = <strong>90%</strong></span></div>
-        <div class="data-row"><span class="data-row__label">Projeto Completo</span><span class="data-row__value">100% (sem lacunas) = <strong>100%</strong></span></div>
-      </div>
-
-      <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Índice de Complexidade</h2>
-      <p class="step__desc">Média aritmética de 11 critérios, cada um avaliado como Baixo (0,7) / Médio (1,0) / Alto (1,3). Dois deles não são mais preenchidos manualmente — são calculados a partir das etapas marcadas, na página "Etapas".</p>
-      <div class="card">
-        <div class="card__title">Onde cada critério é preenchido</div>
-        <div class="data-row"><span class="data-row__label">Empenho ao Projeto vs Porte</span><span class="data-row__value">Calculado (Etapas)</span></div>
-        <div class="data-row"><span class="data-row__label">Quantidade de especialistas</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Quantidade de aprovações</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Grau de detalhamento</span><span class="data-row__value">Calculado (Etapas)</span></div>
-        <div class="data-row"><span class="data-row__label">Grau de responsabilidade civil</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Grau de intervenção do cliente</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Expectativa plástica</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Grau de controle de custo</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Indefinição do escopo</span><span class="data-row__value">Manual (Classificação do Serviço)</span></div>
-        <div class="data-row"><span class="data-row__label">Indefinição do prazo</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-        <div class="data-row"><span class="data-row__label">Demanda de material para mídias</span><span class="data-row__value">Manual (Índice de Complexidade)</span></div>
-      </div>
-
-      <div class="card">
-        <div class="card__title">Como os dois indicadores calculados funcionam</div>
-        <p class="field__hint" style="margin-bottom:10px"><strong>Grau de Detalhamento</strong> — Alto se "Detalhamento Executivo Complementar" estiver marcado; Médio se alguma etapa de Projeto Executivo estiver marcada (sem o Detalhamento); Baixo se nenhuma etapa executiva for contratada.</p>
-        <p class="field__hint">
-<strong>Empenho ao Projeto vs Porte</strong> — soma quantos entregáveis estão marcados no total (etapas + Assessoramento): até 3 = Baixo, de 4 a 6 = Médio, 7 ou mais = Alto.
-        </p>
-      </div>
-
       <h2 class="step__title" style="font-size:1.3rem; margin-top:28px">Escopo do serviço</h2>
       <p class="step__desc">Não existe mais uma página separada de escopo. Cada etapa (na página "Etapas") tem seus próprios entregáveis — ao marcar a etapa, você refina quais desses entregáveis realmente fazem parte da proposta. O "Escopo" da proposta comercial é outra coisa: um resumo geral do arco do serviço, derivado de quais Fases/Etapas/Assessoramento foram contratados — ver o glossário para as definições de cada Fase e Etapa.</p>
       <p class="step__desc">Existe também um bloco à parte, <strong>Assessoramento</strong> — acompanhamento de obra e suporte técnico ao cliente/fornecedores — que não faz parte do cronograma nem soma semanas de prazo, e não entra no peso das etapas.</p>
@@ -149,43 +76,6 @@
 <script src="config.js?v=07793b6f66"></script>
 <script src="auth.js?v=71994a29a1"></script>
 <script>exigirAutenticacao();</script>
-<script src="data-loader.js?v=b1b3a59ba0"></script>
-<script>
-  async function iniciar() {
-    document.getElementById('app').hidden = false;
-
-    const data = await OdisseData.load();
-    const box = document.getElementById('tabela-modificadores');
-    box.innerHTML = data.servicosOdisse.map(s => `
-      <div class="data-row">
-        <span class="data-row__label">${s.nome}</span>
-        <span class="data-row__value">${(s.modificadores || []).map(m => `${m.nome} (${m.valor.toFixed(2)})`).join(' ou ') || '—'}</span>
-      </div>
-    `).join('');
-
-    const rotulosMacro = {
-      HabitacionalUnifamiliar: 'Habitacional Unifamiliar',
-      HabitacionalMultifamiliar: 'Habitacional Multifamiliar',
-      Hospedagem: 'Hospedagem',
-      HabitaçõesEspeciais: 'Habitações Especiais',
-      Comércio: 'Comércio',
-      Serviços: 'Serviços',
-      Educação: 'Educação',
-      Saúde: 'Saúde',
-      Esportes: 'Esportes',
-      Lazer: 'Lazer',
-      Cultura: 'Cultura',
-      Diversos: 'Diversos'
-    };
-    const boxMacro = document.getElementById('tabela-macro-categorias');
-    boxMacro.innerHTML = data.servicosOdisse.map(s => `
-      <div class="data-row">
-        <span class="data-row__label">${s.nome}</span>
-        <span class="data-row__value">${s.macro_categorias.length ? s.macro_categorias.map(m => rotulosMacro[m] || m).join(', ') : 'Todas as 12 macro categorias'}</span>
-      </div>
-    `).join('');
-  }
-  iniciar();
-</script>
+<script>document.getElementById('app').hidden = false;</script>
 </body>
 </html>

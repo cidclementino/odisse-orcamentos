@@ -25,7 +25,7 @@
   const REFERENCIAS = [
     { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, pesos das etapas, parcelas e base de honorários' },
     { id: 'cub', nome: 'Tabela do CUB', href: 'cub.html', dica: 'Valores do mês usados como base de honorários' },
-    { id: 'calculo', nome: 'Como funciona o cálculo', href: 'precificacao.html', dica: 'Fórmula, modificadores e tipologias' },
+    { id: 'calculo', nome: 'Como funciona o cálculo', href: 'precificacao.html', dica: 'Fórmula passo a passo, camadas até o valor base e códigos do CUB' },
     { id: 'glossario', nome: 'Glossário', href: 'glossario.html', dica: 'Fases, etapas e entregáveis' }
   ];
   // páginas fora do menu que pertencem a uma seção
