@@ -329,6 +329,19 @@ e, dentro dela, a Tipologia — em vez de uma lista longa com `<optgroup>`.
 Reduz a lista visível em cada passo e deixa mais claro que são duas
 classificações diferentes.
 
+## 6. Fórmula única e área de cálculo (nov/2026)
+
+**Decisão (Cid, 18/11):** a página "Como funciona o cálculo" virou a aba
+Honorários › Fórmula, só com a conta e a legenda das siglas:
+
+    H = { [ (CUB × FA) × (A × R × Rr) ] × fp × IC } × M × P ÷ Fm
+
+O ajuste de área (R e o redutor por repetição) passou para dentro do CEO,
+junto da área: **área de cálculo = A × R × Rr** e **CEO = BH × área de
+cálculo**. O honorário final não muda (é tudo multiplicação); mudam só o CEO e
+o valor de tabela mostrados na memória de cálculo, que agora batem com a
+fórmula. A faixa do fp continua escolhida pela área construída (A).
+
 ## Pendências para revisão futura
 
 1. Recalibrar os cortes de "Empenho ao Projeto vs Porte" (3 / 4-6 / 7+)
