@@ -510,13 +510,13 @@ STEPS.push({
     return `
       <div class="field-group">
         <h3 class="bloco__titulo">Critérios do índice</h3>
-        ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
+        <div class="ic-grade">${MANUAL_COMPLEXIDADE_KEYS.map(key => {
           const crit = data.icCriterios[IC_KEYS_ALL.indexOf(key)];
           const atual = labelIc(state.icValores[key] != null ? state.icValores[key] : 1);
           return `<div class="field"><label class="field__label">${crit.criterio}</label>
             ${segmented('ic-' + key, [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], atual)}
             <p class="field__hint" id="ic-hint-${key}">${crit[atual]}</p></div>`;
-        }).join('')}
+        }).join('')}</div>
         <p class="field__hint">Indefinição do escopo fica em Projeto; empenho e detalhamento são calculados do Escopo.
           <button type="button" class="btn-link" id="btn-ic-padrao">Voltar ao padrão das Bases</button></p>
       </div>
@@ -540,26 +540,46 @@ STEPS.push({
 STEPS.push({
   id: 'cronograma',
   title: 'Cronograma',
-  desc: 'O prazo de cada etapa vem da sequência das entregas marcadas no PGT, multiplicado pela faixa de área. Digite outro valor para ajustar; deixe em branco para voltar ao do PGT.',
+  desc: 'O prazo de cada etapa vem da sequência das entregas marcadas no PGT, multiplicado pela faixa de área das Bases. Para usar outros prazos, ligue Personalizar prazos; etapa sem prazo no PGT pede as semanas.',
   render(state) {
     const etapas = etapasContratadas(state);
-    const f = Catalogo.faixa(state.areaConstruida);
+    const area = state.areaConstruida;
+    const f = Catalogo.faixa(area);
+    const faixas = (Catalogo.atual() && Catalogo.atual().faixas) || [];
+    const num = (n) => String(n).replace('.', ',');
+    const pers = !!state.prazosPersonalizados;
+    let antes = 0;
+    const etqFaixas = faixas.map((x, i) => {
+      const rot = x.ate == null ? `acima de ${num(antes)} m²` : `${i ? num(antes) + ' a ' : 'até '}${num(x.ate)} m²`;
+      antes = x.ate;
+      return `<span class="etq ${f.indice === i + 1 ? 'etq--faixa' : ''}" title="Faixa ${i + 1} das Bases">${rot} · ×${num(x.mult || 1)}</span>`;
+    }).join('');
     return `
       <div class="field-group">
         <h3 class="bloco__titulo">Início</h3>
         <div class="field"><label class="field__label">Data de início do serviço</label>
           <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}" min="2020-01-01" max="2035-12-31"></div>
-        <p class="field__hint">${state.areaConstruida > 0 ? `Área de ${state.areaConstruida} m²: faixa ${f.indice} das Bases, prazo das entregas × ${String(f.mult).replace('.', ',')} (entregas de prazo fixo e eventos não mudam).` : 'Sem área informada, os prazos do PGT valem sem multiplicador.'}</p>
       </div>
       <div class="field-group" id="cronograma-preview">
         <h3 class="bloco__titulo">Prazo por etapa</h3>
+        <div class="cr-faixa">
+          <p class="field__label" style="margin:0 0 6px">Ajuste automático pela área (Bases)</p>
+          ${faixas.length ? `<div class="cr-faixas">${etqFaixas}</div>
+          <p class="field__hint">${area > 0 ? `Área edificada de ${num(area)} m²: faixa ${f.indice}, prazo das entregas × ${num(f.mult)}. Entregas de prazo fixo e eventos não mudam.` : 'Informe a área edificada em Projeto para aplicar a faixa; sem área, vale o prazo do PGT sem multiplicador.'}</p>`
+          : '<p class="field__hint">As Bases ainda não têm faixas de prazo por área: vale o prazo do PGT.</p>'}
+        </div>
+        <label class="check-row cr-chave"><input type="checkbox" id="f-prazos-pers" ${pers ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span>
+          <span class="check-row__text small"><strong>Personalizar prazos</strong>: digitar as semanas de cada etapa no lugar das do PGT.</span></label>
         ${etapas.length ? `<div class="timeline">${etapas.map(e => {
           const calc = prazoCalculado(state, e.id);
-          const manual = state.semanasManual[e.id] != null && state.semanasManual[e.id] !== '';
+          const editavel = pers || !calc.semanas;
+          const valor = state.semanasManual[e.id] != null && state.semanasManual[e.id] !== '' ? state.semanasManual[e.id] : '';
           return `<div class="timeline__row">
             <div><div class="timeline__name"><b class="sigla">${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</div>
-              <span class="timeline__fase">${escHtml(Catalogo.nomeFase(e.fase))} · PGT: ${calc.semanas ? fmtSemanas(calc.semanas, true) : 'sem prazo'}${calc.semPrazo ? ` (${calc.semPrazo} entrega${calc.semPrazo === 1 ? '' : 's'} sem duração)` : ''}${manual ? ' · <button type="button" class="btn-link" data-limpar="' + e.id + '">usar o do PGT</button>' : ''}</span></div>
-            <div class="timeline__weeks"><input type="number" min="0" step="0.5" data-semanas="${e.id}" value="${manual ? state.semanasManual[e.id] : ''}" placeholder="${calc.semanas || ''}"> <span class="small muted">sem.</span></div>
+              <span class="timeline__fase">${escHtml(Catalogo.nomeFase(e.fase))} · PGT: ${calc.semanas ? fmtSemanas(calc.semanas, true) : 'sem prazo'}${calc.semPrazo ? ` (${calc.semPrazo} entrega${calc.semPrazo === 1 ? '' : 's'} sem duração)` : ''}</span></div>
+            <div class="timeline__weeks">${editavel
+              ? `${calc.semanas ? '' : '<span class="etq etq--atencao" title="O PGT ainda não tem duração para estas entregas">informe</span> '}<input type="number" min="0" step="0.5" data-semanas="${e.id}" value="${valor}" placeholder="${calc.semanas || ''}" aria-label="Semanas de ${escHtml(e.nome)}"> <span class="small muted">sem.</span>`
+              : `<span class="cr-pgt">${fmtSemanas(calc.semanas, true)}</span>`}</div>
             <div class="timeline__dates" data-datas="${e.id}"></div>
           </div>`;
         }).join('')}</div>` : '<p class="muted">Marque as etapas em Escopo para montar o cronograma.</p>'}
@@ -589,7 +609,8 @@ STEPS.push({
         datas(); ctx.updateTicket();
       };
     });
-    el.querySelectorAll('[data-limpar]').forEach(b => { b.onclick = () => { delete state.semanasManual[b.dataset.limpar]; ctx.rerender(); }; });
+    const pers = el.querySelector('#f-prazos-pers');
+    if (pers) pers.onchange = () => { state.prazosPersonalizados = pers.checked; ctx.rerender(); };
     datas();
   },
   validate(state) {
@@ -768,7 +789,7 @@ STEPS.push({
 STEPS.push({
   id: 'revisao',
   title: 'Revisão e PDF',
-  desc: 'Confira o cálculo e o que falta. Finalize para numerar a proposta e liberar o PDF.',
+  desc: 'Confira o que falta, a prévia do documento e o cálculo. Emitir numera a proposta, registra no Universo com as versões do PGT, das Bases e dos Honorários, guarda o PDF como vai para o cliente e o baixa; depois disso os valores não mudam (para mudar, abra uma revisão pelo histórico ou pelo funil). Simulação recebe número da mesma sequência, fica no histórico marcada como simulação, sem cliente e fora do funil.',
   render(state) {
     const r = state._calcResult;
     const falta = pendencias(state).filter(p => p.i !== STEPS.length - 1);
@@ -788,83 +809,25 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${fmt(r.valorMercado)}</span></div>
         <div class="data-row"><span class="data-row__label">Percentual do projeto (fases contratadas)</span><span class="data-row__value tabular">${fmtPct(state.reducaoEscopoPercentual)}</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div>
-      </div>` : r ? `<div class="field-group"><h3 class="bloco__titulo">Honorário</h3><div class="data-row"><span class="data-row__label"><strong>Honorário (valor fixo)</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
-    const numero = state.numeroProposta
-      ? `<div class="numero-proposta"><span class="numero-proposta__label">${state._simulacao ? 'Nº da simulação' : 'Nº da proposta'}</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
-      : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta sai ao finalizar.'}</p>`;
-    const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…' : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
+      </div>` : r ? `<div class="field-group"><h3 class="bloco__titulo">Honorário</h3><div class="data-row"><span class="data-row__label"><strong>Valor fixo</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
     return `
-      ${falta.length ? `<div class="field-group pendencias"><h3 class="bloco__titulo">Falta para finalizar</h3>
+      ${falta.length ? `<div class="field-group pendencias"><h3 class="bloco__titulo">Falta para emitir</h3>
         ${falta.map(p => `<button type="button" class="pendencia" data-ir="${p.i}"><b>${escHtml(p.titulo)}</b> ${escHtml(p.msg)}</button>`).join('')}</div>` : ''}
+      ${state._revisaoDeCodigo ? `<p class="field__hint aviso-revisao">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao emitir, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
       <div class="field-group">
         <h3 class="bloco__titulo">Prévia do documento</h3>
-        <div class="previa-pdf" id="previa-pdf" data-vazia="1"><p class="small muted">Montando a prévia…</p></div>
-        <p class="field__hint">${state.numeroProposta ? `Como sai o PDF da proposta ${escHtml(state.numeroProposta)}.` : 'Sem número: ele só é gerado ao finalizar o orçamento.'} A rubrica entra só no PDF emitido. <a href="#" id="previa-pdf-abrir" target="_blank" rel="noopener" hidden>Abrir em outra aba</a></p>
+        <div class="previa-doc__barra">
+          <span class="field__label" style="margin:0">Folha</span>
+          <div class="seletor" id="previa-modelos" role="group" aria-label="Folha do documento"></div>
+          <span class="field__hint" style="margin:0">${state.numeroProposta ? `Proposta ${escHtml(state.numeroProposta)}.` : 'Sem número: ele só é gerado ao emitir.'} A rubrica entra só no documento emitido.</span>
+        </div>
+        <div class="previa-doc" id="previa-doc"><p class="small muted">Montando a prévia…</p></div>
       </div>
       ${memoria}
-      ${state._revisaoDeCodigo ? `<p class="field__hint aviso-revisao">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
-      <div class="field-group">
-      <h3 class="bloco__titulo">Numeração e PDF</h3>
-      ${numero}
-      <div class="row-2">
-        <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' || falta.length ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
-        <button class="btn btn--primary u-botao forte" id="btn-gerar-pdf" type="button" ${state.numeroProposta && state._pdfStatus !== 'guardando' ? '' : 'disabled'}>${state._pdfStatus === 'guardando' ? 'Guardando…' : 'Gerar PDF da proposta'}</button>
-      </div>
-      ${pdfStatus ? `<p class="field__hint" style="margin-top:10px">${pdfStatus}</p>` : ''}
-      ${state._simulacao ? '<p class="field__hint" style="margin-top:14px"><strong>Simulação:</strong> ao finalizar, recebe um número (que conta na sequência das propostas) e fica no histórico marcada como simulação, sem cliente e fora do funil.</p>' : ''}
-      <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo com as versões do PGT, das Bases e dos Honorários usadas. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores não mudam (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
-      </div>
     `;
   },
   bind(el, state, data, ctx) {
     el.querySelectorAll('[data-ir]').forEach(b => { b.onclick = () => irParaEtapa(parseInt(b.dataset.ir, 10)); });
-    const fin = el.querySelector('#btn-finalizar');
-    if (fin) fin.onclick = async () => {
-      if (pendencias(state).filter(p => p.i !== STEPS.length - 1).length) return;
-      state.numeroPropostaStatus = 'gerando';
-      state._erroFinalizar = '';
-      ctx.rerender();
-      try {
-        state.dataProposta = hojeISO();
-        recalcular(state);
-        const proposta = await Comercial.registrarProposta(state, data);
-        state._propostaId = proposta.id;
-        state.numeroProposta = proposta.codigo;
-        state.numeroPropostaStatus = 'ok';
-      } catch (e) {
-        state.numeroPropostaStatus = 'erro';
-        state._erroFinalizar = e.message;
-        console.error(e);
-      }
-      ctx.rerenderTudo();
-    };
-    const btn = el.querySelector('#btn-gerar-pdf');
-    if (btn) btn.onclick = async () => {
-      btn.disabled = true;
-      // rubricas de quem assina: lidas da Equipe só agora, ligadas à proposta no histórico
-      if (state._propostaId && !state._simulacao) state._rubricas = await Comercial.lerRubricas(state).catch(() => ({}));
-      let montado;
-      try { await OdissePdf.preparar(); montado = OdissePdf.montar(state, data); } catch (e) { alert(e.message); btn.disabled = false; return; }
-      if (state._propostaId && !state._pdfCongelado) {
-        state._pdfStatus = 'guardando';
-        ctx.rerender();
-        try {
-          await Comercial.congelarPdf(state._propostaId, montado.doc.output('blob'), montado.nomeArquivo);
-          state._pdfCongelado = true;
-          state._pdfStatus = '';
-        } catch (e) {
-          state._pdfStatus = 'erro';
-          state._erroPdf = e.message;
-          console.error(e);
-          ctx.rerender();
-          return;
-        }
-      }
-      montado.doc.save(montado.nomeArquivo);
-      delete state._rubricas;
-      if (typeof limparRascunho === 'function') limparRascunho();
-      if (typeof mostrarConfirmacao === 'function') mostrarConfirmacao();
-    };
   },
   validate() { return true; }
 });

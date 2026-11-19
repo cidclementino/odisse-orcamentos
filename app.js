@@ -60,7 +60,9 @@ function estadoInicial() {
     entregasSelecionadas: {},     // etapa → [entrega]
     clausulasSelecionadas: [],    // eventos opcionais (O) com cláusula marcados
     clausulasQtd: {},             // evento → número que entra no lugar do N
-    semanasManual: {},            // etapa → semanas digitadas (sem isso, vale o prazo do PGT)
+    semanasManual: {},            // etapa → semanas digitadas (valem com prazosPersonalizados, ou onde o PGT não tem prazo)
+    prazosPersonalizados: false,
+    modeloDocumento: 'coluna',    // folha da Marca (Coluna, Ficha…)
     icValores: { empenho_porte: 1, qtd_especialistas: 1, qtd_aprovacoes: 1, grau_detalhamento: 1, grau_resp_civil: 1, grau_intervencao_cliente: 1, expectativa_plastica: 1, grau_controle_custo: 1, indefinicao_escopo: 1, indefinicao_prazo: 1, demanda_midia: 1 },
     reducaoEscopoPercentual: 1,
     dataInicio: hojeISO(),
@@ -123,8 +125,11 @@ function prazoCalculado(state, etapaId) {
   return { semanas: Catalogo.semanasDe(p.turnos), semPrazo: p.semPrazo };
 }
 function semanasDaEtapa(state, etapaId) {
+  // padrão: o prazo do PGT (× faixa de área); o digitado vale com "Personalizar prazos" ou onde o PGT não tem prazo
   const m = state.semanasManual[etapaId];
-  return m != null && m !== '' ? Number(m) : prazoCalculado(state, etapaId).semanas;
+  const calc = prazoCalculado(state, etapaId).semanas;
+  const temManual = m != null && m !== '';
+  return temManual && (state.prazosPersonalizados || !calc) ? Number(m) : calc;
 }
 // Etapas contratadas na ordem do PGT, com fase e semanas.
 function etapasContratadas(state) {
@@ -243,7 +248,7 @@ function updateTicket() {
   document.getElementById('previa-alternar').onclick = () => { resumoAberto = !resumoAberto; updateTicket(); };
   const virar = document.getElementById('btn-virar-proposta');
   if (virar) virar.onclick = () => {
-    if (!confirm('Transformar esta simulação em proposta? Ela passa a pedir cliente e entra no funil ao finalizar.')) return;
+    if (!confirm('Transformar esta simulação em proposta? Ela passa a pedir cliente e entra no funil ao emitir.')) return;
     STATE._simulacao = false;
     const t = document.getElementById('orc-trilha-atual'); if (t) t.textContent = 'Nova proposta';
     rerenderDe(0, true);
@@ -301,6 +306,7 @@ function pendencias(state) {
 }
 
 function renderGuia() {
+  renderBarraEmitir();
   const guia = document.getElementById('orc-guia-passos');
   if (!guia) return;
   guia.innerHTML = STEPS.map((s, i) => {
@@ -379,7 +385,7 @@ function prepararBlocos(corpo, passo) {
     g.appendChild(conteudo);
     const id = 'bl-' + chave.replace(/[^\w]+/g, '-').toLowerCase();
     conteudo.id = id;
-    h.innerHTML = `<button type="button" class="bloco__botao" aria-expanded="true" aria-controls="${id}">${CHEVRON}<span>${h.textContent}</span></button>`;
+    h.innerHTML = `<button type="button" class="bloco__botao" aria-expanded="true" aria-controls="${id}"><span>${h.textContent}</span>${CHEVRON}</button>`;
     h.dataset.pronto = '1';
     const aplicar = (fechado) => { g.classList.toggle('is-fechado', fechado); h.firstChild.setAttribute('aria-expanded', String(!fechado)); conteudo.hidden = fechado; };
     aplicar(fechados.has(chave));
@@ -393,37 +399,106 @@ function prepararBlocos(corpo, passo) {
   });
 }
 
-// Prévia do documento (Revisão): o mesmo PDF da emissão, sem número enquanto não finaliza e sem rubrica.
-// Remonta só quando o conteúdo muda; o quadro fica o mesmo entre redesenhos (não pisca).
-let quadroPdf = null, urlPdf = null, assinaturaPdf = '', tPdf = null;
-// no celular o navegador não mostra PDF dentro da página: fica o link para abrir em outra aba
-function ligarAbrirPdf() { const a = document.getElementById('previa-pdf-abrir'); if (a && urlPdf) { a.href = urlPdf; a.hidden = false; } }
-function atualizarPreviaPdf() {
-  const caixa = document.getElementById('previa-pdf');
+// Prévia do documento (Revisão): as folhas da Marca (montador), no modelo escolhido. Sem número enquanto
+// não emite e com a caixa da rubrica no lugar dela. As folhas ficam entre redesenhos (não piscam).
+let folhasPrevia = null, assinaturaPrevia = '', tPrevia = null, listaModelos = null;
+function escalarPrevia() {
+  const alvo = document.getElementById('previa-doc');
+  if (alvo) alvo.style.setProperty('--k', String(Math.min(0.8, ((alvo.clientWidth || 794) - 24) / 794)));
+}
+window.addEventListener('resize', escalarPrevia);
+async function desenharModelos() {
+  const box = document.getElementById('previa-modelos');
+  if (!box) return;
+  listaModelos = listaModelos || await PropostaDoc.modelos();
+  const atual = STATE.modeloDocumento || listaModelos[0].id;
+  box.innerHTML = listaModelos.map((m) => `<button type="button" data-modelo="${escHtml(m.id)}" class="${m.id === atual ? 'is-on' : ''}" aria-pressed="${m.id === atual}" title="${escHtml(m.descricao || '')}">${escHtml(m.nome)}</button>`).join('');
+  box.querySelectorAll('[data-modelo]').forEach((b) => b.onclick = () => {
+    STATE.modeloDocumento = b.dataset.modelo; salvarRascunho(); desenharModelos(); atualizarPreviaPdf(true);
+  });
+}
+function atualizarPreviaPdf(agora) {
+  const caixa = document.getElementById('previa-doc');
   if (!caixa) return;
-  if (quadroPdf && assinaturaPdf) { caixa.replaceChildren(quadroPdf); caixa.dataset.vazia = ''; ligarAbrirPdf(); }
-  clearTimeout(tPdf);
-  tPdf = setTimeout(async () => {
-    const st = { ...STATE }; delete st._rubricas;
+  desenharModelos();
+  if (folhasPrevia && assinaturaPrevia) { caixa.replaceChildren(folhasPrevia); escalarPrevia(); }
+  clearTimeout(tPrevia);
+  tPrevia = setTimeout(async () => {
+    const st = { ...STATE }; delete st._rubricas; delete st._calcResult;
     const assinatura = JSON.stringify(st);
-    if (assinatura === assinaturaPdf && quadroPdf) return;
+    if (assinatura === assinaturaPrevia && folhasPrevia) return;
     try {
-      await OdissePdf.preparar();
       recalcular(STATE);
-      const { doc } = OdissePdf.montar({ ...STATE, _rubricas: {} }, DATA);
-      const url = URL.createObjectURL(doc.output('blob'));
-      if (!quadroPdf) { quadroPdf = document.createElement('iframe'); quadroPdf.className = 'previa-pdf__quadro'; quadroPdf.title = 'Prévia do documento'; }
-      quadroPdf.src = url + '#toolbar=0&navpanes=0&view=FitH';
-      if (urlPdf) setTimeout(((u) => () => URL.revokeObjectURL(u))(urlPdf), 2000);
-      urlPdf = url; assinaturaPdf = assinatura;
-      const alvo = document.getElementById('previa-pdf');
-      if (alvo && alvo.firstChild !== quadroPdf) { alvo.replaceChildren(quadroPdf); alvo.dataset.vazia = ''; }
-      ligarAbrirPdf();
+      const d = PropostaDoc.doc(STATE, DATA, { modelo: STATE.modeloDocumento || 'coluna', numero: STATE.numeroProposta || '', previa: true });
+      const nova = document.createElement('div');
+      nova.className = 'previa-doc__folhas';
+      // monta fora da vista (o montador mede as folhas) e troca de uma vez
+      nova.style.cssText = 'position:fixed;left:-20000px;top:0;width:794px;';
+      document.body.append(nova);
+      await PropostaDoc.montar(nova, d);
+      nova.style.cssText = '';
+      folhasPrevia = nova; assinaturaPrevia = assinatura;
+      const alvo = document.getElementById('previa-doc');
+      if (alvo) { alvo.replaceChildren(nova); escalarPrevia(); } else nova.remove();
     } catch (e) {
-      const alvo = document.getElementById('previa-pdf');
-      if (alvo && !quadroPdf) alvo.innerHTML = `<p class="small muted">Ainda não dá para montar a prévia (${escHtml(e.message)}).</p>`;
+      const alvo = document.getElementById('previa-doc');
+      if (alvo && !folhasPrevia) alvo.innerHTML = `<p class="small muted">Ainda não dá para montar a prévia (${escHtml(e.message)}).</p>`;
     }
-  }, 900);
+  }, agora ? 0 : 700);
+}
+
+// Barra de emitir (presa ao pé do formulário, como a barra de salvar): salvar o rascunho e voltar,
+// ou emitir — numera, monta o PDF na folha da Marca, guarda no Universo, baixa e volta para Propostas.
+let emitindo = false, erroEmitir = '';
+function renderBarraEmitir() {
+  const bar = document.getElementById('orc-emitir');
+  if (!bar || !STATE) return;
+  const falta = pendencias(STATE).filter((p) => p.i !== STEPS.length - 1);
+  const rotulo = STATE.numeroProposta ? `Gerar o PDF de ${STATE.numeroProposta}` : STATE._simulacao ? 'Emitir simulação' : 'Emitir proposta comercial';
+  bar.innerHTML = `<span class="orc-emitir__estado">${erroEmitir ? `<span class="orc-emitir__erro">${escHtml(erroEmitir)}</span>`
+      : falta.length ? `<button type="button" class="orc-emitir__falta" id="emitir-falta">Falta ${falta.length} ${falta.length === 1 ? 'item' : 'itens'} para emitir</button>`
+      : 'Tudo preenchido.'} <span class="orc-emitir__salvo">Rascunho guardado neste computador.</span></span>
+    <button type="button" class="orc-emitir__btn" id="emitir-rascunho">Salvar rascunho</button>
+    <button type="button" class="orc-emitir__btn orc-emitir__btn--forte" id="emitir-ok" ${falta.length || emitindo ? 'disabled' : ''}>${emitindo ? 'Emitindo…' : rotulo}</button>`;
+  const f = document.getElementById('emitir-falta');
+  if (f) f.onclick = () => irParaEtapa(STEPS.length - 1);
+  document.getElementById('emitir-rascunho').onclick = () => { salvarRascunho(); location.hash = '#/'; };
+  document.getElementById('emitir-ok').onclick = emitir;
+}
+async function emitir() {
+  if (emitindo || pendencias(STATE).filter((p) => p.i !== STEPS.length - 1).length) return;
+  emitindo = true; erroEmitir = ''; renderBarraEmitir();
+  try {
+    if (!STATE.numeroProposta) {
+      STATE.dataProposta = hojeISO();
+      recalcular(STATE);
+      const proposta = await Comercial.registrarProposta(STATE, DATA);
+      STATE._propostaId = proposta.id;
+      STATE.numeroProposta = proposta.codigo;
+      STATE.numeroPropostaStatus = 'ok';
+      salvarRascunho();
+    }
+    const rubricas = STATE._propostaId && !STATE._simulacao ? await Comercial.lerRubricas(STATE).catch(() => ({})) : {};
+    const d = PropostaDoc.doc(STATE, DATA, { modelo: STATE.modeloDocumento || 'coluna', numero: STATE.numeroProposta, rubricas });
+    const blob = await PropostaDoc.pdf(d);
+    const nome = PropostaDoc.nomeArquivo(STATE, STATE.numeroProposta);
+    if (STATE._propostaId && !STATE._pdfCongelado) {
+      await Comercial.congelarPdf(STATE._propostaId, blob, nome);
+      STATE._pdfCongelado = true;
+    }
+    baixarBlob(blob, nome);
+    const codigo = STATE.numeroProposta;
+    emitindo = false;
+    limparRascunho();
+    try { sessionStorage.setItem('vendas:emitida', codigo); } catch (_) { /* segue */ }
+    location.hash = '#/';
+  } catch (e) {
+    console.error(e);
+    erroEmitir = `Não consegui emitir: ${e.message}. Tente de novo.`;
+    emitindo = false;
+    salvarRascunho();
+    renderBarraEmitir();
+  }
 }
 
 function rerenderDe(i, todos) {
@@ -702,7 +777,11 @@ const Lista = (() => {
     } catch (_) { /* sem aviso */ }
   }
 
-  function abrir() { ligar(); quadros(); carregar(); }
+  function abrir() {
+    ligar(); quadros(); carregar();
+    let emitida = null; try { emitida = sessionStorage.getItem('vendas:emitida'); sessionStorage.removeItem('vendas:emitida'); } catch (_) { /* segue */ }
+    if (emitida) document.getElementById('pp-aviso').innerHTML = `<div class="aviso aviso--ok">${escHtml(emitida)} emitida: o PDF foi guardado no Universo e baixado. Para baixar de novo, use PDF no histórico.</div>`;
+  }
   return { abrir, quadros };
 })();
 
