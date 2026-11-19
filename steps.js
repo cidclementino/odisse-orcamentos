@@ -63,17 +63,22 @@ function dataValidaOuVazia(valor) {
 const IC_KEYS_ALL = ['empenho_porte', 'qtd_especialistas', 'qtd_aprovacoes', 'grau_detalhamento', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica', 'grau_controle_custo', 'indefinicao_escopo', 'indefinicao_prazo', 'demanda_midia'];
 const MANUAL_COMPLEXIDADE_KEYS = ['qtd_especialistas', 'qtd_aprovacoes', 'grau_resp_civil', 'grau_intervencao_cliente', 'expectativa_plastica', 'grau_controle_custo', 'indefinicao_prazo', 'demanda_midia'];
 
+// Faixas de repetição iguais às da tabela do CAU (data/redutor-repeticao.json): o valor guardado é o início
+// da faixa, e o redutor é o da linha "a partir de" correspondente (0 → 1,00 · 1 → 0,98 · 2 a 3 → 0,94 · …).
+// Antes (até nov/2026) as faixas eram "1 a 2", "3 a 4"… e aplicavam o redutor do topo da faixa a ela toda.
 const REPETICOES_FAIXAS = [
-  { label: '0 (nenhuma)', value: 0 },
-  { label: '1 a 2', value: 2 },
-  { label: '3 a 4', value: 4 },
-  { label: '5 a 8', value: 8 },
-  { label: '9 a 16', value: 16 },
-  { label: '17 a 32', value: 32 },
-  { label: '33 a 64', value: 64 },
-  { label: '65 a 128', value: 128 },
-  { label: 'Acima de 128', value: 129 }
+  { label: 'Nenhuma', value: 0 },
+  { label: '1', value: 1 },
+  { label: '2 a 3', value: 2 },
+  { label: '4 a 7', value: 4 },
+  { label: '8 a 15', value: 8 },
+  { label: '16 a 31', value: 16 },
+  { label: '32 a 63', value: 32 },
+  { label: '64 a 127', value: 64 },
+  { label: '128 ou mais', value: 128 }
 ];
+// rascunhos antigos guardam o topo da faixa antiga (2, 4, … 129): mostra a faixa nova que dá o mesmo redutor
+const faixaRepeticao = (n) => REPETICOES_FAIXAS.filter((f) => f.value <= (n || 0)).pop().value;
 
 
 const PRAZO_CLIENTE_OPCOES = [
@@ -254,7 +259,7 @@ STEPS.push({
         <div class="row-2">
           <div class="field"><label class="field__label">Área externa de intervenção (m²)</label><input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}"></div>
           <div class="field"><label class="field__label">Contagem de repetições</label>
-            <select id="f-repeticoes">${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${state.contagemRepeticoes === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}</select>
+            <select id="f-repeticoes">${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${faixaRepeticao(state.contagemRepeticoes) === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}</select>
             <p class="field__hint">Unidades ou áreas que se repetem integralmente no mesmo projeto.</p></div>
         </div>
         <div class="field">
