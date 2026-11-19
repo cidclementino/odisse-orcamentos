@@ -213,7 +213,7 @@ function ligarVinculoUniverso(el, state, ctx) {
 STEPS.push({
   id: 'projeto',
   title: 'Projeto',
-  desc: 'O que vai ser projetado: serviço, tipologia, áreas e o imóvel. Serviços, tipologias e etapas vêm do Plano Geral de Trabalho e das Bases publicados no Universo.',
+  desc: 'O que vai ser projetado: serviço, tipologia, entendimento, áreas e o imóvel. Serviços, tipologias e etapas vêm do Plano Geral de Trabalho e das Bases publicados no Universo.',
   render(state) {
     const cat = Catalogo.atual();
     const srv = Catalogo.servico(state.servicoId);
@@ -245,10 +245,11 @@ STEPS.push({
             <p class="field__hint">Item da tabela do CAU: define o CUB, o fator de adequação e a categoria do fator percentual.</p>
           </div>
         </div>
+      </div>
+      <div class="field-group">
         <div class="field">
-          <label class="field__label">Nome do projeto (opcional)</label>
-          <input type="text" id="f-nome-projeto" value="${escHtml(state.nomeProjeto || '')}" placeholder="Ex.: Residência Silva">
-          <p class="field__hint">Sai no assunto da proposta e vira o nome do projeto quando o contrato for assinado.</p>
+          <label class="field__label">Entendimento do projeto</label>
+          <textarea id="f-entendimento" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
         </div>
       </div>
       <div class="field-group">
@@ -282,10 +283,6 @@ STEPS.push({
         <div class="field"><label class="field__label">Cidade – UF</label><input type="text" id="f-cidade-uf" value="${escHtml(im.cidadeUf || '')}"></div>
       </div>
       <div class="field-group">
-        <div class="field">
-          <label class="field__label">Entendimento do projeto</label>
-          <textarea id="f-entendimento" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
-        </div>
         <div class="row-2">
           <div class="field">
             <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
@@ -314,7 +311,6 @@ STEPS.push({
       ctx.rerender();
     };
     el.querySelector('#f-uso').onchange = e => { state.usoId = e.target.value; ctx.updateTicket(); };
-    el.querySelector('#f-nome-projeto').oninput = e => { state.nomeProjeto = e.target.value; };
     el.querySelector('#f-entendimento').oninput = e => { state.entendimentoProjeto = e.target.value; ctx.updateTicket(); };
     el.querySelector('#f-area').oninput = e => { state.areaConstruida = parseFloat(e.target.value) || 0; ctx.updateTicket(); };
     el.querySelector('#f-area-ext').oninput = e => { state.areaExterna = parseFloat(e.target.value) || 0; ctx.updateTicket(); };
@@ -694,7 +690,7 @@ let moduloAssinantes = null;
 STEPS.push({
   id: 'cliente',
   title: 'Cliente e emissão',
-  desc: 'Para quem vai a proposta e quem da equipe a emite e assina.',
+  desc: 'O nome do projeto, para quem vai a proposta e quem da equipe a emite e assina.',
   render(state) {
     const c = state.cliente;
     const trava = !!(state._oportunidadeId || state.numeroProposta);
@@ -714,6 +710,14 @@ STEPS.push({
         <label class="check-row"><input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${trava ? 'disabled' : ''}><span class="check-row__box">${checkSvg()}</span>
           <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou estimar custo. Recebe número como qualquer proposta, não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span></label>
         ${trava && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
+      </div>
+      <div class="field-group">
+        <p class="card__title">Projeto</p>
+        <div class="field">
+          <label class="field__label">Nome do projeto (opcional)</label>
+          <input type="text" id="f-nome-projeto" value="${escHtml(state.nomeProjeto || '')}" placeholder="Ex.: Residência Silva">
+          <p class="field__hint">Sai no assunto da proposta e vira o nome do projeto quando o contrato for assinado.</p>
+        </div>
       </div>
       <div class="field-group">
         <p class="card__title">Cliente</p>
@@ -740,6 +744,7 @@ STEPS.push({
     ligarVinculoUniverso(el, state, ctx);
     const chave = el.querySelector('#f-simulacao');
     if (chave) chave.onchange = () => { state._simulacao = chave.checked; if (state._simulacao) state._clienteId = null; ctx.rerender(); };
+    el.querySelector('#f-nome-projeto').oninput = e => { state.nomeProjeto = e.target.value; };
     el.querySelector('#f-nome').oninput = e => { state.cliente.nome = e.target.value; ctx.updateTicket(); };
     el.querySelector('#f-email').oninput = e => { state.cliente.email = e.target.value; };
     el.querySelector('#f-telefone').oninput = e => { e.target.value = state.cliente.telefone = maskTelefone(e.target.value); };
@@ -842,7 +847,7 @@ STEPS.push({
         state._erroFinalizar = e.message;
         console.error(e);
       }
-      ctx.rerender();
+      ctx.rerenderTudo();
     };
     const btn = el.querySelector('#btn-gerar-pdf');
     if (btn) btn.onclick = async () => {

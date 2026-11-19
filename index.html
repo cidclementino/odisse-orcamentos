@@ -9,7 +9,7 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=9efd9b1db9">
+<link rel="stylesheet" href="styles.css?v=fa529ec22a">
 </head>
 <body>
 
@@ -24,25 +24,26 @@
     <div id="pp-aviso"></div>
     <section class="pp-criar">
       <div class="pp-cab">
-        <div><h1 class="pp-titulo">Nova proposta</h1>
-          <p class="pp-apoio">Escolha o serviço. Etapas, entregas e honorários vêm do Plano Geral de Trabalho, das Bases e dos Honorários publicados no Universo.</p></div>
+        <h1 class="pp-titulo">Nova proposta</h1>
       </div>
       <div class="pp-tiles" id="pp-tiles"></div>
     </section>
     <section class="pp-arquivo">
       <div class="pp-cab">
-        <div><h2 class="pp-titulo pp-titulo--m">Histórico</h2><p class="pp-apoio" id="pp-info"></p></div>
+        <h2 class="pp-titulo pp-titulo--m">Histórico <span class="pp-conta" id="pp-info"></span></h2>
         <div class="pp-filtros">
-          <div class="pp-chips" role="group" aria-label="Filtrar">
-            <button type="button" class="pp-chip is-on" data-filtro="todas">Todas</button>
-            <button type="button" class="pp-chip" data-filtro="propostas">Propostas</button>
-            <button type="button" class="pp-chip" data-filtro="simulacoes">Simulações</button>
+          <div class="seletor" role="group" aria-label="Filtrar">
+            <button type="button" class="is-on" data-filtro="todas" aria-pressed="true">Todas</button>
+            <button type="button" data-filtro="propostas" aria-pressed="false">Propostas</button>
+            <button type="button" data-filtro="simulacoes" aria-pressed="false">Simulações</button>
           </div>
           <input type="search" id="pp-busca" placeholder="Buscar: código, cliente, serviço" aria-label="Buscar proposta">
           <div class="pp-pag" id="pp-pag"></div>
         </div>
       </div>
+      <div class="pp-regua" aria-hidden="true"><span>Código · data</span><span>Cliente · projeto</span><span class="pp-regua__num">Valor</span><span>Situação</span><span></span></div>
       <div class="pp-itens" id="pp-itens"><div class="pp-vazio">Carregando…</div></div>
+      <p class="pp-notas">Etapas, entregas e honorários vêm do Plano Geral de Trabalho, das Bases e dos Honorários publicados no Universo.</p>
     </section>
   </main>
 
@@ -50,18 +51,15 @@
   <div class="orc-aviso" id="orc-aviso" hidden></div>
   <div class="orc">
     <nav class="orc-guia" aria-label="Passos da proposta">
-      <nav class="u-trilha orc-trilha" aria-label="Você está em"><a href="#/">Propostas</a><span class="sep">/</span><span aria-current="page" id="orc-trilha-atual">Nova proposta</span></nav>
       <div class="orc-guia__passos" id="orc-guia-passos"></div>
       <p class="orc-guia__versoes" id="orc-versoes"></p>
       <button class="btn btn--text" id="btn-reset" type="button">Recomeçar</button>
     </nav>
 
     <main class="orc-form">
+      <nav class="u-trilha orc-trilha" aria-label="Você está em"><a href="#/">Propostas</a><span class="sep">/</span><span aria-current="page" id="orc-trilha-atual">Nova proposta</span></nav>
+      <h1 class="orc-titulo" id="orc-titulo">Nova proposta</h1>
       <div id="step-container"></div>
-      <div class="orc-nav" id="orc-nav">
-        <button class="btn btn--ghost" id="btn-prev" type="button">Voltar</button>
-        <button class="btn btn--ghost" id="btn-next" type="button">Continuar</button>
-      </div>
     </main>
 
     <aside class="orc-previa" id="orc-previa" aria-label="Prévia de custos e prazos"></aside>
@@ -79,7 +77,7 @@
 <script src="calc.js?v=83d8ae0b16"></script>
 <script src="catalogo.js?v=13cee5aaa1"></script>
 <script src="pdf.js?v=54f7bd46cc"></script>
-<script src="steps.js?v=12e95705b2"></script>
-<script src="app.js?v=943902dfee"></script>
+<script src="steps.js?v=095a31e0bd"></script>
+<script src="app.js?v=31b6af5edf"></script>
 </body>
 </html>

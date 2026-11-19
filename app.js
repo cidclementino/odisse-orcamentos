@@ -280,7 +280,7 @@ function renderGuia() {
     const estado = [i === currentStepIndex ? 'is-active' : '', ok ? 'is-ok' : visto ? 'is-pendente' : ''].join(' ');
     const msg = s.validate(STATE);
     return `<button type="button" class="guia__passo ${estado}" data-step="${i}" title="${ok ? 'Completo' : msg === true ? '' : escHtml(msg)}">
-        <span class="guia__num">${ok ? '✓' : i + 1}</span><span>${s.title}</span></button>`;
+        <span class="guia__num">${ok ? checkSvg() : i + 1}</span><span>${s.title}</span></button>`;
   }).join('');
   guia.querySelectorAll('[data-step]').forEach(b => { b.onclick = () => irParaEtapa(parseInt(b.dataset.step, 10)); });
   const v = document.getElementById('orc-versoes');
@@ -294,53 +294,118 @@ function renderGuia() {
 function mostrarConfirmacao() {
   const container = document.getElementById('step-container');
   const nomeCliente = STATE.cliente.nome || (STATE._simulacao ? 'simulação' : 'cliente');
+  if (observador) observador.disconnect();
   container.innerHTML = `
-    <p class="step__eyebrow">Concluído</p>
-    <h1 class="step__title">Orçamento gerado</h1>
-    <p class="step__desc">O orçamento de <strong>${escHtml(nomeCliente)}</strong> foi gerado${STATE.numeroProposta ? `: proposta <strong>${escHtml(STATE.numeroProposta)}</strong>` : ''}.</p>
-    <div class="row-2">
-      <button class="btn btn--ghost" id="btn-baixar-de-novo" type="button">Baixar PDF novamente</button>
-      <button class="btn btn--primary u-botao forte" id="btn-novo-orcamento" type="button">Ver em Propostas</button>
-    </div>
+    <section class="orc-bloco">
+      <h2 class="orc-bloco__titulo">Orçamento gerado</h2>
+      <p class="orc-bloco__desc">O orçamento de <strong>${escHtml(nomeCliente)}</strong> foi gerado${STATE.numeroProposta ? `: proposta <strong>${escHtml(STATE.numeroProposta)}</strong>` : ''}.</p>
+      <div class="row-2">
+        <button class="btn btn--ghost" id="btn-baixar-de-novo" type="button">Baixar PDF novamente</button>
+        <button class="btn btn--primary u-botao forte" id="btn-novo-orcamento" type="button">Ver em Propostas</button>
+      </div>
+    </section>
   `;
   document.getElementById('btn-baixar-de-novo').onclick = () => OdissePdf.gerar(STATE, DATA);
   document.getElementById('btn-novo-orcamento').onclick = () => { location.hash = '#/'; };
-  document.getElementById('orc-nav').hidden = true;
+  window.scrollTo(0, 0);
 }
 
-function marcarVisto() {
-  const id = STEPS[currentStepIndex] && STEPS[currentStepIndex].id;
+function marcarVisto(i) {
+  const id = STEPS[i] && STEPS[i].id;
   if (id && !(STATE._vistos || []).includes(id)) STATE._vistos = [...(STATE._vistos || []), id];
 }
 
-function renderStep() {
-  document.getElementById('orc-nav').hidden = false;
-  const step = STEPS[currentStepIndex];
-  const container = document.getElementById('step-container');
-  container.innerHTML = `
-    <p class="step__eyebrow">Passo ${currentStepIndex + 1} de ${STEPS.length}</p>
-    <h1 class="step__title">${step.title}</h1>
-    <p class="step__desc">${step.desc}</p>
-    ${step.render(STATE, DATA)}
-  `;
-  step.bind(container, STATE, DATA, { rerender: renderStep, updateTicket });
+// Os passos ficam corridos na página, um Bloco por passo. Mexer num passo redesenha ele e os que vêm
+// depois (dependem dele); "Cliente e emissão" só se redesenha quando é ele que muda, para não recarregar
+// a equipe a cada clique. A página não pula: o passo mexido fica onde estava na tela.
+const ID_CLIENTE = 'cliente';
+let observador = null;
 
-  const prev = document.getElementById('btn-prev'), next = document.getElementById('btn-next');
-  prev.hidden = currentStepIndex === 0;
-  next.hidden = currentStepIndex === STEPS.length - 1;
-  if (!next.hidden) next.textContent = `${STEPS[currentStepIndex + 1].title} →`;
-  if (!prev.hidden) prev.textContent = `← ${STEPS[currentStepIndex - 1].title}`;
+function renderPasso(i) {
+  const step = STEPS[i];
+  const corpo = document.querySelector(`#passo-${step.id} .orc-bloco__corpo`);
+  if (!corpo) return;
+  corpo.innerHTML = step.render(STATE, DATA);
+  step.bind(corpo, STATE, DATA, { rerender: () => rerenderDe(i), rerenderTudo: () => rerenderDe(0, true), updateTicket });
+}
 
+function rerenderDe(i, todos) {
+  const ancora = document.getElementById(`passo-${STEPS[i].id}`);
+  const antes = ancora ? ancora.getBoundingClientRect().top : 0;
+  const foco = document.activeElement && document.activeElement.id;
+  for (let j = i; j < STEPS.length; j++) {
+    if (j !== i && !todos && STEPS[j].id === ID_CLIENTE) continue;
+    renderPasso(j);
+  }
+  if (ancora) window.scrollBy(0, ancora.getBoundingClientRect().top - antes);
+  if (foco) { const f = document.getElementById(foco); if (f) f.focus({ preventScroll: true }); }
   updateTicket();
   salvarRascunho();
 }
 
-function irParaEtapa(indice) {
-  marcarVisto();
-  currentStepIndex = Math.max(0, Math.min(indice, STEPS.length - 1));
+// Só a Revisão (lista do que falta) acompanha a digitação dos outros passos.
+let tRevisao = null;
+function atualizarRevisao() {
+  clearTimeout(tRevisao);
+  tRevisao = setTimeout(() => {
+    const ultimo = STEPS.length - 1;
+    const sec = document.getElementById(`passo-${STEPS[ultimo].id}`);
+    if (!sec || sec.contains(document.activeElement)) return;
+    renderPasso(ultimo);
+  }, 400);
+}
+
+function renderTudo() {
+  const container = document.getElementById('step-container');
+  container.innerHTML = STEPS.map((s, i) => `
+    <section class="orc-bloco" id="passo-${s.id}" data-passo="${i}">
+      <div class="orc-bloco__cab"><span class="orc-bloco__num">${i + 1}</span><h2 class="orc-bloco__titulo">${s.title}</h2></div>
+      <p class="orc-bloco__desc">${s.desc}</p>
+      <div class="orc-bloco__corpo"></div>
+    </section>`).join('');
+  STEPS.forEach((_, i) => renderPasso(i));
+  updateTicket();
   salvarRascunho();
-  renderStep();
-  window.scrollTo(0, 0);
+  vigiarPassos();
+}
+
+// Passo atual = o que ocupa o alto da tela; quem passou pela tela conta como visto.
+function vigiarPassos() {
+  if (observador) observador.disconnect();
+  if (!('IntersectionObserver' in window)) return;
+  const visiveis = new Set();
+  observador = new IntersectionObserver((entradas) => {
+    for (const e of entradas) {
+      const i = Number(e.target.dataset.passo);
+      if (e.isIntersecting) { visiveis.add(i); marcarVisto(i); } else visiveis.delete(i);
+    }
+    if (visiveis.size) {
+      const novo = Math.min(...visiveis);
+      if (novo !== currentStepIndex) { currentStepIndex = novo; salvarRascunho(); }
+      renderGuia();
+    }
+  }, { rootMargin: '-120px 0px -55% 0px' });
+  document.querySelectorAll('.orc-bloco[data-passo]').forEach(sec => observador.observe(sec));
+  if (!vigiaFim) {
+    vigiaFim = true;
+    // o último passo pode não chegar ao alto da tela: no fim da página, ele é o atual
+    window.addEventListener('scroll', () => {
+      if (!emEditor() || !STATE) return;
+      if (window.innerHeight + window.scrollY < document.documentElement.scrollHeight - 4) return;
+      const ultimo = STEPS.length - 1;
+      if (currentStepIndex === ultimo) return;
+      currentStepIndex = ultimo; marcarVisto(ultimo); salvarRascunho(); renderGuia();
+    }, { passive: true });
+  }
+}
+let vigiaFim = false;
+
+function irParaEtapa(indice) {
+  const i = Math.max(0, Math.min(indice, STEPS.length - 1));
+  const sec = document.getElementById(`passo-${STEPS[i].id}`);
+  if (!sec) return;
+  const reduzir = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  sec.scrollIntoView({ behavior: reduzir ? 'auto' : 'smooth', block: 'start' });
 }
 
 // ---------------------------------------------------------------- página Propostas
@@ -366,7 +431,6 @@ function abrirEditor() {
     container.innerHTML = `<p class="step__eyebrow">Proposta</p><h1 class="step__title">Não consegui ler o catálogo do Universo</h1>
       <p class="step__desc">Serviços, etapas e honorários vêm das versões publicadas em Bases, Plano Geral de Trabalho e Honorários (${escHtml(erroCatalogo ? erroCatalogo.message : 'carregando')}).
       Confira se as três já foram publicadas e recarregue a página.</p>`;
-    document.getElementById('orc-nav').hidden = true;
     return;
   }
   // o rascunho é a fonte: pode ter vindo do funil, de uma revisão ou de um quadro de serviço
@@ -383,14 +447,18 @@ function abrirEditor() {
   STATE = mesclarComPadrao(estadoInicial(), salvo);
   STATE._userName = getUserName();
   currentStepIndex = rascunho && Number.isInteger(rascunho.currentStepIndex) ? Math.max(0, Math.min(rascunho.currentStepIndex, STEPS.length - 1)) : 0;
+  const titulo = STATE._revisaoDeCodigo ? `Revisão de ${STATE._revisaoDeCodigo}` : STATE.numeroProposta || (STATE._simulacao ? 'Nova simulação' : 'Nova proposta');
   const t = document.getElementById('orc-trilha-atual');
-  if (t) t.textContent = STATE._revisaoDeCodigo ? `Revisão de ${STATE._revisaoDeCodigo}` : STATE.numeroProposta || (STATE._simulacao ? 'Nova simulação' : 'Nova proposta');
+  if (t) t.textContent = titulo;
+  const h = document.getElementById('orc-titulo');
+  if (h) h.textContent = titulo;
   if (!editorPronto) {
-    container.addEventListener('input', salvarRascunho);
-    container.addEventListener('change', salvarRascunho);
+    for (const ev of ['input', 'change']) container.addEventListener(ev, () => { salvarRascunho(); atualizarRevisao(); });
     editorPronto = true;
   }
-  renderStep();
+  const retomar = currentStepIndex;
+  renderTudo();
+  if (retomar > 0) requestAnimationFrame(() => { const sec = document.getElementById(`passo-${STEPS[retomar].id}`); if (sec) sec.scrollIntoView({ block: 'start' }); });
 }
 
 // Começa uma proposta nova (descarta o rascunho), já com o serviço escolhido no quadro.
@@ -411,6 +479,8 @@ function rascunhoEmAndamento() {
   const tem = s.servicoId || (s.cliente && s.cliente.nome) || s._oportunidadeId || s._revisaoDe;
   return tem ? { s, passo: Number.isInteger(r.currentStepIndex) ? r.currentStepIndex : 0 } : null;
 }
+
+const SETA = (d) => `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 
 const Lista = (() => {
   const POR_PAGINA = 10;
@@ -461,10 +531,10 @@ const Lista = (() => {
     const info = document.getElementById('pp-info');
     const pag = document.getElementById('pp-pag');
     const fim = Math.min(r.de + r.itens.length, r.total);
-    info.textContent = r.total ? `${r.total} ${r.total === 1 ? 'proposta' : 'propostas'}${q ? ` para “${q}”` : ''}` : '';
+    info.textContent = r.total ? String(r.total) : '';
     pag.innerHTML = r.total ? `<span class="pp-pag__faixa">${r.de + 1}–${fim} de ${r.total}</span>
-      <button type="button" class="pp-pag__seta" data-pag="-1" ${r.de === 0 ? 'disabled' : ''} title="Mais novas" aria-label="Mais novas">‹</button>
-      <button type="button" class="pp-pag__seta" data-pag="1" ${fim >= r.total ? 'disabled' : ''} title="Mais antigas" aria-label="Mais antigas">›</button>` : '';
+      <button type="button" class="pp-pag__seta" data-pag="-1" ${r.de === 0 ? 'disabled' : ''} title="Mais novas" aria-label="Mais novas">${SETA('m 9 3 -4 4 4 4')}</button>
+      <button type="button" class="pp-pag__seta" data-pag="1" ${fim >= r.total ? 'disabled' : ''} title="Mais antigas" aria-label="Mais antigas">${SETA('m 5 3 4 4 -4 4')}</button>` : '';
     pag.querySelectorAll('[data-pag]').forEach(b => { b.onclick = () => { de = Math.max(0, de + Number(b.dataset.pag) * POR_PAGINA); carregar(); }; });
     if (!r.itens.length) { box.innerHTML = `<div class="pp-vazio">${q || filtro !== 'todas' ? 'Nenhuma proposta encontrada.' : 'Nenhuma proposta ainda.'}</div>`; return; }
     box.innerHTML = r.itens.map(p => `
@@ -517,7 +587,7 @@ const Lista = (() => {
     busca.oninput = () => { clearTimeout(tBusca); tBusca = setTimeout(() => { q = busca.value.trim(); de = 0; carregar(); }, 300); };
     document.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => {
       filtro = b.dataset.filtro; de = 0;
-      document.querySelectorAll('[data-filtro]').forEach(x => x.classList.toggle('is-on', x === b));
+      document.querySelectorAll('[data-filtro]').forEach(x => { x.classList.toggle('is-on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
       carregar();
     });
     avisoMigracao();
@@ -539,8 +609,6 @@ const Lista = (() => {
 
 async function initApp() {
   document.getElementById('app').hidden = false;
-  document.getElementById('btn-next').onclick = () => irParaEtapa(currentStepIndex + 1);
-  document.getElementById('btn-prev').onclick = () => irParaEtapa(currentStepIndex - 1);
   document.getElementById('btn-reset').onclick = () => {
     if (!confirm('Recomeçar limpa todos os dados preenchidos. Confirma?')) return;
     const nome = STATE._userName;
@@ -548,7 +616,7 @@ async function initApp() {
     STATE._userName = nome;
     currentStepIndex = 0;
     limparRascunho();
-    renderStep();
+    renderTudo();
     window.scrollTo(0, 0);
   };
 
@@ -560,7 +628,7 @@ async function initApp() {
         CAT = novo;
         if (emEditor()) {
           avisoTopo(`Nova versão publicada no Universo (PGT v${novo.versoes.pgt.numero}, Bases v${novo.versoes.bases.numero}, Honorários v${novo.versoes.honorarios.numero}). O orçamento passa a usá-la.`);
-          renderStep();
+          renderTudo();
         } else Lista.quadros();
       }
     }).catch((e) => { erroCatalogo = e; return null; })

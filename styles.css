@@ -468,7 +468,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ==========================================================================
    Universo: vínculo do orçamento, busca de clientes, funil, propostas, migração
    ========================================================================== */
-.vinculo { border-left: 3px solid var(--destaque); margin-bottom: 28px; }
+.vinculo { background: var(--destaque-fundo); border-color: transparent; margin-bottom: 28px; }
 .vinculo a { color: var(--destaque-texto); font-weight: 600; }
 
 .busca-res { display: flex; flex-direction: column; margin-top: 6px; border: 1px solid var(--linha); border-radius: var(--raio-p); overflow: hidden; }
@@ -708,9 +708,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .orc-guia #btn-reset { margin: 4px 10px; padding: 0; color: var(--tinta-2); }
 .orc-guia #btn-reset:hover { color: var(--perigo); }
 
-.orc-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--linha); }
-.orc-nav[hidden] { display: none; }
-.orc-nav #btn-next { margin-left: auto; }
 
 .orc-previa { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 18px; display: flex; flex-direction: column; gap: 18px; }
 .previa__bloco { display: flex; flex-direction: column; gap: 3px; }
@@ -774,7 +771,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .pp-titulo { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 6px; }
 .pp-titulo--m { font-size: 18px; letter-spacing: -0.01em; }
 .pp-apoio { color: var(--tinta-2); font-size: 13.5px; margin: 0; max-width: 70ch; }
-.pp-criar { padding-bottom: 32px; border-bottom: 1px solid var(--linha-forte); margin-bottom: 32px; }
+.pp-criar { margin-bottom: 0; }
 .pp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
 .pp-tile { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-height: 104px;
   padding: 16px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--elevada); transition: border-color .15s, transform .15s; }
@@ -790,9 +787,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .pp-tile__acoes { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 8px; }
 .pp-filtros { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pp-filtros input[type=search] { width: 260px; }
-.pp-chips { display: flex; gap: 4px; }
-.pp-chip { font: inherit; font-size: 12.5px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--linha); background: var(--elevada); color: var(--tinta-2); cursor: pointer; }
-.pp-chip.is-on { background: var(--tinta); border-color: var(--tinta); color: var(--superficie); }
 .pp-pag { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
 .pp-pag__faixa { margin-right: 6px; white-space: nowrap; }
 .pp-pag__seta { font: inherit; font-size: 18px; line-height: 1; width: 32px; height: 32px; border-radius: 50%; border: 0; background: none; color: var(--tinta); cursor: pointer; }
@@ -960,3 +954,65 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
 .hon-notas--simples li::before { content: '–'; color: var(--tinta-3); }
 .hon-notas li > span b { color: var(--tinta); font-weight: 650; }
 .hon-notas var { font-style: normal; font-weight: 600; }
+
+/* ==========================================================================
+   Propostas — ajustes do design.md § 0 (19/11)
+   ========================================================================== */
+/* Seletor quadrado (filtros do histórico) */
+.seletor { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: var(--raio-p); overflow: hidden; background: var(--elevada); }
+.seletor button { font: inherit; font-size: 13px; padding: 6px 12px; border: 0; border-left: 1px solid var(--linha-forte); background: none; color: var(--tinta-2); cursor: pointer; transition: background .15s, color .15s; }
+.seletor button:first-child { border-left: 0; }
+.seletor button:hover { background: var(--veu); color: var(--tinta); }
+.seletor button.is-on { background: var(--tinta); color: var(--superficie); font-weight: 600; }
+.seletor button:focus-visible { outline: 2px solid var(--foco); outline-offset: -2px; }
+
+/* Lista: título só; Histórico como seção (filete em cima, único lugar da linha) */
+.pp-cab { align-items: center; }
+.pp-titulo { margin: 0; }
+.pp-titulo--m { font-size: 17px; font-weight: 650; }
+.pp-conta { font-size: 12.5px; font-weight: 500; color: var(--tinta-2); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.pp-arquivo { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--linha-forte); }
+
+/* quadros de serviço: reagem ao mouse (tom, borda, sombra, 1 px) */
+.pp-tile { transition: border-color .15s, background .15s, box-shadow .15s, transform .15s; }
+.pp-tile:hover, .pp-tile:focus-visible { background: var(--superficie); border-color: var(--tinta-2); box-shadow: 0 3px 10px rgba(46,48,54,.09); transform: translateY(-1px); }
+.pp-tile:active { transform: none; box-shadow: none; }
+.pp-tile--sim:hover { background: var(--elevada); }
+.pp-tile--rascunho:hover { box-shadow: none; background: var(--destaque-fundo); }
+
+/* Registro: Régua + linhas em cartões brancos */
+.pp-regua, .pp-linha { grid-template-columns: 150px minmax(0, 1fr) 140px 120px 170px; }
+.pp-regua { display: grid; gap: 16px; padding: 9px 14px; margin-bottom: 4px; border-radius: var(--raio); background: rgba(255,255,255,.55);
+  font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--tinta-2); }
+.pp-regua__num { text-align: right; }
+.pp-itens { border-top: 0; display: flex; flex-direction: column; gap: 6px; }
+.pp-linha { padding: 10px 14px; min-height: 52px; border: 1px solid var(--linha); border-bottom: 1px solid var(--linha); border-radius: var(--raio); background: var(--elevada);
+  transition: border-color .15s, box-shadow .15s; }
+.pp-linha:hover { background: var(--elevada); border-color: var(--linha-forte); box-shadow: 0 3px 10px rgba(46,48,54,.06); }
+.pp-linha--sim { border-style: dashed; }
+.pp-vazio { border: 1px dashed var(--linha-forte); border-radius: var(--raio); padding: 24px; text-align: center; font-size: 13px; }
+.pp-pag__seta { width: 28px; height: 28px; border-radius: var(--raio-p); border: 1px solid var(--linha-forte); background: var(--elevada); display: inline-flex; align-items: center; justify-content: center; }
+.pp-pag__seta:hover:not(:disabled) { background: var(--elevada); border-color: var(--tinta-2); }
+.pp-notas { margin: 48px 0 0; padding-top: 24px; border-top: 1px solid var(--linha-forte); font-size: 12.5px; color: var(--tinta-2); }
+@media (max-width: 900px) { .pp-regua { display: none; } .pp-linha { grid-template-columns: 1fr auto; } }
+
+/* Editor: passos corridos na página, um Bloco por passo (Assistente: Passos · Blocos · Resumo) */
+.orc-trilha { margin: 0 0 8px; font-size: 11px; }
+.orc-titulo { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 24px; }
+.orc-guia { padding-top: 4px; }
+.orc-bloco { background: var(--elevada); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px 28px; margin-bottom: 16px;
+  scroll-margin-top: calc(var(--rail-h) + 24px); }
+.orc-bloco__cab { display: flex; align-items: center; gap: 10px; }
+.orc-bloco__num { width: 24px; height: 24px; flex: none; border-radius: 50%; background: var(--nevoa); color: var(--tinta); display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.orc-bloco__titulo { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.orc-bloco__desc { color: var(--tinta-2); font-size: 12.5px; line-height: 1.45; margin: 6px 0 18px 34px; max-width: 62ch; }
+.orc-bloco__corpo > :last-child { margin-bottom: 0; }
+.orc-bloco .field-group:last-child { margin-bottom: 0; }
+.orc-bloco .card { background: var(--superficie); }
+.guia__num svg { width: 12px; height: 12px; }
+@media (max-width: 760px) {
+  .orc-bloco { padding: 20px 16px; }
+  .orc-bloco__desc { margin-left: 0; }
+  .orc-guia { position: sticky; top: var(--rail-h); z-index: 5; background: var(--fundo); padding: 8px 0; }
+}
