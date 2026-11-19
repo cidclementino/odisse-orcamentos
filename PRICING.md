@@ -287,7 +287,7 @@ de marcar de volta.
 **Contexto:** revisão de como o Serviço Odisse, o Modificador, a Tipologia
 construtiva e o CUB se relacionam — nenhuma mudança de código aqui, só
 esclarecimento e auditoria da lógica existente (documentado porque valia a
-pena registrar e porque foi replicado na página `precificacao.html`).
+pena registrar; hoje resumido na legenda de Honorários › Fórmula).
 
 São 4 classificações de fontes diferentes, encadeadas:
 

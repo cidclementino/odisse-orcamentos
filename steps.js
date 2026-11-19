@@ -786,14 +786,15 @@ STEPS.push({
     const memoria = r && !r.semPreco ? `
       <div class="card">
         <div class="card__title">Memória de cálculo</div>
-        <div class="data-row"><span class="data-row__label">Base de honorários (BH), CUB vigente</span><span class="data-row__value tabular">${fmt(r.bh)}/m²</span></div>
-        <div class="data-row"><span class="data-row__label">Custo estimado da obra (CEO)</span><span class="data-row__value tabular">${fmt(r.ceo)}</span></div>
+        <div class="data-row"><span class="data-row__label">Base de honorários (BH = CUB × FA)</span><span class="data-row__value tabular">${fmt(r.bh)}/m²</span></div>
+        <div class="data-row"><span class="data-row__label">Razão área projetada/construída (R)</span><span class="data-row__value tabular">${r.R.toFixed(3)}</span></div>
+        <div class="data-row"><span class="data-row__label">Redutor de repetição (Rr)</span><span class="data-row__value tabular">${r.redutor}</span></div>
+        <div class="data-row"><span class="data-row__label">Área de cálculo (A × R × Rr)</span><span class="data-row__value tabular">${r.areaCalculo.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m²</span></div>
+        <div class="data-row"><span class="data-row__label">Custo estimado da obra (CEO = BH × área de cálculo)</span><span class="data-row__value tabular">${fmt(r.ceo)}</span></div>
         <div class="data-row"><span class="data-row__label">Fator percentual (fp)</span><span class="data-row__value tabular">${(r.fp * 100).toFixed(2)}%</span></div>
         <div class="data-row"><span class="data-row__label">Índice de complexidade (IC)</span><span class="data-row__value tabular">${r.ic.toFixed(3)}</span></div>
-        <div class="data-row"><span class="data-row__label">Redutor de repetição</span><span class="data-row__value tabular">${r.redutor}</span></div>
-        <div class="data-row"><span class="data-row__label">Razão área projetada/construída (R)</span><span class="data-row__value tabular">${r.R.toFixed(3)}</span></div>
-        <div class="data-row"><span class="data-row__label">Modificador do serviço</span><span class="data-row__value tabular">${(Catalogo.servico(state.servicoId) || {}).modificador || 1}</span></div>
-        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU)</span><span class="data-row__value tabular">${fmt(r.valorCau)}</span></div>
+        <div class="data-row"><span class="data-row__label">Valor de tabela (CAU = CEO × fp × IC)</span><span class="data-row__value tabular">${fmt(r.valorCau)}</span></div>
+        <div class="data-row"><span class="data-row__label">Modificador do serviço (M)</span><span class="data-row__value tabular">${(Catalogo.servico(state.servicoId) || {}).modificador || 1}</span></div>
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${fmt(r.valorMercado)}</span></div>
         <div class="data-row"><span class="data-row__label">Percentual do projeto (fases contratadas)</span><span class="data-row__value tabular">${fmtPct(state.reducaoEscopoPercentual)}</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div>

@@ -4,7 +4,7 @@
 // Resumo da lógica (documentado aqui porque a planilha original não deixa
 // isso explícito num único lugar):
 //
-//   CEO   = Base de Honorários da tipologia (BH, R$/m²) × área construída
+//   CEO   = Base de Honorários da tipologia (BH, R$/m²) × área de cálculo
 //   fp    = Fator Percentual — tabela por faixa de área × categoria da
 //           edificação (1 Baixo / 2 Médio / 3 Alto / 4 Especial), pegando
 //           a primeira faixa de área que seja >= área construída
@@ -12,9 +12,12 @@
 //   R     = razão entre área projetada e construída (área externa entra
 //           com peso de 25%, conforme nota da planilha original)
 //   redutor = redutor por repetição de áreas (tabela por qtd. repetições)
+//   área de cálculo = área construída × R × redutor     (nov/2026: o ajuste de
+//           área entra no CEO, como na fórmula de Honorários › Fórmula; o
+//           honorário final não muda. A faixa do fp segue pela área construída.)
 //
 //   valor_cau      = CEO × fp × IC                      (valor "de tabela")
-//   valor_ajustado = valor_cau × redutor × R
+//   valor_ajustado = valor_cau                          (mantido por compatibilidade)
 //   valor_modif    = valor_ajustado × modificador de intervenção
 //                    (Nova Edificação=1, Reforma=1.25, Interiores=1.5, etc.)
 //   valor_mercado  = valor_modif ÷ fator de ajuste de mercado
@@ -95,19 +98,20 @@ const OdisseCalc = (() => {
     const R = areaConstruida > 0 ? areaTotalProjetada / areaConstruida : 1;
 
     const bh = bhAtual(tipologia, tabelaCubAtiva(tabelas.cub));
-    const ceo = bh * areaConstruida;
+    const redutor = lookupRedutor(tabelas.redutorRepeticao, contagemRepeticoes);
+    const areaCalculo = areaConstruida * R * redutor;
+    const ceo = bh * areaCalculo;
     const { valor: fp, faixa: faixaFp } = lookupFatorPercentual(tabelas.fatorPercentual, areaConstruida, tipologia.categoria);
     const ic = mediaIC(icValores);
-    const redutor = lookupRedutor(tabelas.redutorRepeticao, contagemRepeticoes);
 
     const valorCau = ceo * fp * ic;
-    const valorAjustado = valorCau * redutor * R;
+    const valorAjustado = valorCau;
     const valorModificado = valorAjustado * (modificadorIntervencao || 1);
     const valorMercado = valorModificado / (fatorAjuste || 1);
     const valorFinal = valorMercado * (reducaoEscopoPercentual != null ? reducaoEscopoPercentual : 1);
 
     return {
-      bh, areaTotalProjetada, R, ceo, fp, faixaFp, ic, redutor,
+      bh, areaTotalProjetada, R, areaCalculo, ceo, fp, faixaFp, ic, redutor,
       valorCau, valorAjustado, valorModificado, valorMercado, valorFinal
     };
   }

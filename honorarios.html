@@ -9,13 +9,13 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=718d642950">
+<link rel="stylesheet" href="styles.css?v=55f34e6adb">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
   <header class="topo" data-pagina="honorarios"></header>
-  <script src="topo.js?v=a8a6593a1a"></script>
+  <script src="topo.js?v=9d40a3b439"></script>
 
   <main class="crm">
     <div class="crm__barra">
@@ -29,6 +29,7 @@
       <button type="button" data-aba="pesos">Fases e etapas</button>
       <button type="button" data-aba="bh">Base de honorários</button>
       <button type="button" data-aba="tabelas">Tabelas do CAU</button>
+      <button type="button" data-aba="formula">Fórmula</button>
     </div>
     <div id="aviso"></div>
 
@@ -39,6 +40,34 @@
       <div id="bh"><p class="muted">Carregando…</p></div>
     </section>
     <section data-painel="tabelas" hidden><div id="tabelas"></div></section>
+    <section data-painel="formula" hidden>
+      <div class="formula">
+        <p class="formula__nome">Honorário projetual</p>
+        <p class="formula__conta" aria-label="H igual a: CUB vezes FA, que é a BH; vezes A vezes R vezes Rr, a área de cálculo; isso é o CEO; vezes fp vezes IC, que é o valor de tabela do CAU; vezes M vezes P; tudo dividido por Fm">
+          <var>H</var> = <span class="formula__frac"><span><span class="fg"><span class="fg__c">{ <span class="fg"><span class="fg__c">[ <span class="fg"><span class="fg__c">(<var>CUB</var> × <var>FA</var>)</span><span class="fg__r">BH</span></span> × <span class="fg"><span class="fg__c">(<var>A</var> × <var>R</var> × <var>Rr</var>)</span><span class="fg__r">área de cálculo</span></span> ]</span><span class="fg__r">CEO</span></span> × <var>fp</var> × <var>IC</var> }</span><span class="fg__r">valor de tabela CAU</span></span> × <var>M</var> × <var>P</var></span><span><var>Fm</var></span></span>
+        </p>
+      </div>
+      <dl class="legenda">
+        <dt><var>H</var></dt><dd>Honorário do projeto, em reais.</dd>
+        <dt><var>CUB</var></dt><dd>Custo Unitário Básico vigente (R$/m²), do código do CUB que o uso referencia. Sinduscon-JP, 19 códigos, atualizado todo mês. Vários usos podem apontar para o mesmo código. <a href="cub.html">Tabela do CUB</a>.</dd>
+        <dt><var>FA</var></dt><dd>Fator de adequação do uso (tabela de enquadramento do CAU). O uso também define a categoria (1 a 4) que escolhe a coluna do <var>fp</var>. <var>CUB</var> × <var>FA</var> é a base de honorários (BH, R$/m²): aba <a href="#bh">Base de honorários</a>.</dd>
+        <dt><var>A</var></dt><dd>Área construída prevista (m²).</dd>
+        <dt><var>fp</var></dt><dd>Fator percentual do CAU, pela faixa da área construída (<var>A</var>) × categoria do uso: aba <a href="#tabelas">Tabelas do CAU</a>.</dd>
+        <dt><var>IC</var></dt><dd>Índice de complexidade: média dos critérios, cada um Baixo (0,7), Médio (1,0) ou Alto (1,3). Editável no <a href="https://projetos.odisse.com.br/bases.html">Projetos</a>.</dd>
+        <dt><var>Rr</var></dt><dd>Redutor por repetição, pela quantidade de áreas repetidas: aba <a href="#tabelas">Tabelas do CAU</a>.</dd>
+        <dt><var>R</var></dt><dd>Razão entre a área projetada e a construída: (<var>A</var> + 25% da área externa) ÷ <var>A</var>. Sem área externa, <var>R</var> = 1.</dd>
+        <dt><var>M</var></dt><dd>Modificador do serviço (Modificador de Fator Percentual do CAU): cada serviço tem o seu, na aba <a href="#servicos">Serviços</a>.</dd>
+        <dt><var>P</var></dt><dd>Percentual do projeto contratado: soma dos pesos das fases contratadas (cada etapa pelo seu fator), mais o acréscimo do "só tal fase" e o da Obra: aba <a href="#pesos">Fases e etapas</a>.</dd>
+        <dt><var>Fm</var></dt><dd>Fator de ajuste de mercado, escolhido na proposta (1 · 1,25 · 2,25 ou outro).</dd>
+      </dl>
+      <p class="legenda__titulo">Os grupos</p>
+      <dl class="legenda">
+        <dt>BH</dt><dd>Base de honorários (R$/m²) = <var>CUB</var> × <var>FA</var>.</dd>
+        <dt>Área de cálculo</dt><dd><var>A</var> × <var>R</var> × <var>Rr</var>: a área construída, somando 25% da área externa e descontando as repetições.</dd>
+        <dt>CEO</dt><dd>Custo estimado da obra = BH × área de cálculo.</dd>
+        <dt>Valor de tabela</dt><dd>O honorário pela tabela do CAU = CEO × <var>fp</var> × <var>IC</var>.</dd>
+      </dl>
+    </section>
   </main>
 </div>
 
@@ -497,7 +526,22 @@ function desenharBH() {
   document.getElementById('bh').innerHTML = (html || '<div class="vazio"><p>Nenhum uso com esse filtro.</p></div>') +
     `<p class="field__hint">CUB vigente: ${escHtml(CUB.regiao)} · ${escHtml(CUB.competencia)} (<a href="cub.html">tabela do CUB</a>).
       * código fora da tabela vigente: vale o CUB de referência do uso. Código do CUB, fator e enquadramento de cada uso são editados nas
-      <a href="https://projetos.odisse.com.br/bases.html">Bases</a>, no Projetos.</p>`;
+      <a href="https://projetos.odisse.com.br/bases.html">Bases</a>, no Projetos.</p>
+    <div class="cub-codigos">
+      <h3>Códigos do CUB</h3>
+      <p class="field__hint">Nomenclatura da NBR 12.721 (ABNT), publicada todo mês pelos Sinduscons. O uso não deriva do CUB: ele aponta para um
+        dos 19 códigos e ajusta o valor com o seu fator de adequação. A letra no fim indica o padrão de acabamento (B baixo · N normal · A alto).</p>
+      <dl class="legenda legenda--compacta">
+        <dt>R-1</dt><dd>Residência unifamiliar</dd>
+        <dt>PP-4</dt><dd>Prédio popular (multifamiliar simples, 4 pavimentos)</dd>
+        <dt>R-8 · R-16</dt><dd>Residência multifamiliar, 8 ou 16 pavimentos</dd>
+        <dt>PIS</dt><dd>Projeto de interesse social</dd>
+        <dt>RP1Q</dt><dd>Residência popular de 1 quarto</dd>
+        <dt>CAL-8</dt><dd>Comercial andares livres (escritórios, planta aberta)</dd>
+        <dt>CSL-8 · CSL-16</dt><dd>Comercial salas e lojas</dd>
+        <dt>GI</dt><dd>Galpão industrial</dd>
+      </dl>
+    </div>`;
 }
 
 function desenharTabelas(fp, red) {
@@ -528,6 +572,8 @@ function ligarAbas() {
     try { sessionStorage.setItem('aba:honorarios', id); } catch (_) { /* sem armazenamento */ }
   };
   botoes.forEach((b) => b.onclick = () => mostrar(b.dataset.aba));
+  // links internos (#pesos, #bh…) da aba Fórmula trocam de aba
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (botoes.some((b) => b.dataset.aba === id)) mostrar(id); });
   let inicial = location.hash.slice(1);
   if (!botoes.some((b) => b.dataset.aba === inicial)) { try { inicial = sessionStorage.getItem('aba:honorarios') || ''; } catch (_) { inicial = ''; } }
   mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : botoes[0].dataset.aba);

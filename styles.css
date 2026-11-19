@@ -916,3 +916,26 @@ button.hon-total__n { all: unset; display: inline-block; min-width: 54px; paddin
 button.hon-total__n:hover { box-shadow: 0 0 0 2px rgba(255,255,255,.5); }
 button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 600; opacity: .85; }
 .hon-ex--ruim { background: #C2574A; color: #fff; border-color: #C2574A; border-radius: 999px; font-weight: 700; }
+
+/* Honorários › Fórmula: a conta com as siglas e a legenda embaixo */
+.formula { max-width: 820px; padding: 28px 0 24px; border-bottom: 1px solid var(--linha); margin-bottom: 24px; }
+.formula__nome { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-2); margin: 0 0 14px; }
+.formula__conta { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 22px; margin: 0; }
+.formula__conta var, .legenda var { font-style: normal; font-weight: 600; }
+.formula__frac { display: inline-flex; flex-direction: column; align-items: center; }
+.formula__frac > span { padding: 4px 6px; }
+.formula__frac > span:first-child { border-bottom: 1.5px solid currentColor; padding-bottom: 6px; }
+.formula__frac > span { display: inline-flex; align-items: flex-start; gap: .3em; }
+.fg { display: inline-flex; flex-direction: column; align-items: stretch; }
+.fg__c { display: inline-flex; align-items: flex-start; gap: .3em; white-space: nowrap; }
+.fg__r { margin-top: 3px; padding-top: 2px; border-top: 1px solid var(--tinta-3); font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--tinta-2); text-align: center; white-space: nowrap; }
+.legenda__titulo { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--tinta-2); margin: 28px 0 10px; max-width: 820px; padding-top: 20px; border-top: 1px solid var(--linha); }
+.legenda { display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; max-width: 820px; margin: 0; font-size: 13px; line-height: 1.5; }
+.legenda dt { font-weight: 600; white-space: nowrap; }
+.legenda dd { margin: 0; color: var(--tinta-2); }
+.legenda a { color: inherit; }
+.legenda--compacta { gap: 4px 16px; font-size: 12.5px; }
+.cub-codigos { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--linha); max-width: 820px; }
+.cub-codigos h3 { font-size: 13px; font-weight: 650; margin: 0 0 6px; }
+.cub-codigos .field__hint { margin-bottom: 12px; }
+@media (max-width: 640px) { .formula__conta { font-size: 17px; } }

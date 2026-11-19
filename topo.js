@@ -10,7 +10,7 @@
 //
 // Organização (nov/2026):
 //   - seções de trabalho, na ordem do fluxo: Funil → Contatos → Propostas (orçamento e histórico na mesma página);
-//   - referências do custo (Honorários, CUB, cálculo, glossário) agrupadas em "Referências";
+//   - referências do custo (Honorários, com a fórmula, e CUB) agrupadas em "Referências";
 //   - a migração (uso único) não entra no menu: é aberta pelo aviso em Propostas.
 //
 // Mantém os ids #rail-user e #btn-logout, que as páginas já usam.
@@ -23,10 +23,8 @@
     { id: 'propostas', nome: 'Propostas', href: 'index.html', dica: 'Nova proposta (orçamento de honorários) e o histórico: PDFs guardados e revisões' }
   ];
   const REFERENCIAS = [
-    { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, pesos das etapas, parcelas e base de honorários' },
-    { id: 'cub', nome: 'Tabela do CUB', href: 'cub.html', dica: 'Valores do mês usados como base de honorários' },
-    { id: 'calculo', nome: 'Como funciona o cálculo', href: 'precificacao.html', dica: 'Fórmula passo a passo, camadas até o valor base e códigos do CUB' },
-    { id: 'glossario', nome: 'Glossário', href: 'glossario.html', dica: 'Fases, etapas e entregáveis' }
+    { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, fases e etapas, base de honorários, tabelas do CAU e a fórmula' },
+    { id: 'cub', nome: 'Tabela do CUB', href: 'cub.html', dica: 'Valores do mês usados como base de honorários' }
   ];
   // páginas fora do menu que pertencem a uma seção
   const PERTENCE = { migrar: 'propostas' };

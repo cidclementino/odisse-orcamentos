@@ -14,10 +14,8 @@ Este é o terceiro repositório da Odisse, ao lado de:
 Todas as decisões sobre a fórmula de cálculo (modificadores por serviço,
 critérios de complexidade, unificação de escopo/etapas, etc.) estão registradas
 em detalhe no [`PRICING.md`](./PRICING.md) — inclusive o *porquê* de cada
-escolha, não só o *como*. A ferramenta também tem uma página própria
-(`precificacao.html`, em "Referências → Como funciona o cálculo" na barra) com um resumo
-dessa mesma lógica, pensado para quem está preenchendo um orçamento e quer
-tirar uma dúvida rápida.
+escolha, não só o *como*. A fórmula, com a legenda das siglas, fica em
+Honorários › Fórmula (`honorarios.html#formula`).
 
 ## ⚠️ Antes de publicar
 
