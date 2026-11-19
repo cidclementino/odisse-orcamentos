@@ -3,32 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Honorários · Vendas — Odisse</title>
+<title>Referências · Vendas — Odisse</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=55f34e6adb">
+<link rel="stylesheet" href="styles.css?v=9efd9b1db9">
 </head>
 <body>
 
 <div id="app" class="app app--no-sidebar" hidden>
-  <header class="topo" data-pagina="honorarios"></header>
-  <script src="topo.js?v=9d40a3b439"></script>
+  <header class="topo" data-pagina="referencias"></header>
+  <script src="topo.js?v=21b421c328"></script>
 
   <main class="crm">
     <div class="crm__barra">
-      <h1>Honorários</h1>
+      <h1>Referências</h1>
       <div class="gestao__pub" id="pub"></div>
     </div>
-    <p class="gestao__intro">O custo sobre a estrutura do estúdio. A estrutura (serviços, fases, etapas, entregas) vem do Projetos:
+    <p class="gestao__intro">O preço sobre a estrutura do estúdio e as tabelas que o calculam. A estrutura (serviços, fases, etapas, entregas) vem do Projetos:
       <a href="https://projetos.odisse.com.br/bases.html">Bases</a> e <a href="https://projetos.odisse.com.br/pgt.html">Plano Geral de Trabalho</a>.</p>
     <div class="abas gestao__abas" role="tablist">
       <button type="button" data-aba="servicos">Serviços</button>
       <button type="button" data-aba="pesos">Fases e etapas</button>
       <button type="button" data-aba="bh">Base de honorários</button>
       <button type="button" data-aba="tabelas">Tabelas do CAU</button>
+      <button type="button" data-aba="cub">Tabela do CUB</button>
       <button type="button" data-aba="formula">Fórmula</button>
     </div>
     <div id="aviso"></div>
@@ -39,7 +40,8 @@
       <div class="gestao__filtros"><input type="search" id="filtro-uso" placeholder="Filtrar usos (descrição, item, CUB)"></div>
       <div id="bh"><p class="muted">Carregando…</p></div>
     </section>
-    <section data-painel="tabelas" hidden><div id="tabelas"></div></section>
+    <section data-painel="tabelas" hidden><div id="tabelas"><p class="muted">Carregando…</p></div></section>
+    <section data-painel="cub" hidden><div id="cub"><p class="muted">Carregando…</p></div></section>
     <section data-painel="formula" hidden>
       <div class="formula">
         <p class="formula__nome">Honorário projetual</p>
@@ -49,7 +51,7 @@
       </div>
       <dl class="legenda">
         <dt><var>H</var></dt><dd>Honorário do projeto, em reais.</dd>
-        <dt><var>CUB</var></dt><dd>Custo Unitário Básico vigente (R$/m²), do código do CUB que o uso referencia. Sinduscon-JP, 19 códigos, atualizado todo mês. Vários usos podem apontar para o mesmo código. <a href="cub.html">Tabela do CUB</a>.</dd>
+        <dt><var>CUB</var></dt><dd>Custo Unitário Básico vigente (R$/m²), do código do CUB que o uso referencia. Sinduscon-JP, 19 códigos, atualizado todo mês. Vários usos podem apontar para o mesmo código. aba <a href="#cub">Tabela do CUB</a>.</dd>
         <dt><var>FA</var></dt><dd>Fator de adequação do uso (tabela de enquadramento do CAU). O uso também define a categoria (1 a 4) que escolhe a coluna do <var>fp</var>. <var>CUB</var> × <var>FA</var> é a base de honorários (BH, R$/m²): aba <a href="#bh">Base de honorários</a>.</dd>
         <dt><var>A</var></dt><dd>Área construída prevista (m²).</dd>
         <dt><var>fp</var></dt><dd>Fator percentual do CAU, pela faixa da área construída (<var>A</var>) × categoria do uso: aba <a href="#tabelas">Tabelas do CAU</a>.</dd>
@@ -95,6 +97,7 @@
 let H = null;     // GET honorarios
 let B = null;     // GET bases (usos e categorias, para a base de honorários)
 let CUB = null;   // tabela do CUB da região ativa
+let CUB_TODO = null; // data/cub.json inteiro (todas as regiões), para a aba Tabela do CUB
 const aviso = avisoEm(document.getElementById('aviso'));
 
 const GRUPOS = [
@@ -489,9 +492,14 @@ async function carregarBH() {
     B = bases;
     const r = cub.regioes[cub.regiao_ativa];
     CUB = { regiao: cub.regiao_ativa, fonte: r.fonte, competencia: r.competencia_referencia, tabela: r.tabela };
+    CUB_TODO = cub;
     desenharBH();
     desenharTabelas(fp, red);
-  } catch (e) { document.getElementById('bh').innerHTML = `<p class="small muted">Não consegui carregar as tipologias ou o CUB (${escHtml(mensagemDe(e))}).</p>`; }
+    desenharCub(cub.regiao_ativa);
+  } catch (e) {
+    const msg = `<p class="small muted">Não consegui carregar as tipologias ou o CUB (${escHtml(mensagemDe(e))}).</p>`;
+    ['bh', 'tabelas', 'cub'].forEach((id) => { document.getElementById(id).innerHTML = msg; });
+  }
 }
 
 function desenharBH() {
@@ -524,7 +532,7 @@ function desenharBH() {
     if (blocos) html += `<div class="grupo-faixa" style="--g:${g.cor}">${escHtml(g.nome)}</div>${blocos}`;
   }
   document.getElementById('bh').innerHTML = (html || '<div class="vazio"><p>Nenhum uso com esse filtro.</p></div>') +
-    `<p class="field__hint">CUB vigente: ${escHtml(CUB.regiao)} · ${escHtml(CUB.competencia)} (<a href="cub.html">tabela do CUB</a>).
+    `<p class="field__hint">CUB vigente: ${escHtml(CUB.regiao)} · ${escHtml(CUB.competencia)} (aba <a href="#cub">Tabela do CUB</a>).
       * código fora da tabela vigente: vale o CUB de referência do uso. Código do CUB, fator e enquadramento de cada uso são editados nas
       <a href="https://projetos.odisse.com.br/bases.html">Bases</a>, no Projetos.</p>
     <div class="cub-codigos">
@@ -544,23 +552,103 @@ function desenharBH() {
     </div>`;
 }
 
+// Tabelas do CAU e do CUB: só leitura, no desenho das outras abas (cartões em cima, tabela, notas no fim).
+const fmtPct2 = (x) => `${fmtNum(x * 100, 2)}%`;
+const limiteArea = (l) => { const n = parseFloat(String(l).replace(/[^\d.]/g, '')); return Number.isNaN(n) ? null : n; };
+
 function desenharTabelas(fp, red) {
-  document.getElementById('tabelas').innerHTML = `<div class="ref-grade">
-    <div>
-      <h3>Fator percentual (CAU) por faixa de área</h3>
-      ${fp ? `<table class="tabela"><thead><tr><th>Área (m²)</th><th class="num">Cat. 1</th><th class="num">Cat. 2</th><th class="num">Cat. 3</th><th class="num">Cat. 4</th></tr></thead>
-        <tbody>${fp.map((l) => `<tr><td>${escHtml(l.area_limite)}</td>${['baixo', 'medio', 'alto', 'especial'].map((k) => `<td class="num">${fmtNum(l[k] * 100, 2)}%</td>`).join('')}</tr>`).join('')}</tbody></table>
-        <p class="field__hint">A coluna é a "categoria do fator percentual" de cada uso (1 a 4), definida nas Bases.</p>` : '<p class="small muted">Não consegui ler a tabela.</p>'}
+  const el = document.getElementById('tabelas');
+  if (!fp) { el.innerHTML = '<p class="small muted">Não consegui ler as tabelas do CAU.</p>'; return; }
+  const CATS = [['baixo', 'Cat. 1', 'Baixo'], ['medio', 'Cat. 2', 'Médio'], ['alto', 'Cat. 3', 'Alto'], ['especial', 'Cat. 4', 'Especial']];
+  let antes = 0;
+  const linhasFp = fp.map((l) => {
+    const lim = limiteArea(l.area_limite);
+    const acima = lim === null || /maior|acima/i.test(String(l.area_limite));
+    const faixa = acima ? `Acima de ${fmtNum(antes, 0)} m²` : antes ? `${fmtNum(antes, 0)} a ${fmtNum(lim, 0)} m²` : `Até ${fmtNum(lim, 0)} m²`;
+    if (lim !== null) antes = lim;
+    return `<tr><td>${escHtml(faixa)}</td>${CATS.map(([k]) => `<td class="num">${l[k] != null ? fmtPct2(l[k]) : '—'}</td>`).join('')}</tr>`;
+  }).join('');
+  const linhasRed = (red || []).map((l) => {
+    const n = limiteArea(l.q);
+    const txt = n === 0 ? 'Nenhuma' : n === null ? String(l.q) : fmtNum(n, 0);
+    return `<tr><td>${escHtml(txt)}</td><td class="num">${fmtNum(l.r, 3)}</td><td class="num muted">${l.r < 1 ? `−${fmtNum((1 - l.r) * 100, 1)}%` : '—'}</td></tr>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="ref-bloco">
+      <h2 class="ref-titulo">Fator percentual (<var>fp</var>)</h2>
+      <div class="rolagem"><table class="tabela ref-tabela">
+        <thead><tr><th>Área construída</th>${CATS.map(([, c, n]) => `<th class="num">${c}<span>${n}</span></th>`).join('')}</tr></thead>
+        <tbody>${linhasFp}</tbody></table></div>
     </div>
-    <div>
-      <h3>Redutor por repetição</h3>
-      ${red ? `<table class="tabela"><thead><tr><th>Repetições</th><th class="num">Redutor</th></tr></thead>
-        <tbody>${red.map((l) => `<tr><td>${escHtml(l.q)}</td><td class="num">${fmtNum(l.r, 2)}</td></tr>`).join('')}</tbody></table>` : ''}
-      <h3 style="margin-top:24px">CUB</h3>
-      <p class="small">${escHtml(CUB.regiao)} · fonte ${escHtml(CUB.fonte)} · competência ${escHtml(CUB.competencia)}.
-        Valores completos em <a href="cub.html">Tabela do CUB</a> (atualizada pelo robô mensal do Sinduscon).</p>
+    <div class="ref-bloco">
+      <h2 class="ref-titulo">Redutor por repetição (<var>Rr</var>)</h2>
+      <div class="rolagem"><table class="tabela ref-tabela ref-tabela--estreita">
+        <thead><tr><th>Repetições<span>a partir de</span></th><th class="num">Redutor</th><th class="num">Desconto</th></tr></thead>
+        <tbody>${linhasRed}</tbody></table></div>
     </div>
-  </div>`;
+    <div class="hon-notas hon-notas--simples">
+      <section><h3>Como ler as tabelas</h3><ul>
+        <li><span>A coluna do <var>fp</var> é a categoria do uso (1 a 4), definida nas <a href="https://projetos.odisse.com.br/bases.html">Bases</a>; a linha é a faixa que comporta a área construída (<var>A</var>).</span></li>
+        <li><span>O redutor vale para a área de cálculo inteira, pela quantidade de unidades ou áreas que se repetem integralmente no projeto.</span></li>
+      </ul></section>
+      <section><h3>De onde vêm</h3><ul>
+        <li><span>Tabelas de honorários do CAU (fator percentual e redutor por repetição), sem alteração.</span></li>
+        <li><span>Onde entram na conta: aba <a href="#formula">Fórmula</a>.</span></li>
+      </ul></section>
+    </div>`;
+}
+
+// descrição pelo código (NBR 12.721): família + padrão de acabamento (B/N/A); a planilha de origem deixa várias em branco
+const CUB_FAMILIAS = { 'R-1': 'Residência unifamiliar', 'PP-4': 'Prédio popular, 4 pavimentos', 'R-8': 'Residência multifamiliar, 8 pavimentos',
+  'R-16': 'Residência multifamiliar, 16 pavimentos', PIS: 'Projeto de interesse social', RP1Q: 'Residência popular de 1 quarto',
+  'CAL-8': 'Comercial andares livres, 8 pavimentos', 'CSL-8': 'Comercial salas e lojas, 8 pavimentos', 'CSL-16': 'Comercial salas e lojas, 16 pavimentos', GI: 'Galpão industrial' };
+const CUB_PADROES = { B: 'padrão baixo', N: 'padrão normal', A: 'padrão alto' };
+function descricaoCub(cod, v) {
+  const m = String(cod).match(/^(.*?)(?:-([BNA]))?$/);
+  const fam = CUB_FAMILIAS[m[1]];
+  return fam ? fam + (m[2] ? ` · ${CUB_PADROES[m[2]]}` : '') : (v.padrao || '');
+}
+
+function desenharCub(regiao) {
+  const el = document.getElementById('cub');
+  const cub = CUB_TODO, r = cub.regioes[regiao];
+  const nomes = Object.keys(cub.regioes);
+  const SETORES = {};
+  for (const [cod, v] of Object.entries(r.tabela)) (SETORES[v.setor || 'Outros'] ||= []).push([cod, v]);
+  const reais = (n) => (n == null ? '—' : fmtReais(n));
+  el.innerHTML = `
+    <div class="hon-params">
+      <label class="hon-param hon-param--info"${nomes.length > 1 ? ' for="cub-regiao"' : ''}>
+        <span class="hon-param__rotulo">Região</span>
+        <span class="hon-param__nota">${nomes.length > 1
+          ? `<select id="cub-regiao">${nomes.map((n) => `<option value="${escHtml(n)}" ${n === regiao ? 'selected' : ''}>${escHtml(n)}${n === cub.regiao_ativa ? ' (em uso)' : ''}</option>`).join('')}</select>`
+          : `<b>${escHtml(regiao)}</b>${regiao === cub.regiao_ativa ? ' · em uso' : ''}`}</span>
+      </label>
+      <div class="hon-param hon-param--info">
+        <span class="hon-param__rotulo">Fonte e competência</span>
+        <span class="hon-param__nota"><b>${escHtml(r.fonte || '—')}</b> · ${escHtml(r.competencia_referencia || '—')}${r.pdf_origem ? ` · <a href="${escHtml(r.pdf_origem)}" target="_blank" rel="noopener">PDF de origem</a>` : ''}</span>
+      </div>
+    </div>
+    <div class="rolagem"><table class="tabela ref-tabela">
+      <thead><tr><th style="width:110px">Código</th><th>Descrição</th><th class="num">Honerado (R$/m²)</th><th class="num">Desonerado (R$/m²)</th></tr></thead>
+      ${Object.entries(SETORES).map(([setor, itens]) => `<tbody>
+        <tr class="ref-grupo"><td colspan="4">${escHtml(setor)}<span>${itens.length} ${itens.length === 1 ? 'código' : 'códigos'}</span></td></tr>
+        ${itens.map(([cod, v]) => `<tr><td class="codigo">${escHtml(cod)}</td><td>${escHtml(descricaoCub(cod, v))}</td>
+          <td class="num"><strong>${reais(v.honerado)}</strong></td><td class="num muted">${reais(v.desonerado)}</td></tr>`).join('')}
+      </tbody>`).join('')}
+    </table></div>
+    <div class="hon-notas hon-notas--simples">
+      <section><h3>Como ler a tabela</h3><ul>
+        <li><span>O cálculo usa o valor <b>honerado</b> do código que cada uso referencia; o desonerado fica só para consulta.</span></li>
+        <li><span>Base de honorários de cada uso = CUB honerado × fator de adequação: aba <a href="#bh">Base de honorários</a>, com a explicação dos códigos.</span></li>
+      </ul></section>
+      <section><h3>De onde vem</h3><ul>
+        <li><span>${escHtml(r.fonte || 'Sinduscon')}, NBR 12.721 (ABNT), atualizado pela rotina mensal do repositório.</span></li>
+        <li><span>Confira aqui se o orçamento está usando a competência certa.</span></li>
+      </ul></section>
+    </div>`;
+  const sel = el.querySelector('#cub-regiao');
+  if (sel) sel.onchange = (e) => desenharCub(e.target.value);
 }
 
 // ---------------------------------------------------------------- abas

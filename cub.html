@@ -2,92 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tabela do CUB · Vendas — Odisse</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
-<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
-<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=55f34e6adb">
+<title>Tabela do CUB · Vendas — Odisse</title>
+<!-- A tabela do CUB virou uma aba de Referências (honorarios.html#cub). -->
+<script>location.replace('honorarios.html#cub');</script>
+<meta http-equiv="refresh" content="0; url=honorarios.html#cub">
 </head>
-<body>
-
-<div id="app" class="app app--no-sidebar" hidden>
-  <header class="topo" data-pagina="cub"></header>
-  <script src="topo.js?v=9d40a3b439"></script>
-
-  <main class="stage">
-    <div class="stage__col" style="max-width: 760px">
-      <p class="step__eyebrow">Referência</p>
-      <h1 class="step__title">Dados do CUB</h1>
-      <p class="step__desc">Valores usados como Base de Honorários no cálculo de orçamentos. Confira aqui se a ferramenta está operando com a tabela certa.</p>
-
-      <div class="field-group">
-        <div class="field">
-          <label class="field__label">Região</label>
-          <select id="f-regiao"></select>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card__title">Fonte & competência</div>
-        <div class="data-row"><span class="data-row__label">Fonte</span><span class="data-row__value" id="cub-fonte">—</span></div>
-        <div class="data-row"><span class="data-row__label">Competência de referência</span><span class="data-row__value" id="cub-competencia">—</span></div>
-        <div class="data-row" id="cub-pdf-row" hidden><span class="data-row__label">PDF de origem</span><span class="data-row__value"><a id="cub-pdf-link" href="#" target="_blank" rel="noopener">abrir</a></span></div>
-      </div>
-
-      <div id="cub-tabela"></div>
-    </div>
-  </main>
-</div>
-
-<script src="config.js?v=07793b6f66"></script>
-<script src="auth.js?v=71994a29a1"></script>
-<script>exigirAutenticacao();</script>
-<script src="data-loader.js?v=b1b3a59ba0"></script>
-<script>
-  async function iniciar() {
-    document.getElementById('app').hidden = false;
-
-    const data = await OdisseData.load();
-    const cub = data.cub;
-    const regioesNomes = Object.keys(cub.regioes);
-
-    const sel = document.getElementById('f-regiao');
-    sel.innerHTML = regioesNomes.map(nome => `<option value="${nome}" ${nome === cub.regiao_ativa ? 'selected' : ''}>${nome}${nome === cub.regiao_ativa ? ' (em uso)' : ''}</option>`).join('');
-
-    function render(nomeRegiao) {
-      const regiao = cub.regioes[nomeRegiao];
-      document.getElementById('cub-fonte').textContent = regiao.fonte || '—';
-      document.getElementById('cub-competencia').textContent = regiao.competencia_referencia || '—';
-      const pdfRow = document.getElementById('cub-pdf-row');
-      if (regiao.pdf_origem) {
-        pdfRow.hidden = false;
-        document.getElementById('cub-pdf-link').href = regiao.pdf_origem;
-      } else {
-        pdfRow.hidden = true;
-      }
-
-      const linhas = Object.entries(regiao.tabela).map(([codigo, v]) => `
-        <div class="data-row">
-          <span class="data-row__label">${codigo}${v.padrao ? ' — ' + v.padrao : ''}</span>
-          <span class="data-row__value tabular">${v.honerado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
-        </div>
-      `).join('');
-      document.getElementById('cub-tabela').innerHTML = `
-        <div class="card">
-          <div class="card__title">Valores por categoria (CUB honerado, R$/m²)</div>
-          ${linhas}
-        </div>
-      `;
-    }
-
-    render(cub.regiao_ativa);
-    sel.onchange = e => render(e.target.value);
-  }
-
-  iniciar();
-</script>
-</body>
+<body></body>
 </html>

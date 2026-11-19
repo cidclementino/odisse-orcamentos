@@ -10,7 +10,8 @@
 //
 // Organização (nov/2026):
 //   - seções de trabalho, na ordem do fluxo: Funil → Contatos → Propostas (orçamento e histórico na mesma página);
-//   - referências do custo (Honorários, com a fórmula, e CUB) agrupadas em "Referências";
+//   - "Referências" é uma página só (honorarios.html), com abas: serviços, fases e etapas, base de
+//     honorários, tabelas do CAU, tabela do CUB e a fórmula;
 //   - a migração (uso único) não entra no menu: é aberta pelo aviso em Propostas.
 //
 // Mantém os ids #rail-user e #btn-logout, que as páginas já usam.
@@ -22,20 +23,15 @@
     { id: 'contatos', nome: 'Contatos', href: 'contatos.html', dica: 'Pessoas e organizações, ligações entre elas e o histórico de cada uma' },
     { id: 'propostas', nome: 'Propostas', href: 'index.html', dica: 'Nova proposta (orçamento de honorários) e o histórico: PDFs guardados e revisões' }
   ];
-  const REFERENCIAS = [
-    { id: 'honorarios', nome: 'Honorários', href: 'honorarios.html', dica: 'Preço dos serviços, fases e etapas, base de honorários, tabelas do CAU e a fórmula' },
-    { id: 'cub', nome: 'Tabela do CUB', href: 'cub.html', dica: 'Valores do mês usados como base de honorários' }
-  ];
+  const REFERENCIAS = { id: 'referencias', nome: 'Referências', href: 'honorarios.html', dica: 'Preço dos serviços, fases e etapas, base de honorários, tabelas do CAU e do CUB, e a fórmula' };
   // páginas fora do menu que pertencem a uma seção
   const PERTENCE = { migrar: 'propostas' };
 
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const seta = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
 
   const raiz = document.querySelector('header.topo');
   if (!raiz) return;
   const pagina = PERTENCE[raiz.dataset.pagina] || raiz.dataset.pagina || '';
-  const naReferencia = REFERENCIAS.some((r) => r.id === pagina);
 
   raiz.innerHTML = `
     <a class="topo__casa" href="crm.html" title="Vendas · Funil">
@@ -46,44 +42,12 @@
     <nav class="topo__secoes" aria-label="Seções do vendas">
       ${SECOES.map((s) => `<a href="${s.href}" title="${esc(s.dica)}"${s.id === pagina ? ' class="is-current" aria-current="page"' : ''}>${esc(s.nome)}</a>`).join('')}
       <span class="topo__sep" aria-hidden="true"></span>
-      <div class="topo__ref">
-        <button type="button" class="topo__ref-botao${naReferencia ? ' is-current' : ''}" aria-haspopup="true" aria-expanded="false">Referências ${seta}</button>
-      </div>
+      <a href="${REFERENCIAS.href}" title="${esc(REFERENCIAS.dica)}"${REFERENCIAS.id === pagina ? ' class="is-current" aria-current="page"' : ''}>${esc(REFERENCIAS.nome)}</a>
     </nav>
     <div class="topo__direita">
       <span data-universo-menu></span>
       <span class="topo__conta"><span id="rail-user"></span><a href="login.html" id="btn-logout">Sair</a></span>
     </div>`;
-
-  // O painel de Referências fica fora da faixa de seções (que rola no celular
-  // e cortaria um painel posicionado dentro dela).
-  const painel = document.createElement('div');
-  painel.className = 'topo__painel';
-  painel.hidden = true;
-  painel.innerHTML = `<div class="topo__painel-cab">Referências</div>` + REFERENCIAS.map((r) =>
-    `<a class="topo__item${r.id === pagina ? ' is-current' : ''}" href="${r.href}"><b>${esc(r.nome)}</b><small>${esc(r.dica)}</small></a>`).join('');
-  document.body.appendChild(painel);
-
-  const botao = raiz.querySelector('.topo__ref-botao');
-  const posicionar = () => {
-    const r = botao.getBoundingClientRect();
-    const larg = Math.min(300, window.innerWidth - 24);
-    painel.style.width = larg + 'px';
-    painel.style.top = (r.bottom + 6) + 'px';
-    painel.style.left = Math.max(12, Math.min(r.left, window.innerWidth - larg - 12)) + 'px';
-  };
-  const fechar = () => { painel.hidden = true; botao.setAttribute('aria-expanded', 'false'); };
-  botao.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const abrir = painel.hidden;
-    if (abrir) posicionar();
-    painel.hidden = !abrir;
-    botao.setAttribute('aria-expanded', String(abrir));
-  });
-  document.addEventListener('click', (e) => { if (!painel.contains(e.target)) fechar(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fechar(); });
-  window.addEventListener('resize', fechar);
-  raiz.querySelector('.topo__secoes').addEventListener('scroll', fechar, { passive: true });
 
   // nome de quem entrou (auth.js carrega depois desta barra)
   const mostrarNome = () => {

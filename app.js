@@ -201,7 +201,7 @@ function updateTicket() {
     <div class="previa__bloco">
       <span class="previa__rotulo">Honorário${srv && !srv.com_preco ? ' (valor fixo)' : ''}</span>
       <span class="previa__valor">${fmt(valor)}</span>
-      <span class="previa__sub">${r && !r.semPreco ? `Tabela CAU ${fmt(r.valorCau)} · ÷${String(s.fatorAjuste).replace('.', ',')} · ${fmtPct(s.reducaoEscopoPercentual)} do projeto` : srv && !srv.com_preco ? 'Serviço sem preço calculado: informe o valor em Honorários.' : 'Escolha serviço, tipologia e área para calcular.'}</span>
+      <span class="previa__sub">${r && !r.semPreco ? `Tabela CAU ${fmt(r.valorCau)} · ÷${String(s.fatorAjuste).replace('.', ',')} · ${fmtPct(s.reducaoEscopoPercentual)} do projeto` : srv && !srv.com_preco ? 'Serviço sem preço calculado: informe o valor em Referências › Serviços.' : 'Escolha serviço, tipologia e área para calcular.'}</span>
       ${r && !r.semPreco ? `<span class="previa__sub">BH ${fmt(r.bh)}/m² · fp ${(r.fp * 100).toFixed(2).replace('.', ',')}% · IC ${r.ic.toFixed(2).replace('.', ',')}</span>` : ''}
     </div>
     <div class="previa__bloco">
