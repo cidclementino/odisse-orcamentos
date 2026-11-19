@@ -225,6 +225,7 @@ STEPS.push({
     const im = state.imovel;
     return `
       <div class="field-group">
+        <h3 class="bloco__titulo">Serviço e tipologia</h3>
         <div class="field">
           <label class="field__label">Serviço</label>
           <select id="f-servico"><option value="">Selecione…</option>
@@ -247,12 +248,13 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
+        <h3 class="bloco__titulo">Entendimento do projeto</h3>
         <div class="field">
-          <label class="field__label">Entendimento do projeto</label>
-          <textarea id="f-entendimento" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
+          <textarea id="f-entendimento" aria-label="Entendimento do projeto" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
         </div>
       </div>
       <div class="field-group">
+        <h3 class="bloco__titulo">Áreas e escopo</h3>
         <div class="row-2">
           <div class="field"><label class="field__label">Área edificada prevista (m²)</label><input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}"></div>
           <div class="field"><label class="field__label">Área do imóvel ou terreno (m²)</label><input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}"></div>
@@ -270,7 +272,7 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
-        <p class="card__title">Imóvel</p>
+        <h3 class="bloco__titulo">Imóvel</h3>
         <div class="row-2">
           <div class="field"><label class="field__label">CEP</label><input type="text" id="f-cep" value="${escHtml(im.cep || '')}" placeholder="58000-000" maxlength="9"><p class="field__hint" id="cep-status"></p></div>
           <div class="field"><label class="field__label">Bairro</label><input type="text" id="f-bairro" value="${escHtml(im.bairro || '')}"></div>
@@ -283,6 +285,7 @@ STEPS.push({
         <div class="field"><label class="field__label">Cidade – UF</label><input type="text" id="f-cidade-uf" value="${escHtml(im.cidadeUf || '')}"></div>
       </div>
       <div class="field-group">
+        <h3 class="bloco__titulo">Expectativas do cliente</h3>
         <div class="row-2">
           <div class="field">
             <label class="field__label">Teto orçamentário informado pelo cliente (opcional)</label>
@@ -387,11 +390,12 @@ STEPS.push({
     const ind = recomputeIndicadores(state);
     const clausulas = Catalogo.clausulas(state.etapasSelecionadas, state.servicoId);
     return `
-      ${pct.porEtapa ? `<div class="field-group">
-        <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong>${fmtPct(pct.percentual)}</strong></span></div>
+      ${pct.porEtapa ? `<div class="field-group"><h3 class="bloco__titulo">Percentual do honorário</h3>
+        <div class="data-row"><span class="data-row__label">Calculado pelas fases contratadas</span><span class="data-row__value tabular"><strong>${fmtPct(pct.percentual)}</strong></span></div>
         <p class="field__hint">Soma do peso das fases com etapa marcada (${fmtPct(pct.doFluxo)})${pct.incremento ? ` + ${fmtPct(pct.incremento)} por fase anterior não contratada (${fmtPct(Catalogo.atual().acrescimoLacuna)} de ${fmtPct(pct.lacuna)})` : ''}${pct.acrescimo ? ` + acréscimo (${fmtPct(pct.acrescimo)})` : ''}. Dentro da fase, cada etapa leva o seu fator (1 ou 2) sobre a soma dos fatores das etapas marcadas: desmarcar uma etapa redistribui o valor da fase entre as que ficam. Pesos publicados em Referências › Fases e etapas.</p>
       </div>` : `<p class="field__hint">${srv.com_preco ? 'Este serviço tem preço único: as etapas não mudam o honorário.' : ''}</p>`}
       <div class="field-group">
+        <h3 class="bloco__titulo">Etapas e entregas</h3>
         ${fases.map(f => {
           const ids = f.etapas.map(e => e.id);
           const todas = ids.every(id => state.etapasSelecionadas.includes(id)), alguma = ids.some(id => state.etapasSelecionadas.includes(id));
@@ -418,7 +422,7 @@ STEPS.push({
         }).join('')}
       </div>
       <div class="field-group">
-        <p class="card__title">Cláusulas</p>
+        <h3 class="bloco__titulo">Cláusulas</h3>
         <p class="field__hint" style="margin-bottom:12px">Vêm dos eventos das etapas contratadas. As obrigatórias já estão incluídas; as opcionais entram na proposta (e o evento no escopo) quando marcadas.</p>
         ${clausulas.length ? clausulas.map(c => {
           const on = c.pert === 'P' || state.clausulasSelecionadas.includes(c.id);
@@ -431,7 +435,7 @@ STEPS.push({
         }).join('') : '<p class="small muted">Nenhuma cláusula nas etapas marcadas.</p>'}
       </div>
       <div class="field-group">
-        <p class="card__title" style="margin-bottom:12px">Conferência de complexidade</p>
+        <h3 class="bloco__titulo">Conferência de complexidade</h3>
         <div class="row-2">
           <div class="indicador-calculado"><span class="indicador-calculado__label">Grau de detalhamento</span><span class="indicador-calculado__valor">${nivel(ind.det)}</span></div>
           <div class="indicador-calculado"><span class="indicador-calculado__label">Empenho ao projeto vs porte</span><span class="indicador-calculado__valor">${nivel(ind.emp)}</span></div>
@@ -506,6 +510,7 @@ STEPS.push({
   render(state, data) {
     return `
       <div class="field-group">
+        <h3 class="bloco__titulo">Critérios do índice</h3>
         ${MANUAL_COMPLEXIDADE_KEYS.map(key => {
           const crit = data.icCriterios[IC_KEYS_ALL.indexOf(key)];
           const atual = labelIc(state.icValores[key] != null ? state.icValores[key] : 1);
@@ -513,9 +518,9 @@ STEPS.push({
             ${segmented('ic-' + key, [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], atual)}
             <p class="field__hint" id="ic-hint-${key}">${crit[atual]}</p></div>`;
         }).join('')}
+        <p class="field__hint">Indefinição do escopo fica em Projeto; empenho e detalhamento são calculados do Escopo.
+          <button type="button" class="btn-link" id="btn-ic-padrao">Voltar ao padrão das Bases</button></p>
       </div>
-      <p class="field__hint">Indefinição do escopo fica em Projeto; empenho e detalhamento são calculados do Escopo.
-        <button type="button" class="btn-link" id="btn-ic-padrao">Voltar ao padrão das Bases</button></p>
     `;
   },
   bind(el, state, data, ctx) {
@@ -542,11 +547,13 @@ STEPS.push({
     const f = Catalogo.faixa(state.areaConstruida);
     return `
       <div class="field-group">
+        <h3 class="bloco__titulo">Início</h3>
         <div class="field"><label class="field__label">Data de início do serviço</label>
           <input type="date" id="f-data-inicio" value="${state.dataInicio || ''}" min="2020-01-01" max="2035-12-31"></div>
         <p class="field__hint">${state.areaConstruida > 0 ? `Área de ${state.areaConstruida} m²: faixa ${f.indice} das Bases, prazo das entregas × ${String(f.mult).replace('.', ',')} (entregas de prazo fixo e eventos não mudam).` : 'Sem área informada, os prazos do PGT valem sem multiplicador.'}</p>
       </div>
       <div class="field-group" id="cronograma-preview">
+        <h3 class="bloco__titulo">Prazo por etapa</h3>
         ${etapas.length ? `<div class="timeline">${etapas.map(e => {
           const calc = prazoCalculado(state, e.id);
           const manual = state.semanasManual[e.id] != null && state.semanasManual[e.id] !== '';
@@ -605,12 +612,12 @@ STEPS.push({
     const entrada = state.pctEntrada != null ? state.pctEntrada : 0.35;
     const parcelas = Catalogo.parcelas(state.servicoId, state.etapasSelecionadas);
     return `
-      ${srv && !srv.com_preco ? `<div class="field-group"><div class="field">
-        <label class="field__label">Honorário (valor fixo)</label>
+      ${srv && !srv.com_preco ? `<div class="field-group"><h3 class="bloco__titulo">Honorário</h3><div class="field">
+        <label class="field__label">Valor fixo</label>
         <input type="text" inputmode="numeric" id="f-valor-fixo" value="${state.valorFixo ? OdisseCalc.fmtMoeda(state.valorFixo) : ''}" placeholder="Só números">
         <p class="field__hint">${escHtml(srv.nome)} não tem preço calculado nos Honorários.</p></div></div>` : `
-      <div class="field-group"><div class="field">
-        <label class="field__label">Fator de ajuste de mercado</label>
+      <div class="field-group"><h3 class="bloco__titulo">Ajuste de mercado</h3><div class="field">
+        <label class="field__label">Fator de ajuste</label>
         <div class="segmented" data-seg="fator-preset">
           ${[1, 1.25, 2.25].map(v => `<input type="radio" name="fator-preset" id="fator-${v}" value="${v}" ${fatorAtual === v ? 'checked' : ''}><label for="fator-${v}">${v === 1 ? 'Sem ajuste' : '÷ ' + v}</label>`).join('')}
           <input type="radio" name="fator-preset" id="fator-custom" value="custom" ${![1, 1.25, 2.25].includes(fatorAtual) ? 'checked' : ''}><label for="fator-custom">Outro</label>
@@ -619,6 +626,7 @@ STEPS.push({
         <p class="field__hint">O valor da tabela do CAU é dividido por este fator. 1,25 e 2,25 são os dois patamares que o Odisse costuma praticar.</p>
       </div></div>`}
       <div class="field-group">
+        <h3 class="bloco__titulo">Condições de pagamento</h3>
         <div class="row-2">
           <div class="field"><label class="field__label">Desconto à vista (%)</label><input type="number" min="0" max="100" step="1" id="f-desconto" value="${Math.round((state.descontoAvista != null ? state.descontoAvista : 0.08) * 100)}"></div>
           <div class="field"><label class="field__label">Entrada (%, no plano entrada + boletos)</label><input type="number" min="0" max="100" step="1" id="f-entrada" value="${Math.round(entrada * 100)}"></div>
@@ -632,8 +640,9 @@ STEPS.push({
         ${parcelas.length ? `<p class="field__hint">Referência (entrada + peso das fases contratadas): ${parcelas.map(p => `${escHtml(p.nome)} ${Math.round(p.percentual * 100)}%`).join(' · ')}.</p>` : ''}
       </div>
       <div class="field-group">
+        <h3 class="bloco__titulo">Despesas reembolsáveis</h3>
         <div class="switch-row">
-          <div class="switch-row__text"><div class="switch-row__title">Despesas reembolsáveis</div><div class="switch-row__hint">Desmarque os itens que não entram nesta proposta</div></div>
+          <div class="switch-row__text"><div class="switch-row__title">Incluir na proposta</div><div class="switch-row__hint">Desmarque os itens que não entram nesta proposta</div></div>
           <label class="switch"><input type="checkbox" id="f-reembolsaveis" ${state.incluirDespesasReembolsaveis !== false ? 'checked' : ''}><span class="switch__track"></span><span class="switch__thumb"></span></label>
         </div>
         <div class="entregaveis-list" id="despesas-reembolsaveis-lista" ${state.incluirDespesasReembolsaveis === false ? 'hidden' : ''} style="margin-top:10px">
@@ -706,13 +715,14 @@ STEPS.push({
           <div id="busca-cliente-res" class="busca-res"></div>
           <p class="field__hint">Sem busca, o cliente é cadastrado no Universo ao finalizar (com aviso se já houver alguém parecido).</p></div>`;
     return `
-      <div class="card simulacao-chave">
+      <div class="field-group simulacao-chave">
+        <h3 class="bloco__titulo">Tipo de orçamento</h3>
         <label class="check-row"><input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${trava ? 'disabled' : ''}><span class="check-row__box">${checkSvg()}</span>
           <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou estimar custo. Recebe número como qualquer proposta, não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span></label>
         ${trava && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
       </div>
       <div class="field-group">
-        <p class="card__title">Projeto</p>
+        <h3 class="bloco__titulo">Projeto</h3>
         <div class="field">
           <label class="field__label">Nome do projeto (opcional)</label>
           <input type="text" id="f-nome-projeto" value="${escHtml(state.nomeProjeto || '')}" placeholder="Ex.: Residência Silva">
@@ -720,7 +730,7 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
-        <p class="card__title">Cliente</p>
+        <h3 class="bloco__titulo">Cliente</h3>
         ${vinculo}
         <div class="field"><label class="field__label">Nome do cliente ou empresa${state._simulacao ? ' (opcional na simulação)' : ''}</label><input type="text" id="f-nome" value="${escHtml(c.nome || '')}"></div>
         <div class="row-2">
@@ -733,7 +743,7 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
-        <p class="card__title">Emissão</p>
+        <h3 class="bloco__titulo">Emissão</h3>
         <div class="field"><label class="field__label">Data da proposta</label><input type="date" id="f-data-proposta" value="${state.dataProposta || ''}" min="2020-01-01" max="2035-12-31"></div>
         <div class="field"><label class="field__label">Quem assina</label><div id="f-assinantes"><p class="small muted">Carregando a equipe…</p></div>
           <p class="field__hint">Da Equipe do Universo (quem pode assinar propostas). A rubrica entra no PDF só na emissão.</p></div>
@@ -794,8 +804,8 @@ STEPS.push({
     const falta = pendencias(state).filter(p => p.i !== STEPS.length - 1);
     const fmt = OdisseCalc.fmtMoeda;
     const memoria = r && !r.semPreco ? `
-      <div class="card">
-        <div class="card__title">Memória de cálculo</div>
+      <div class="field-group">
+        <h3 class="bloco__titulo">Memória de cálculo</h3>
         <div class="data-row"><span class="data-row__label">Base de honorários (BH = CUB × FA)</span><span class="data-row__value tabular">${fmt(r.bh)}/m²</span></div>
         <div class="data-row"><span class="data-row__label">Razão área projetada/construída (R)</span><span class="data-row__value tabular">${r.R.toFixed(3)}</span></div>
         <div class="data-row"><span class="data-row__label">Redutor de repetição (Rr)</span><span class="data-row__value tabular">${r.redutor}</span></div>
@@ -808,16 +818,18 @@ STEPS.push({
         <div class="data-row"><span class="data-row__label">Ajuste de mercado (÷ ${state.fatorAjuste})</span><span class="data-row__value tabular">${fmt(r.valorMercado)}</span></div>
         <div class="data-row"><span class="data-row__label">Percentual do projeto (fases contratadas)</span><span class="data-row__value tabular">${fmtPct(state.reducaoEscopoPercentual)}</span></div>
         <div class="data-row"><span class="data-row__label"><strong>Honorário final</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div>
-      </div>` : r ? `<div class="card"><div class="data-row"><span class="data-row__label"><strong>Honorário (valor fixo)</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
+      </div>` : r ? `<div class="field-group"><h3 class="bloco__titulo">Honorário</h3><div class="data-row"><span class="data-row__label"><strong>Honorário (valor fixo)</strong></span><span class="data-row__value tabular"><strong>${fmt(r.valorFinal)}</strong></span></div></div>` : '';
     const numero = state.numeroProposta
       ? `<div class="numero-proposta"><span class="numero-proposta__label">${state._simulacao ? 'Nº da simulação' : 'Nº da proposta'}</span><span class="numero-proposta__valor">${escHtml(state.numeroProposta)}</span></div>`
       : `<p class="field__hint" style="margin: 4px 0 16px">${state.numeroPropostaStatus === 'gerando' ? 'Registrando no Universo…' : state.numeroPropostaStatus === 'erro' ? `Não consegui registrar a proposta: ${escHtml(state._erroFinalizar || 'erro desconhecido')}. Tente de novo.` : 'O número da proposta sai ao finalizar.'}</p>`;
     const pdfStatus = state._pdfStatus === 'guardando' ? 'Guardando o PDF no Universo…' : state._pdfStatus === 'erro' ? `O PDF não foi guardado: ${escHtml(state._erroPdf || '')}. Tente de novo.` : '';
     return `
-      ${falta.length ? `<div class="card pendencias"><div class="card__title">Falta para finalizar</div>
+      ${falta.length ? `<div class="field-group pendencias"><h3 class="bloco__titulo">Falta para finalizar</h3>
         ${falta.map(p => `<button type="button" class="pendencia" data-ir="${p.i}"><b>${escHtml(p.titulo)}</b> ${escHtml(p.msg)}</button>`).join('')}</div>` : ''}
       ${memoria}
-      ${state._revisaoDeCodigo ? `<p class="field__hint" style="margin: 4px 0 8px">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
+      ${state._revisaoDeCodigo ? `<p class="field__hint aviso-revisao">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
+      <div class="field-group">
+      <h3 class="bloco__titulo">Numeração e PDF</h3>
       ${numero}
       <div class="row-2">
         <button class="btn btn--ghost" id="btn-finalizar" type="button" ${state.numeroProposta || state.numeroPropostaStatus === 'gerando' || falta.length ? 'disabled' : ''}>${state.numeroPropostaStatus === 'gerando' ? 'Finalizando…' : 'Finalizar orçamento'}</button>
@@ -826,6 +838,7 @@ STEPS.push({
       ${pdfStatus ? `<p class="field__hint" style="margin-top:10px">${pdfStatus}</p>` : ''}
       ${state._simulacao ? '<p class="field__hint" style="margin-top:14px"><strong>Simulação:</strong> ao finalizar, recebe um número (que conta na sequência das propostas) e fica no histórico marcada como simulação, sem cliente e fora do funil.</p>' : ''}
       <p class="field__hint" style="margin-top:14px">Ao finalizar, a proposta é numerada e registrada no Universo com as versões do PGT, das Bases e dos Honorários usadas. Ao gerar o PDF, ele é guardado exatamente como vai para o cliente; depois disso, os valores não mudam (para mudar, abra uma revisão pelo histórico ou pelo funil).</p>
+      </div>
     `;
   },
   bind(el, state, data, ctx) {

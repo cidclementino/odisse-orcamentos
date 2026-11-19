@@ -996,23 +996,27 @@ button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 
 .pp-notas { margin: 48px 0 0; padding-top: 24px; border-top: 1px solid var(--linha-forte); font-size: 12.5px; color: var(--tinta-2); }
 @media (max-width: 900px) { .pp-regua { display: none; } .pp-linha { grid-template-columns: 1fr auto; } }
 
-/* Editor: passos corridos na página, um Bloco por passo (Assistente: Passos · Blocos · Resumo) */
-.orc-trilha { margin: 0 0 8px; font-size: 11px; }
-.orc-titulo { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 24px; }
+/* Editor: passos corridos na página. O nome do passo é uma variação do título da página (como "Empresa"
+   no Universo); dentro dele, Blocos temáticos (caixas brancas com título 17/650). Passos separados pelo
+   filete de seção; as explicações de cada passo ficam nas notas, no fim. */
+.orc-trilha { margin: 0 0 4px; font-size: 11px; }
 .orc-guia { padding-top: 4px; }
-.orc-bloco { background: var(--elevada); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px 28px; margin-bottom: 16px;
-  scroll-margin-top: calc(var(--rail-h) + 24px); }
-.orc-bloco__cab { display: flex; align-items: center; gap: 10px; }
-.orc-bloco__num { width: 24px; height: 24px; flex: none; border-radius: 50%; background: var(--nevoa); color: var(--tinta); display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.orc-bloco__titulo { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
-.orc-bloco__desc { color: var(--tinta-2); font-size: 12.5px; line-height: 1.45; margin: 6px 0 18px 34px; max-width: 62ch; }
-.orc-bloco__corpo > :last-child { margin-bottom: 0; }
+.orc-bloco { scroll-margin-top: calc(var(--rail-h) + 16px); }
+.orc-bloco + .orc-bloco { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--linha-forte); }
+.orc-bloco__titulo { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 20px; }
+.orc-bloco__num { width: 26px; height: 26px; flex: none; border-radius: 4px; background: var(--nevoa); color: var(--tinta-2);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 650; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.orc-bloco .field-group { background: var(--elevada); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px 28px; margin: 0 0 12px; }
+.orc-bloco .field-group + .field-group { border-top: 1px solid var(--linha); padding-top: 24px; }
 .orc-bloco .field-group:last-child { margin-bottom: 0; }
+.bloco__titulo { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; color: var(--tinta); margin: 0 0 18px; }
 .orc-bloco .card { background: var(--superficie); }
+.orc-bloco .aviso-revisao { margin: 0 0 12px; }
+.orc-notas { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--linha-forte); display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px 32px; }
+.orc-notas p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--tinta-2); }
+.orc-notas .orc-notas__titulo { font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
 .guia__num svg { width: 12px; height: 12px; }
 @media (max-width: 760px) {
-  .orc-bloco { padding: 20px 16px; }
-  .orc-bloco__desc { margin-left: 0; }
+  .orc-bloco .field-group { padding: 20px 16px; }
   .orc-guia { position: sticky; top: var(--rail-h); z-index: 5; background: var(--fundo); padding: 8px 0; }
 }

@@ -298,10 +298,12 @@ function mostrarConfirmacao() {
   container.innerHTML = `
     <section class="orc-bloco">
       <h2 class="orc-bloco__titulo">Orçamento gerado</h2>
-      <p class="orc-bloco__desc">O orçamento de <strong>${escHtml(nomeCliente)}</strong> foi gerado${STATE.numeroProposta ? `: proposta <strong>${escHtml(STATE.numeroProposta)}</strong>` : ''}.</p>
+      <div class="field-group">
+      <p class="field__hint" style="margin:0 0 16px">O orçamento de <strong>${escHtml(nomeCliente)}</strong> foi gerado${STATE.numeroProposta ? `: proposta <strong>${escHtml(STATE.numeroProposta)}</strong>` : ''}.</p>
       <div class="row-2">
         <button class="btn btn--ghost" id="btn-baixar-de-novo" type="button">Baixar PDF novamente</button>
         <button class="btn btn--primary u-botao forte" id="btn-novo-orcamento" type="button">Ver em Propostas</button>
+      </div>
       </div>
     </section>
   `;
@@ -359,10 +361,10 @@ function renderTudo() {
   const container = document.getElementById('step-container');
   container.innerHTML = STEPS.map((s, i) => `
     <section class="orc-bloco" id="passo-${s.id}" data-passo="${i}">
-      <div class="orc-bloco__cab"><span class="orc-bloco__num">${i + 1}</span><h2 class="orc-bloco__titulo">${s.title}</h2></div>
-      <p class="orc-bloco__desc">${s.desc}</p>
+      <h2 class="orc-bloco__titulo"><span class="orc-bloco__num">${i + 1}</span>${s.title}</h2>
       <div class="orc-bloco__corpo"></div>
-    </section>`).join('');
+    </section>`).join('')
+    + `<section class="orc-notas" aria-label="Como preencher">${STEPS.map((s, i) => `<div><p class="orc-notas__titulo">${i + 1} · ${s.title}</p><p>${s.desc}</p></div>`).join('')}</section>`;
   STEPS.forEach((_, i) => renderPasso(i));
   updateTicket();
   salvarRascunho();
@@ -450,8 +452,6 @@ function abrirEditor() {
   const titulo = STATE._revisaoDeCodigo ? `Revisão de ${STATE._revisaoDeCodigo}` : STATE.numeroProposta || (STATE._simulacao ? 'Nova simulação' : 'Nova proposta');
   const t = document.getElementById('orc-trilha-atual');
   if (t) t.textContent = titulo;
-  const h = document.getElementById('orc-titulo');
-  if (h) h.textContent = titulo;
   if (!editorPronto) {
     for (const ev of ['input', 'change']) container.addEventListener(ev, () => { salvarRascunho(); atualizarRevisao(); });
     editorPronto = true;
