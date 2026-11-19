@@ -388,7 +388,7 @@ STEPS.push({
     return `
       ${pct.porEtapa ? `<div class="field-group">
         <div class="data-row"><span class="data-row__label">Percentual do honorário (calculado)</span><span class="data-row__value tabular"><strong>${fmtPct(pct.percentual)}</strong></span></div>
-        <p class="field__hint">Soma do peso das fases com etapa marcada (${fmtPct(pct.doFluxo)})${pct.acrescimo ? ` + acréscimo (${fmtPct(pct.acrescimo)})` : ''}. Dentro da fase, cada etapa leva o seu fator (1 ou 2) sobre a soma dos fatores das etapas marcadas: desmarcar uma etapa redistribui o valor da fase entre as que ficam. Pesos publicados em Honorários.</p>
+        <p class="field__hint">Soma do peso das fases com etapa marcada (${fmtPct(pct.doFluxo)})${pct.incremento ? ` + ${fmtPct(pct.incremento)} por fase anterior não contratada (${fmtPct(Catalogo.atual().acrescimoLacuna)} de ${fmtPct(pct.lacuna)})` : ''}${pct.acrescimo ? ` + acréscimo (${fmtPct(pct.acrescimo)})` : ''}. Dentro da fase, cada etapa leva o seu fator (1 ou 2) sobre a soma dos fatores das etapas marcadas: desmarcar uma etapa redistribui o valor da fase entre as que ficam. Pesos publicados em Honorários.</p>
       </div>` : `<p class="field__hint">${srv.com_preco ? 'Este serviço tem preço único: as etapas não mudam o honorário.' : ''}</p>`}
       <div class="field-group">
         ${fases.map(f => {

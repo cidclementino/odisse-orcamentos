@@ -214,7 +214,7 @@ function updateTicket() {
       <table class="previa__tabela"><tbody>
         ${etapas.map((e, i) => `<tr><td><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</td><td>${e.semanas ? fmtSemanas(e.semanas, true) : '<span class="previa__falta">—</span>'}</td><td>${distrib[i] ? (distrib[i].valor > 0 ? fmt(distrib[i].valor) : 'incluído') : ''}</td></tr>`).join('')}
       </tbody></table>
-      ${pct.porEtapa ? `<span class="previa__sub">${pct.fases.filter(f => !f.acrescimo).map(f => `${escHtml(f.nome)} ${fmtPct(f.peso)}`).join(' · ')}${pct.acrescimo ? ` · acréscimo ${pct.fases.filter(f => f.acrescimo).map(f => `${escHtml(f.nome)} +${fmtPct(f.peso)}`).join(' · ')}` : ''}</span>` : ''}
+      ${pct.porEtapa ? `<span class="previa__sub">${pct.fases.filter(f => !f.acrescimo).map(f => `${escHtml(f.nome)} ${fmtPct(f.peso)}`).join(' · ')}${pct.incremento ? ` · +${fmtPct(pct.incremento)} por fase anterior não contratada` : ''}${pct.acrescimo ? ` · acréscimo ${pct.fases.filter(f => f.acrescimo).map(f => `${escHtml(f.nome)} +${fmtPct(f.peso)}`).join(' · ')}` : ''}</span>` : ''}
     </div>` : ''}
     ${alertas ? `<div class="previa__bloco">${alertas}</div>` : ''}
   `;
@@ -260,7 +260,8 @@ function resumoProposta(state) {
 // sobre o total; serviço sem preço por etapa: pela duração.
 function distribuirHonorario(state, valor, etapas) {
   const p = Catalogo.percentual(state.servicoId, state.etapasSelecionadas);
-  if (p.porEtapa && p.percentual > 0) return etapas.map(e => ({ nome: e.nome, sigla: e.sigla, valor: valor * ((p.noProjeto[e.id] || 0) / p.percentual) }));
+  const soma = Object.values(p.noProjeto).reduce((a, x) => a + x, 0);
+  if (p.porEtapa && soma > 0) return etapas.map(e => ({ nome: e.nome, sigla: e.sigla, valor: valor * ((p.noProjeto[e.id] || 0) / soma) }));
   return OdisseCalc.distribuirPorEtapa(valor, etapas.map(e => ({ nome: e.nome, sigla: e.sigla, semanas: e.semanas || 0 })));
 }
 

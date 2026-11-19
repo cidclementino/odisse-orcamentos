@@ -195,20 +195,26 @@ function partes(e, f, s) {
 }
 const pct = (n) => `${fmtNum(Math.round(n * 1000) / 10)}%`;
 
+// Parâmetros da aba: entrada do pagamento e o acréscimo do "só tal fase" (0016).
+const PARAMS_ABA = [
+  { chave: 'parcela_entrada', nota: 'O restante do pagamento acompanha o peso das fases contratadas.' },
+  { chave: 'acrescimo_lacuna', nota: 'Contratar uma fase sem as anteriores (ex.: só a Legal) acrescenta esta fração do peso das fases anteriores não contratadas. NE 40 · 20 · 40, a 50%: só Legal = 20 + 20 = 40%; Conceitual + Executiva = 80 + 10 = 90%. Obra fica fora da conta.' },
+];
 function desenharEntrada() {
   const el = document.getElementById('entrada');
-  el.innerHTML = `<div class="hon-entrada"><label for="p-entrada">${escHtml(H.parametros_rotulos.parcela_entrada)}</label>
-      <input class="cel" id="p-entrada" inputmode="decimal" value="${H.parametros.parcela_entrada === undefined ? '' : fmtNum(H.parametros.parcela_entrada * 100)}"> %
-      <span class="small muted">O restante do pagamento acompanha o peso das fases contratadas.</span></div>`;
-  el.querySelector('#p-entrada').onchange = async (ev) => {
+  el.innerHTML = PARAMS_ABA.filter((p) => H.parametros_rotulos[p.chave]).map((p) => `<div class="hon-entrada"><label for="p-${p.chave}">${escHtml(H.parametros_rotulos[p.chave])}</label>
+      <input class="cel" id="p-${p.chave}" data-param="${p.chave}" inputmode="decimal" value="${H.parametros[p.chave] === undefined ? '' : fmtNum(H.parametros[p.chave] * 100)}"> %
+      <span class="small muted">${escHtml(p.nota)}</span></div>`).join('');
+  el.querySelectorAll('[data-param]').forEach((c) => c.onchange = async (ev) => {
+    const chave = c.dataset.param;
     const n = lerNum(ev.target.value);
-    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso('Entrada: número de 0 a 100.'); return desenharEntrada(); }
+    if (n === null || Number.isNaN(n) || n < 0 || n > 100) { aviso(`${H.parametros_rotulos[chave]}: número de 0 a 100.`); return desenharEntrada(); }
     try {
-      await Universo.post('honorarios/parametros', { chave: 'parcela_entrada', valor: n / 100 });
-      H.parametros.parcela_entrada = n / 100;
+      await Universo.post('honorarios/parametros', { chave, valor: n / 100 });
+      H.parametros[chave] = n / 100;
       aviso(''); marcarPendente(); desenharEntrada();
     } catch (err) { aviso(mensagemDe(err)); }
-  };
+  });
 }
 
 function desenharPesos() {

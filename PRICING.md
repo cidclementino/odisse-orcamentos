@@ -239,6 +239,13 @@ boa parte da documentação técnica produzida do zero, por isso pesa mais
 por etapa do que as etapas de Conceitual, mesmo a fase Legal sendo menor
 no total.
 
+> **Desde nov/2026 (Universo, migrações 0015 e 0016):** os pesos moram nos Honorários do Universo e a regra
+> passou a valer **por fase**: cada fase tem um peso por serviço (% do projeto, as do fluxo somam 100); dentro da
+> fase, a etapa tem fator 1 ou 2 e leva fator ÷ soma dos fatores das etapas contratadas (a não contratada
+> redistribui o valor da fase). A lacuna abaixo é calculada com as **fases** do fluxo não contratadas que vêm
+> antes de uma contratada, com a fração editável em Honorários (padrão 50%); a fase Obra é acréscimo além dos
+> 100% e fica fora da lacuna. Os exemplos da tabela continuam dando os mesmos números. Código: `catalogo.js`.
+
 ### A fórmula
 
 ```

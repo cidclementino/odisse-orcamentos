@@ -89,6 +89,8 @@ const Catalogo = (() => {
       entregas: P.entregaveis || [], eventos: P.eventos || [],
       faixas: B.faixas_prazo || [], pesos: N.pesos,
       parcelaEntrada: H.parametros && H.parametros.parcela_entrada != null ? H.parametros.parcela_entrada : null,
+      // "só tal fase": fração do peso das fases anteriores não contratadas que entra como acréscimo (padrão 50%)
+      acrescimoLacuna: H.parametros && H.parametros.acrescimo_lacuna != null ? H.parametros.acrescimo_lacuna : 0.5,
       idx: { servico: por(servicos), categoria: cats, uso: por(B.usos), etapa: por(etapas), fase: fasePorId,
         entrega: por(P.entregaveis || []), evento: por(P.eventos || []) },
     };
@@ -186,7 +188,11 @@ const Catalogo = (() => {
   //   - cada fase com ao menos uma etapa contratada entra com o seu peso (% do projeto); as fases do fluxo
   //     somam 100 e a de acréscimo (Obra) vai além — o percentual pode passar de 100%;
   //   - dentro da fase, a etapa leva fator (1 ou 2) ÷ soma dos fatores das etapas contratadas da fase:
-  //     a etapa não contratada redistribui o seu valor entre as que ficaram.
+  //     a etapa não contratada redistribui o seu valor entre as que ficaram;
+  //   - "só tal fase" (PRICING.md, regra da lacuna, agora por fase): as fases do fluxo NÃO contratadas que vêm
+  //     antes de alguma contratada somam a lacuna; entra como acréscimo uma fração dela (Honorários, padrão 50%).
+  //     Ex. NE 40 · 20 · 40: só Legal = 20 + 50% × 40 = 40%; Conceitual + Executiva = 80 + 10 = 90%.
+  //     O acréscimo se reparte entre as etapas contratadas na proporção delas.
   // Devolve { percentual, porEtapa, noProjeto: { etapa → fração do projeto }, fases: [...] }.
   // Serviço sem preço por etapa: 100%, sem repartição.
   const fator = (etapaId, srvId) => (C && C.pesos[etapaId] && C.pesos[etapaId][srvId] === 2 ? 2 : 1);
@@ -195,19 +201,23 @@ const Catalogo = (() => {
     if (!s || !s.preco_por_etapa) return { percentual: 1, porEtapa: false, noProjeto: {}, fases: [] };
     const sel = new Set(etapasSel || []);
     const noProjeto = {}, fases = [];
-    let total = 0, doFluxo = 0, acrescimo = 0;
+    let total = 0, doFluxo = 0, acrescimo = 0, lacuna = 0, pendente = 0;
     for (const f of C.fases) {
       if (f.ilha) continue;
       const ets = etapasDoServico(srvId).filter((e) => e.fase_id === f.id && sel.has(e.id));
       const peso = (f.pesos[srvId] || 0) / 100;
-      if (!ets.length) continue;
+      const temEtapa = etapasDoServico(srvId).some((e) => e.fase_id === f.id);
+      if (!ets.length) { if (!f.acrescimo && temEtapa) pendente += peso; continue; }
+      if (!f.acrescimo) { lacuna += pendente; pendente = 0; }
       const soma = ets.reduce((t, e) => t + fator(e.id, srvId), 0);
       for (const e of ets) noProjeto[e.id] = peso * fator(e.id, srvId) / soma;
       fases.push({ id: f.id, nome: f.nome, peso, acrescimo: f.acrescimo, etapas: ets.map((e) => e.id) });
       total += peso;
       if (f.acrescimo) acrescimo += peso; else doFluxo += peso;
     }
-    return { percentual: total, porEtapa: true, noProjeto, fases, doFluxo, acrescimo };
+    const incremento = lacuna * (C.acrescimoLacuna || 0);
+    if (incremento > 0 && total > 0) for (const id of Object.keys(noProjeto)) noProjeto[id] *= (total + incremento) / total;
+    return { percentual: total + incremento, porEtapa: true, noProjeto, fases, doFluxo, acrescimo, lacuna, incremento };
   }
   // Fração do projeto que a etapa levaria se fosse contratada junto com as já marcadas (para mostrar no Escopo).
   function fracaoSeMarcada(etapaId, srvId, etapasSel) {
@@ -229,7 +239,8 @@ const Catalogo = (() => {
     const entrada = C.parcelaEntrada != null ? C.parcelaEntrada : 0;
     const l = entrada ? [{ nome: 'Entrada (assinatura)', percentual: entrada }] : [];
     if (!p.porEtapa || !(p.percentual > 0)) return l;
-    for (const f of p.fases) l.push({ nome: f.nome, percentual: (1 - entrada) * f.peso / p.percentual, fase_id: f.id });
+    const soma = p.fases.reduce((t, f) => t + f.peso, 0);
+    if (soma > 0) for (const f of p.fases) l.push({ nome: f.nome, percentual: (1 - entrada) * f.peso / soma, fase_id: f.id });
     return l;
   }
 
