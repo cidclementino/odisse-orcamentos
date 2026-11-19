@@ -15,7 +15,7 @@ Todas as decisões sobre a fórmula de cálculo (modificadores por serviço,
 critérios de complexidade, unificação de escopo/etapas, etc.) estão registradas
 em detalhe no [`PRICING.md`](./PRICING.md) — inclusive o *porquê* de cada
 escolha, não só o *como*. A fórmula, com a legenda das siglas, fica em
-Honorários › Fórmula (`honorarios.html#formula`).
+Referências › Fórmula (`honorarios.html#formula`).
 
 ## ⚠️ Antes de publicar
 

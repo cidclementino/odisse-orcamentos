@@ -287,7 +287,7 @@ de marcar de volta.
 **Contexto:** revisão de como o Serviço Odisse, o Modificador, a Tipologia
 construtiva e o CUB se relacionam — nenhuma mudança de código aqui, só
 esclarecimento e auditoria da lógica existente (documentado porque valia a
-pena registrar; hoje resumido na legenda de Honorários › Fórmula).
+pena registrar; hoje resumido na legenda de Referências › Fórmula).
 
 São 4 classificações de fontes diferentes, encadeadas:
 
@@ -332,7 +332,7 @@ classificações diferentes.
 ## 6. Fórmula única e área de cálculo (nov/2026)
 
 **Decisão (Cid, 18/11):** a página "Como funciona o cálculo" virou a aba
-Honorários › Fórmula, só com a conta e a legenda das siglas:
+Referências › Fórmula, só com a conta e a legenda das siglas:
 
     H = { [ (CUB × FA) × (A × R × Rr) ] × fp × IC } × M × P ÷ Fm
 
