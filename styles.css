@@ -840,26 +840,21 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .hon-grupo.is-aberta .hon-etapa { display: table-row; }
 .hon-matriz tr.hon-fase td { background: var(--veu); border-top: 1px solid var(--linha-forte); border-bottom: 0; padding-top: 10px; padding-bottom: 10px; }
 .hon-grupo.is-acrescimo tr.hon-fase td { background: color-mix(in srgb, var(--odisse-ocre, #BB8248) 9%, transparent); }
-.hon-fase__cab { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .hon-abrir { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 2px 4px 2px 0; border-radius: 4px; }
 .hon-abrir:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .hon-abrir strong { font-size: 13.5px; font-weight: 650; }
 .hon-seta { display: inline-block; width: 12px; font-size: 11px; color: var(--tinta-2); transition: transform .15s; }
 .is-aberta .hon-seta { transform: rotate(90deg); }
 .hon-conta { font-size: 11.5px; color: var(--tinta-3); }
-.hon-chave { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--tinta-2); cursor: pointer; padding: 2px 8px 2px 4px;
-  border: 1px solid var(--linha); border-radius: 999px; background: var(--elevada); }
-.hon-chave input { margin: 0; accent-color: var(--odisse-ocre, #BB8248); }
-.is-acrescimo .hon-chave { border-color: var(--odisse-ocre, #BB8248); color: var(--destaque-texto, #8A5A2B); }
-.hon-matriz tr.hon-etapa td { padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--linha); }
+.is-acrescimo .hon-matriz tr.hon-etapa td { padding-top: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--linha); }
 .hon-sigla { display: inline-block; width: 30px; margin-left: 20px; font-size: 11px; font-weight: 650; letter-spacing: .04em; color: var(--tinta-2); }
 /* campo de % da fase: o % dentro da caixa */
-.hon-campo-pct { display: inline-flex; align-items: center; width: 70px; border: 1px solid var(--linha-forte); border-radius: 4px; background: var(--elevada); padding: 0 8px 0 4px; cursor: text; }
+.hon-campo-pct { display: inline-flex; align-items: stretch; width: 86px; border: 1px solid var(--linha-forte); border-radius: 4px; background: var(--elevada); padding: 0 0 0 4px; cursor: text; }
 .hon-campo-pct:focus-within { outline: 2px solid var(--foco); outline-offset: -1px; border-color: transparent; }
 .hon-campo-pct input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 650; text-align: right;
   padding: 5px 2px; color: var(--tinta); font-variant-numeric: tabular-nums; }
 .hon-campo-pct input:focus { outline: none; }
-.hon-campo-pct span { font-size: 12px; color: var(--tinta-2); }
+.hon-campo-pct > span:not(.hon-passo) { align-self: center; font-size: 12px; color: var(--tinta-2); padding-right: 4px; }
 .hon-matriz select.cel { width: 70px; }
 /* % da etapa: duas linhas rotuladas */
 .hon-partes { display: flex; flex-direction: column; gap: 1px; margin-top: 5px; font-size: 10.5px; line-height: 1.3; color: var(--tinta-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -894,3 +889,30 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* a barra da soma só gruda no fundo da tela se a tabela não estiver num contêiner de rolagem */
 #pesos.rolagem { overflow: visible; }
 @media (max-width: 900px) { #pesos.rolagem { overflow-x: auto; } }
+
+/* setas dentro da caixa do % */
+.hon-passo { display: flex; flex-direction: column; border-left: 1px solid var(--linha); }
+.hon-passo button { all: unset; cursor: pointer; flex: 1; display: grid; place-items: center; width: 16px; font-size: 9px; line-height: 1; color: var(--tinta-2); }
+.hon-passo button:first-child { border-bottom: 1px solid var(--linha); }
+.hon-passo button:hover { background: var(--veu); color: var(--tinta); }
+.hon-passo button:active { background: var(--linha); }
+/* coluna "Entra como": nos 100% · acréscimo */
+.hon-matriz th.hon-conta-col, .hon-matriz td.hon-conta-col { width: 170px; text-align: center; vertical-align: middle; }
+.hon-seg { display: inline-flex; border: 1px solid var(--linha-forte); border-radius: 999px; background: var(--elevada); padding: 2px; gap: 2px; }
+.hon-seg button { all: unset; cursor: pointer; font-size: 11px; padding: 3px 9px; border-radius: 999px; color: var(--tinta-2); white-space: nowrap; }
+.hon-seg button:focus-visible { outline: 2px solid var(--foco); }
+.hon-seg button[aria-checked="true"] { background: var(--tinta, #3F4B57); color: var(--superficie, #fff); font-weight: 600; }
+.is-acrescimo .hon-seg button[aria-checked="true"] { background: var(--odisse-ocre, #BB8248); }
+.hon-seg button[disabled] { opacity: .5; cursor: progress; }
+.hon-seg--escuro { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.25); }
+.hon-seg--escuro button { color: rgba(255,255,255,.75); }
+.hon-seg--escuro button[aria-checked="true"] { background: var(--superficie, #fff); color: var(--tinta, #3F4B57); }
+.hon-total td.hon-conta-col { padding-left: 4px; padding-right: 4px; }
+/* opcional fora da conta */
+.hon-fora { font-size: 10.5px; line-height: 1.3; color: var(--tinta-3); font-style: italic; }
+/* soma fora dos 100%: botão que ajusta */
+button.hon-total__n { all: unset; display: inline-block; min-width: 54px; padding: 3px 8px; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer;
+  background: #C2574A; color: #fff; text-align: center; font-variant-numeric: tabular-nums; }
+button.hon-total__n:hover { box-shadow: 0 0 0 2px rgba(255,255,255,.5); }
+button.hon-total__n::after { content: ' ajustar'; font-size: 10px; font-weight: 600; opacity: .85; }
+.hon-ex--ruim { background: #C2574A; color: #fff; border-color: #C2574A; border-radius: 999px; font-weight: 700; }

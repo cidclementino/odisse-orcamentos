@@ -9,7 +9,7 @@
 <link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
 <link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
 <link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=b018d8c56c">
+<link rel="stylesheet" href="styles.css?v=718d642950">
 </head>
 <body>
 
@@ -185,14 +185,73 @@ const fator = (x) => (x && x.peso === 2 ? 2 : 1);
 function somaDe(s) { return fasesDoFluxo().filter((f) => !f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
 function acrescimoDe(s) { return fasesDoFluxo().filter((f) => f.acrescimo).reduce((t, f) => t + (etapasDa(f, s).length ? (f.pesos[s.id] || 0) : 0), 0); }
 function somasRuins() { return repartidos().filter((s) => !igual(somaDe(s), 100)).map((s) => `${s.sigla} (${fmtNum(somaDe(s))}%)`); }
-// % da etapa na fase e no projeto, com as pertinentes da fase (e ela mesma, se opcional)
+// Opcionais: "sem" (padrão) conta só as etapas pertinentes; "com" conta também as opcionais, como se todas fossem contratadas.
+const CHAVE_OPCIONAIS = 'vendas:honorarios:opcionais';
+let comOpcionais = (() => { try { return localStorage.getItem(CHAVE_OPCIONAIS) === 'com'; } catch (_) { return false; } })();
+// % da etapa na fase e no projeto, com as etapas que entram na conta (null = opcional fora da conta)
 function partes(e, f, s) {
-  const lista = etapasDa(f, s).filter((x) => x.servicos[s.id].pertinencia === 'P' || x.id === e.id);
+  const op = e.servicos[s.id].pertinencia === 'O';
+  if (op && !comOpcionais) return null;
+  const lista = etapasDa(f, s).filter((x) => comOpcionais || x.servicos[s.id].pertinencia === 'P');
   const total = lista.reduce((t, x) => t + fator(x.servicos[s.id]), 0);
   const naFase = total ? fator(e.servicos[s.id]) / total : 0;
   return { naFase, noProjeto: naFase * (f.pesos[s.id] || 0) / 100 };
 }
 const pct = (n) => `${fmtNum(Math.round(n * 1000) / 10)}%`;
+
+// ---- redistribuição: as fases dos 100% de um serviço fecham sempre 100%.
+// Mexer numa fase tira (ou devolve) a diferença das outras em partes iguais; nenhuma passa de 0 a 100.
+// Contas em décimos de ponto, para os números ficarem redondos.
+const participantes = (s) => fasesDoFluxo().filter((f) => !f.acrescimo && etapasDa(f, s).length && f.pesos[s.id] !== undefined && f.pesos[s.id] !== null);
+function equilibrar(s, fixa) {
+  const outras = participantes(s).filter((f) => f !== fixa);
+  if (!outras.length) return [];
+  const alvo = Math.round((100 - (fixa && !fixa.acrescimo ? (fixa.pesos[s.id] || 0) : 0)) * 10);
+  const v = new Map(outras.map((f) => [f, Math.round(f.pesos[s.id] * 10)]));
+  let falta = alvo - [...v.values()].reduce((t, n) => t + n, 0); // >0: as outras sobem; <0: descem
+  let livres = outras.slice();
+  while (falta !== 0 && livres.length) {
+    const sinal = Math.sign(falta);
+    const base = Math.trunc(falta / livres.length);
+    let resto = falta - base * livres.length;
+    // o resto (um décimo por vez) vai primeiro para as maiores quando descem, para as menores quando sobem
+    const ordem = livres.slice().sort((a, b) => sinal < 0 ? v.get(b) - v.get(a) : v.get(a) - v.get(b));
+    const parte = new Map(ordem.map((f) => { const r = resto !== 0 ? sinal : 0; resto -= r; return [f, base + r]; }));
+    for (const f of livres) {
+      const novo = Math.min(1000, Math.max(0, v.get(f) + parte.get(f)));
+      falta -= novo - v.get(f);
+      v.set(f, novo);
+    }
+    livres = livres.filter((f) => (falta < 0 ? v.get(f) > 0 : v.get(f) < 1000));
+  }
+  const mudadas = [];
+  for (const [f, n] of v) if (!igual(n / 10, f.pesos[s.id])) { f.pesos[s.id] = n / 10; mudadas.push(f); }
+  return mudadas;
+}
+
+// ---- gravação adiada: as setas e as redistribuições mudam a tela na hora; o Universo recebe tudo após uma pausa
+const aGravar = new Map(); // "fase|serviço" → { fase, srv }
+let relogio = null;
+function gravarDepois(f, srvId) {
+  aGravar.set(`${f.id}|${srvId}`, { f, srvId });
+  marcarPendente();
+  clearTimeout(relogio);
+  relogio = setTimeout(gravarFila, 700);
+}
+async function gravarFila() {
+  const lote = [...aGravar.values()]; aGravar.clear();
+  try {
+    await Promise.all(lote.map(({ f, srvId }) => Universo.post('honorarios/fases', { fase_id: f.id, servico_id: srvId, peso: f.pesos[srvId] ?? null })));
+    aviso('');
+  } catch (err) { aviso(`${mensagemDe(err)} Recarregando os pesos…`); carregar(); }
+}
+// muda o peso de uma fase num serviço e, se ela está nos 100%, reequilibra as outras
+function mudarPesoFase(f, s, valor) {
+  if (valor === null) delete f.pesos[s.id]; else f.pesos[s.id] = Math.round(valor * 10) / 10;
+  gravarDepois(f, s.id);
+  if (!f.acrescimo && valor !== null) for (const o of equilibrar(s, f)) gravarDepois(o, s.id);
+  atualizarNumeros();
+}
 
 // Parâmetros da aba (cartões, como os da Equipe no Universo): entrada do pagamento e o acréscimo do "só tal fase" (0016).
 const PARAMS_ABA = [
@@ -226,6 +285,41 @@ const CHAVE_ABERTAS = 'vendas:honorarios:fases-abertas';
 const abertas = new Set((() => { try { return JSON.parse(localStorage.getItem(CHAVE_ABERTAS) || '[]'); } catch (_) { return []; } })());
 const lembrarAbertas = () => { try { localStorage.setItem(CHAVE_ABERTAS, JSON.stringify([...abertas])); } catch (_) { /* sem cópia */ } };
 
+function htmlPartes(e, f, s) {
+  const p = partes(e, f, s);
+  if (!p) return '<span class="hon-fora">opcional<br>fora da conta</span>';
+  return `<span><b>${pct(p.naFase)}</b> da fase</span><span><b>${pct(p.noProjeto)}</b> do projeto</span>`;
+}
+function htmlTotal(s) {
+  const n = somaDe(s), ok = igual(n, 100);
+  return `${ok ? `<span class="hon-total__n ok">${fmtNum(n)}%</span>`
+    : `<button type="button" class="hon-total__n ruim" data-completar="${s.id}" title="Ajustar as fases de ${escHtml(s.sigla)} para somar 100%">${fmtNum(n)}%</button>`}${acrescimoDe(s) ? `<span class="hon-total__acr">+${fmtNum(acrescimoDe(s))}% acréscimo</span>` : ''}`;
+}
+// atualiza números sem redesenhar a tabela (o cursor e as fases abertas ficam onde estão)
+function atualizarNumeros() {
+  const el = document.getElementById('pesos');
+  const S = repartidos();
+  el.querySelectorAll('.cel--fase').forEach((c) => {
+    if (c === document.activeElement) return;
+    const f = H.fases.find((x) => x.id === c.dataset.fase);
+    c.value = fmtNum(f.pesos[c.dataset.srv]);
+  });
+  el.querySelectorAll('[data-partes]').forEach((sp) => {
+    const [eid, sid] = sp.dataset.partes.split('|');
+    const e = H.etapas.find((x) => x.id === eid), s = S.find((x) => x.id === sid), f = H.fases.find((x) => x.id === e.fase_id);
+    sp.innerHTML = htmlPartes(e, f, s);
+  });
+  el.querySelectorAll('[data-total]').forEach((td) => { td.innerHTML = htmlTotal(S.find((x) => x.id === td.dataset.total)); });
+  ligarCompletar(el);
+}
+function ligarCompletar(el) {
+  el.querySelectorAll('[data-completar]').forEach((b) => b.onclick = () => {
+    const s = repartidos().find((x) => x.id === b.dataset.completar);
+    for (const o of equilibrar(s, null)) gravarDepois(o, s.id);
+    atualizarNumeros();
+  });
+}
+
 function desenharPesos() {
   desenharEntrada();
   const S = repartidos();
@@ -235,50 +329,56 @@ function desenharPesos() {
     if (!etapas.length) continue;
     const aberta = abertas.has(f.id);
     html += `<tbody class="hon-grupo${aberta ? ' is-aberta' : ''}${f.acrescimo ? ' is-acrescimo' : ''}" data-grupo="${f.id}">
-      <tr class="hon-fase"><td><div class="hon-fase__cab">
+      <tr class="hon-fase"><td>
         <button type="button" class="hon-abrir" data-abrir="${f.id}" aria-expanded="${aberta}" aria-label="${aberta ? 'Fechar' : 'Abrir'} ${escHtml(nomeFase(f))}">
-          <span class="hon-seta" aria-hidden="true">▸</span><strong>${escHtml(nomeFase(f))}</strong><span class="hon-conta">${etapas.length} etapa${etapas.length === 1 ? '' : 's'}</span></button>
-        <label class="hon-chave" title="Acréscimo: o peso desta fase vai além dos 100% do projeto (ex.: Obra)">
-          <input type="checkbox" data-acrescimo="${f.id}" ${f.acrescimo ? 'checked' : ''}><span>${f.acrescimo ? 'acréscimo, além dos 100%' : 'dentro dos 100%'}</span></label></div></td>
+          <span class="hon-seta" aria-hidden="true">▸</span><strong>${escHtml(nomeFase(f))}</strong><span class="hon-conta">${etapas.length} etapa${etapas.length === 1 ? '' : 's'}</span></button></td>
+      <td class="hon-conta-col"><div class="hon-seg" role="radiogroup" aria-label="${escHtml(nomeFase(f))} entra como">
+        <button type="button" role="radio" aria-checked="${!f.acrescimo}" data-acrescimo="${f.id}" data-valor="0" title="O peso desta fase é parte dos 100% do projeto">Nos 100%</button>
+        <button type="button" role="radio" aria-checked="${!!f.acrescimo}" data-acrescimo="${f.id}" data-valor="1" title="O peso desta fase soma por fora, além dos 100% (ex.: Obra)">Acréscimo</button></div></td>
       ${S.map((s) => etapasDa(f, s).length
-        ? `<td class="centro"><label class="hon-campo-pct" title="${escHtml(`${nomeFase(f)} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">
-            <input class="cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—"><span>%</span></label></td>`
+        ? `<td class="centro"><div class="hon-campo-pct" title="${escHtml(`${nomeFase(f)} em ${s.sigla}: % do honorário do projeto${f.acrescimo ? ' (acréscimo, além dos 100%)' : ''}`)}">
+            <input class="cel--fase" data-fase="${f.id}" data-srv="${s.id}" inputmode="decimal" value="${fmtNum(f.pesos[s.id])}" placeholder="—" aria-label="${escHtml(`${nomeFase(f)} em ${s.sigla}`)}"><span>%</span>
+            <span class="hon-passo"><button type="button" tabindex="-1" data-passo="1" data-fase="${f.id}" data-srv="${s.id}" aria-label="Aumentar 1 ponto">▴</button><button type="button" tabindex="-1" data-passo="-1" data-fase="${f.id}" data-srv="${s.id}" aria-label="Diminuir 1 ponto">▾</button></span></div></td>`
         : '<td class="centro muted" title="nenhuma etapa desta fase vale para este serviço">–</td>').join('')}</tr>
       ${etapas.map((e) => `<tr class="hon-etapa">
-        <td><span class="hon-sigla">${escHtml(e.sigla)}</span>${escHtml(e.nome)}</td>
+        <td><span class="hon-sigla">${escHtml(e.sigla)}</span>${escHtml(e.nome)}</td><td class="hon-conta-col"></td>
         ${S.map((s) => {
           const x = e.servicos[s.id];
           if (!x) return '<td class="centro muted" title="a etapa não vale para este serviço">–</td>';
-          const p = partes(e, f, s);
           const op = x.pertinencia === 'O';
           return `<td class="centro"><select class="cel cel--fator${op ? ' is-opcional' : ''}" data-etapa="${e.id}" data-srv="${s.id}"
               title="${escHtml(`${e.sigla} em ${s.sigla}${op ? ' (etapa opcional)' : ''}: peso dentro da fase`)}">
               <option value="1" ${fator(x) === 1 ? 'selected' : ''}>1</option><option value="2" ${fator(x) === 2 ? 'selected' : ''}>2</option></select>
-            <span class="hon-partes${op ? ' is-opcional' : ''}" title="${op ? 'Etapa opcional: quanto levaria se marcada' : 'Com as etapas pertinentes da fase'}">
-              <span><b>${pct(p.naFase)}</b> da fase</span><span><b>${pct(p.noProjeto)}</b> do projeto</span></span></td>`;
+            <span class="hon-partes${op ? ' is-opcional' : ''}" data-partes="${e.id}|${s.id}">${htmlPartes(e, f, s)}</span></td>`;
         }).join('')}</tr>`).join('')}
     </tbody>`;
   }
   const semRepartir = comPreco().filter((s) => !s.preco_por_etapa);
   const el = document.getElementById('pesos');
   el.innerHTML = `<table class="tabela matriz hon-matriz"><thead>
-      <tr><th rowspan="2">Fase / etapa</th><th colspan="${S.length}" class="grupo-srv">Peso por serviço</th></tr>
+      <tr><th rowspan="2">Fase / etapa</th><th rowspan="2" class="hon-conta-col">Entra como</th><th colspan="${S.length}" class="grupo-srv">Peso por serviço</th></tr>
       <tr>${S.map((s) => `<th class="srv" title="${escHtml(s.nome)}">${escHtml(s.sigla)}</th>`).join('')}</tr></thead>
     ${html}
     <tfoot class="hon-total">
       <tr><td><strong>Soma das fases</strong><span>deve dar 100%</span></td>
-        ${S.map((s) => { const n = somaDe(s); return `<td class="centro"><span class="hon-total__n ${igual(n, 100) ? 'ok' : 'ruim'}">${fmtNum(n)}%</span>${acrescimoDe(s) ? `<span class="hon-total__acr">+${fmtNum(acrescimoDe(s))}% acréscimo</span>` : ''}</td>`; }).join('')}</tr>
+        <td class="hon-conta-col"><div class="hon-seg hon-seg--escuro" role="radiogroup" aria-label="Etapas opcionais nas %">
+          <button type="button" role="radio" aria-checked="${!comOpcionais}" data-opcionais="sem" title="% das etapas contando só as pertinentes">Sem opcionais</button>
+          <button type="button" role="radio" aria-checked="${comOpcionais}" data-opcionais="com" title="% das etapas como se as opcionais também fossem contratadas">Com opcionais</button></div></td>
+        ${S.map((s) => `<td class="centro" data-total="${s.id}">${htmlTotal(s)}</td>`).join('')}</tr>
     </tfoot></table>
     <div class="hon-notas">
       <section><h3>Como ler a tabela</h3><ul>
-        <li><span class="hon-ex hon-ex--pct">40<i>%</i></span>Na linha da fase: quanto a fase vale no honorário do projeto, por serviço.</li>
+        <li><span class="hon-ex hon-ex--pct">40<i>%</i></span>Na linha da fase: quanto a fase vale no honorário do projeto, por serviço. As setas sobem ou descem 1 ponto.</li>
+        <li><span class="hon-ex">Nos 100%</span>A fase é parte dos 100% do projeto. Acréscimo: soma por fora, além dos 100% (ex.: Obra).</li>
         <li><span class="hon-ex">1 · 2</span>Na linha da etapa: o peso dela dentro da fase.</li>
-        <li><span class="hon-ex hon-ex--txt"><b>25%</b> da fase<br><b>10%</b> do projeto</span>Quanto a etapa leva, contando as etapas pertinentes da fase.</li>
-        <li><span class="hon-ex hon-ex--op">1</span>Tracejada, com as % em itálico: etapa opcional; mostra quanto levaria se marcada.</li>
+        <li><span class="hon-ex hon-ex--txt"><b>25%</b> da fase<br><b>10%</b> do projeto</span>Quanto a etapa leva. "Sem opcionais" (barra da soma) conta só as pertinentes; "Com opcionais", todas.</li>
+        <li><span class="hon-ex hon-ex--op">1</span>Tracejada: etapa opcional.</li>
         <li><span class="hon-ex">–</span>A etapa não vale para o serviço (marcado no Plano Geral de Trabalho).</li>
+        <li><span class="hon-ex hon-ex--ruim">86%</span>Soma fora dos 100%: clique para ajustar.</li>
       </ul></section>
       <section><h3>Como o preço é calculado</h3><ul>
-        <li>As fases do fluxo somam 100%. A fase marcada como acréscimo (Obra) soma por fora, além dos 100%.</li>
+        <li>As fases "nos 100%" somam 100%. Mudar o peso de uma delas tira (ou devolve) a diferença das outras do mesmo serviço, em partes iguais. Fase sem peso (—) fica fora dessa conta.</li>
+        <li>A fase de acréscimo (Obra) soma por fora, além dos 100%.</li>
         <li>Dentro da fase, a etapa leva o seu peso ÷ a soma dos pesos das etapas contratadas. Etapa não contratada: o valor da fase se redistribui entre as que ficam.</li>
         <li>Fase sem nenhuma etapa contratada fica de fora. Se ela vem antes de uma fase contratada (ex.: só a Legal), entra o acréscimo de "Fase anterior não contratada", lá em cima.</li>
         ${semRepartir.length ? `<li>Preço único, sem repartição por etapa: ${escHtml(semRepartir.map((s) => s.sigla).join(', '))}.</li>` : ''}
@@ -288,21 +388,40 @@ function desenharPesos() {
     const id = b.dataset.abrir;
     if (abertas.has(id)) abertas.delete(id); else abertas.add(id);
     lembrarAbertas();
-    const g = el.querySelector(`[data-grupo="${id}"]`);
-    g.classList.toggle('is-aberta', abertas.has(id));
+    el.querySelector(`[data-grupo="${id}"]`).classList.toggle('is-aberta', abertas.has(id));
     b.setAttribute('aria-expanded', abertas.has(id));
   });
-  el.querySelectorAll('.cel--fase').forEach((c) => c.onchange = async () => {
-    const f = H.fases.find((x) => x.id === c.dataset.fase);
-    const v = lerNum(c.value);
-    if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso da fase: número de 0 a 100.'); c.value = fmtNum(f.pesos[c.dataset.srv]); return; }
-    c.disabled = true;
-    try {
-      await Universo.post('honorarios/fases', { fase_id: f.id, servico_id: c.dataset.srv, peso: v });
-      if (v === null) delete f.pesos[c.dataset.srv]; else f.pesos[c.dataset.srv] = v;
-      aviso(''); marcarPendente(); desenharPesos();
-    } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
+  const achar = (c) => ({ f: H.fases.find((x) => x.id === c.dataset.fase), s: S.find((x) => x.id === c.dataset.srv) });
+  el.querySelectorAll('.cel--fase').forEach((c) => {
+    c.onchange = () => {
+      const { f, s } = achar(c);
+      const v = lerNum(c.value);
+      if (Number.isNaN(v) || (v !== null && (v < 0 || v > 100))) { aviso('Peso da fase: número de 0 a 100.'); c.value = fmtNum(f.pesos[s.id]); return; }
+      mudarPesoFase(f, s, v);
+      c.value = fmtNum(f.pesos[s.id]);
+    };
+    c.onkeydown = (ev) => {
+      if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+      ev.preventDefault();
+      const { f, s } = achar(c);
+      const passo = (ev.key === 'ArrowUp' ? 1 : -1) * (ev.shiftKey ? 5 : 1);
+      mudarPesoFase(f, s, Math.min(100, Math.max(0, (f.pesos[s.id] || 0) + passo)));
+      c.value = fmtNum(f.pesos[s.id]);
+    };
   });
+  el.querySelectorAll('[data-passo]').forEach((b) => b.onclick = () => {
+    const { f, s } = achar(b);
+    mudarPesoFase(f, s, Math.min(100, Math.max(0, (f.pesos[s.id] || 0) + Number(b.dataset.passo))));
+    const c = b.closest('.hon-campo-pct').querySelector('input');
+    c.value = fmtNum(f.pesos[s.id]);
+  });
+  el.querySelectorAll('[data-opcionais]').forEach((b) => b.onclick = () => {
+    comOpcionais = b.dataset.opcionais === 'com';
+    try { localStorage.setItem(CHAVE_OPCIONAIS, comOpcionais ? 'com' : 'sem'); } catch (_) { /* sem cópia */ }
+    el.querySelectorAll('[data-opcionais]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    atualizarNumeros();
+  });
+  ligarCompletar(el);
   el.querySelectorAll('.cel--fator').forEach((c) => c.onchange = async () => {
     const e = H.etapas.find((x) => x.id === c.dataset.etapa);
     const x = e.servicos[c.dataset.srv];
@@ -311,17 +430,22 @@ function desenharPesos() {
     try {
       await Universo.post('honorarios/pesos', { etapa_id: e.id, servico_id: c.dataset.srv, peso: v });
       x.peso = v;
-      aviso(''); marcarPendente(); desenharPesos();
+      aviso(''); marcarPendente(); c.disabled = false; atualizarNumeros();
     } catch (err) { aviso(mensagemDe(err)); c.disabled = false; }
   });
-  el.querySelectorAll('[data-acrescimo]').forEach((c) => c.onchange = async () => {
-    const f = H.fases.find((x) => x.id === c.dataset.acrescimo);
-    c.disabled = true;
+  el.querySelectorAll('[data-acrescimo]').forEach((b) => b.onclick = async () => {
+    const f = H.fases.find((x) => x.id === b.dataset.acrescimo);
+    const novo = Number(b.dataset.valor);
+    if (Number(!!f.acrescimo) === novo) return;
+    b.closest('.hon-seg').querySelectorAll('button').forEach((x) => { x.disabled = true; });
     try {
-      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, acrescimo: c.checked ? 1 : 0 });
+      if (aGravar.size) { clearTimeout(relogio); await gravarFila(); }
+      const r = await Universo.alterar('pgt-fases', f.id, { versao: f.versao, acrescimo: novo });
       Object.assign(f, { acrescimo: r.acrescimo, versao: r.versao });
+      // entrou nos 100%: as outras cedem o peso dela; saiu: as que ficam recompõem os 100%
+      for (const s of S) if (etapasDa(f, s).length) for (const o of equilibrar(s, f)) gravarDepois(o, s.id);
       aviso(''); marcarPendente(); desenharPesos();
-    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); c.disabled = false; }
+    } catch (err) { aviso(mensagemDe(err)); if (err.status === 409) carregar(); desenharPesos(); }
   });
 }
 
