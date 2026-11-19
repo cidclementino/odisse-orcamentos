@@ -72,7 +72,7 @@ function estadoInicial() {
     maxParcelasCartao: 8,
     maxParcelasBoleto: 8,
     incluirDespesasReembolsaveis: true,
-    despesasReembolsaveisSelecionadas: (DATA && DATA.despesasReembolsaveis) ? DATA.despesasReembolsaveis.map(d => d.id) : [],
+    despesasReembolsaveisSelecionadas: (typeof Catalogo !== 'undefined' ? Catalogo.despesas() : []).filter(d => d.padrao).map(d => d.id),
     // cliente e emissão
     cliente: { nome: '', email: '', telefone: '', representacao: 'PF', documento: '' },
     dataProposta: hojeISO(),
@@ -165,6 +165,8 @@ function alertaHtml(texto, tipo) {
   return `<p class="previa__alerta ${tipo === 'atencao' ? 'is-atencao' : 'is-ok'}">${texto}</p>`;
 }
 
+let resumoAberto = false;
+
 function updateTicket() {
   recalcular(STATE);
   const box = document.getElementById('orc-previa');
@@ -197,7 +199,18 @@ function updateTicket() {
   }
   if (semPrazo) alertas += alertaHtml(`${semPrazo} etapa${semPrazo === 1 ? '' : 's'} sem prazo: as entregas ainda não têm duração no PGT. Informe as semanas em Cronograma.`, 'atencao');
 
+  const ind = recomputeIndicadores(s);
+  const simulacao = s._simulacao ? `<div class="previa__bloco previa__simulacao">
+      <span class="previa__rotulo">Simulação</span>
+      <span class="previa__sub">Orçamento sem cliente, para estimar custo. Recebe número, não entra no funil, e o PDF sai marcado como simulação.</span>
+      ${s.numeroProposta ? '' : '<button type="button" class="btn-link" id="btn-virar-proposta">Transformar em proposta</button>'}
+    </div>` : '';
   box.innerHTML = `
+    <button type="button" class="previa__alternar" id="previa-alternar" aria-expanded="${resumoAberto}" aria-controls="orc-previa">
+      <span><span class="previa__rotulo">Resumo</span> <b class="tabular">${fmt(valor)}</b> · ${total ? fmtSemanas(total) : '—'}</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 4-4 4 4"/></svg>
+    </button>
+    ${simulacao}
     <div class="previa__bloco">
       <span class="previa__rotulo">Honorário${srv && !srv.com_preco ? ' (valor fixo)' : ''}</span>
       <span class="previa__valor">${fmt(valor)}</span>
@@ -216,8 +229,25 @@ function updateTicket() {
       </tbody></table>
       ${pct.porEtapa ? `<span class="previa__sub">${pct.fases.filter(f => !f.acrescimo).map(f => `${escHtml(f.nome)} ${fmtPct(f.peso)}`).join(' · ')}${pct.incremento ? ` · +${fmtPct(pct.incremento)} por fase anterior não contratada` : ''}${pct.acrescimo ? ` · acréscimo ${pct.fases.filter(f => f.acrescimo).map(f => `${escHtml(f.nome)} +${fmtPct(f.peso)}`).join(' · ')}` : ''}</span>` : ''}
     </div>` : ''}
+    ${etapas.length ? `<div class="previa__bloco">
+      <span class="previa__rotulo">Conferência de complexidade</span>
+      <table class="previa__tabela"><tbody>
+        <tr><td>Grau de detalhamento</td><td>${nivel(ind.det)}</td></tr>
+        <tr><td>Empenho ao projeto vs porte</td><td>${nivel(ind.emp)}</td></tr>
+      </tbody></table>
+      <span class="previa__sub">Calculados das etapas e das ${ind.n} entregas marcadas.</span>
+    </div>` : ''}
     ${alertas ? `<div class="previa__bloco">${alertas}</div>` : ''}
   `;
+  box.classList.toggle('is-aberto', resumoAberto);
+  document.getElementById('previa-alternar').onclick = () => { resumoAberto = !resumoAberto; updateTicket(); };
+  const virar = document.getElementById('btn-virar-proposta');
+  if (virar) virar.onclick = () => {
+    if (!confirm('Transformar esta simulação em proposta? Ela passa a pedir cliente e entra no funil ao finalizar.')) return;
+    STATE._simulacao = false;
+    const t = document.getElementById('orc-trilha-atual'); if (t) t.textContent = 'Nova proposta';
+    rerenderDe(0, true);
+  };
   renderGuia();
 }
 const fmtPct = (f) => `${(Math.round(f * 1000) / 10).toLocaleString('pt-BR')}%`;
@@ -329,6 +359,71 @@ function renderPasso(i) {
   if (!corpo) return;
   corpo.innerHTML = step.render(STATE, DATA);
   step.bind(corpo, STATE, DATA, { rerender: () => rerenderDe(i), rerenderTudo: () => rerenderDe(0, true), updateTicket });
+  prepararBlocos(corpo, step.id);
+  if (step.id === 'revisao') atualizarPreviaPdf();
+}
+
+// Blocos recolhíveis: o título vira botão com chevron; o estado fica lembrado neste computador.
+const CHAVE_FECHADOS = 'vendas:proposta:blocos-fechados';
+const CHEVRON = '<svg class="bloco__seta" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 3 4 4-4 4"/></svg>';
+function lerFechados() { try { return new Set(JSON.parse(localStorage.getItem(CHAVE_FECHADOS) || '[]')); } catch (_) { return new Set(); } }
+function prepararBlocos(corpo, passo) {
+  const fechados = lerFechados();
+  corpo.querySelectorAll(':scope > .field-group').forEach((g) => {
+    const h = g.querySelector(':scope > .bloco__titulo');
+    if (!h || h.dataset.pronto) return;
+    const chave = passo + ':' + h.textContent.trim();
+    const conteudo = document.createElement('div');
+    conteudo.className = 'bloco__conteudo';
+    while (h.nextSibling) conteudo.appendChild(h.nextSibling);
+    g.appendChild(conteudo);
+    const id = 'bl-' + chave.replace(/[^\w]+/g, '-').toLowerCase();
+    conteudo.id = id;
+    h.innerHTML = `<button type="button" class="bloco__botao" aria-expanded="true" aria-controls="${id}">${CHEVRON}<span>${h.textContent}</span></button>`;
+    h.dataset.pronto = '1';
+    const aplicar = (fechado) => { g.classList.toggle('is-fechado', fechado); h.firstChild.setAttribute('aria-expanded', String(!fechado)); conteudo.hidden = fechado; };
+    aplicar(fechados.has(chave));
+    h.firstChild.onclick = () => {
+      const f = lerFechados();
+      const fechar = !g.classList.contains('is-fechado');
+      if (fechar) f.add(chave); else f.delete(chave);
+      try { localStorage.setItem(CHAVE_FECHADOS, JSON.stringify([...f])); } catch (_) { /* segue */ }
+      aplicar(fechar);
+    };
+  });
+}
+
+// Prévia do documento (Revisão): o mesmo PDF da emissão, sem número enquanto não finaliza e sem rubrica.
+// Remonta só quando o conteúdo muda; o quadro fica o mesmo entre redesenhos (não pisca).
+let quadroPdf = null, urlPdf = null, assinaturaPdf = '', tPdf = null;
+// no celular o navegador não mostra PDF dentro da página: fica o link para abrir em outra aba
+function ligarAbrirPdf() { const a = document.getElementById('previa-pdf-abrir'); if (a && urlPdf) { a.href = urlPdf; a.hidden = false; } }
+function atualizarPreviaPdf() {
+  const caixa = document.getElementById('previa-pdf');
+  if (!caixa) return;
+  if (quadroPdf && assinaturaPdf) { caixa.replaceChildren(quadroPdf); caixa.dataset.vazia = ''; ligarAbrirPdf(); }
+  clearTimeout(tPdf);
+  tPdf = setTimeout(async () => {
+    const st = { ...STATE }; delete st._rubricas;
+    const assinatura = JSON.stringify(st);
+    if (assinatura === assinaturaPdf && quadroPdf) return;
+    try {
+      await OdissePdf.preparar();
+      recalcular(STATE);
+      const { doc } = OdissePdf.montar({ ...STATE, _rubricas: {} }, DATA);
+      const url = URL.createObjectURL(doc.output('blob'));
+      if (!quadroPdf) { quadroPdf = document.createElement('iframe'); quadroPdf.className = 'previa-pdf__quadro'; quadroPdf.title = 'Prévia do documento'; }
+      quadroPdf.src = url + '#toolbar=0&navpanes=0&view=FitH';
+      if (urlPdf) setTimeout(((u) => () => URL.revokeObjectURL(u))(urlPdf), 2000);
+      urlPdf = url; assinaturaPdf = assinatura;
+      const alvo = document.getElementById('previa-pdf');
+      if (alvo && alvo.firstChild !== quadroPdf) { alvo.replaceChildren(quadroPdf); alvo.dataset.vazia = ''; }
+      ligarAbrirPdf();
+    } catch (e) {
+      const alvo = document.getElementById('previa-pdf');
+      if (alvo && !quadroPdf) alvo.innerHTML = `<p class="small muted">Ainda não dá para montar a prévia (${escHtml(e.message)}).</p>`;
+    }
+  }, 900);
 }
 
 function rerenderDe(i, todos) {
@@ -448,6 +543,10 @@ function abrirEditor() {
   }
   STATE = mesclarComPadrao(estadoInicial(), salvo);
   STATE._userName = getUserName();
+  // despesas: ids antigos (data/) viram os da tabela de cláusulas; chave antiga desligada = nenhuma
+  const selDesp = STATE.incluirDespesasReembolsaveis === false ? [] : (STATE.despesasReembolsaveisSelecionadas || []);
+  STATE.despesasReembolsaveisSelecionadas = [...new Set(selDesp.map(Catalogo.idDespesa).filter(Boolean))];
+  STATE.incluirDespesasReembolsaveis = STATE.despesasReembolsaveisSelecionadas.length > 0;
   currentStepIndex = rascunho && Number.isInteger(rascunho.currentStepIndex) ? Math.max(0, Math.min(rascunho.currentStepIndex, STEPS.length - 1)) : 0;
   const titulo = STATE._revisaoDeCodigo ? `Revisão de ${STATE._revisaoDeCodigo}` : STATE.numeroProposta || (STATE._simulacao ? 'Nova simulação' : 'Nova proposta');
   const t = document.getElementById('orc-trilha-atual');
@@ -607,6 +706,13 @@ const Lista = (() => {
   return { abrir, quadros };
 })();
 
+// pdf.js lê as despesas de DATA: passam a vir do catálogo (cláusulas do vendas nos Honorários publicados).
+function sincronizarDespesas() {
+  if (!DATA) return;
+  if (!DATA.despesasReembolsaveisOriginais) DATA.despesasReembolsaveisOriginais = DATA.despesasReembolsaveis || [];
+  DATA.despesasReembolsaveis = Catalogo.despesas();
+}
+
 async function initApp() {
   document.getElementById('app').hidden = false;
   document.getElementById('btn-reset').onclick = () => {
@@ -626,6 +732,7 @@ async function initApp() {
     Catalogo.carregar({
       aoAtualizar: (novo) => {
         CAT = novo;
+        sincronizarDespesas();
         if (emEditor()) {
           avisoTopo(`Nova versão publicada no Universo (PGT v${novo.versoes.pgt.numero}, Bases v${novo.versoes.bases.numero}, Honorários v${novo.versoes.honorarios.numero}). O orçamento passa a usá-la.`);
           renderTudo();
@@ -633,6 +740,7 @@ async function initApp() {
       }
     }).catch((e) => { erroCatalogo = e; return null; })
   ]);
+  sincronizarDespesas();
   window.addEventListener('hashchange', rota);
   rota();
 }

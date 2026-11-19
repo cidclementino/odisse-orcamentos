@@ -21,7 +21,8 @@
   const SECOES = [
     { id: 'crm', nome: 'Funil', href: 'crm.html', dica: 'Oportunidades por etapa e próximas ações' },
     { id: 'contatos', nome: 'Contatos', href: 'contatos.html', dica: 'Pessoas e organizações, ligações entre elas e o histórico de cada uma' },
-    { id: 'propostas', nome: 'Propostas', href: 'index.html', dica: 'Nova proposta (orçamento de honorários) e o histórico: PDFs guardados e revisões' }
+    { id: 'propostas', nome: 'Propostas', href: 'index.html', dica: 'Nova proposta (orçamento de honorários) e o histórico: PDFs guardados e revisões' },
+    { id: 'contratos', nome: 'Contratos', href: 'contratos.html', dica: 'Contratos e o Gestor de cláusulas (textos que aparecem na proposta e no contrato)' }
   ];
   const REFERENCIAS = { id: 'referencias', nome: 'Referências', href: 'honorarios.html', dica: 'Preço dos serviços, fases e etapas, base de honorários, tabelas do CAU e do CUB, e a fórmula' };
   // páginas fora do menu que pertencem a uma seção

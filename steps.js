@@ -213,7 +213,7 @@ function ligarVinculoUniverso(el, state, ctx) {
 STEPS.push({
   id: 'projeto',
   title: 'Projeto',
-  desc: 'O que vai ser projetado: serviço, tipologia, entendimento, áreas e o imóvel. Serviços, tipologias e etapas vêm do Plano Geral de Trabalho e das Bases publicados no Universo.',
+  desc: 'O que vai ser projetado: serviço, tipologia, imóvel, entendimento, expectativas do cliente e áreas. Serviços, tipologias e etapas vêm do Plano Geral de Trabalho e das Bases publicados no Universo.',
   render(state) {
     const cat = Catalogo.atual();
     const srv = Catalogo.servico(state.servicoId);
@@ -248,30 +248,6 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
-        <h3 class="bloco__titulo">Entendimento do projeto</h3>
-        <div class="field">
-          <textarea id="f-entendimento" aria-label="Entendimento do projeto" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
-        </div>
-      </div>
-      <div class="field-group">
-        <h3 class="bloco__titulo">Áreas e escopo</h3>
-        <div class="row-2">
-          <div class="field"><label class="field__label">Área edificada prevista (m²)</label><input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}"></div>
-          <div class="field"><label class="field__label">Área do imóvel ou terreno (m²)</label><input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}"></div>
-        </div>
-        <div class="row-2">
-          <div class="field"><label class="field__label">Área externa de intervenção (m²)</label><input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}"></div>
-          <div class="field"><label class="field__label">Contagem de repetições</label>
-            <select id="f-repeticoes">${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${faixaRepeticao(state.contagemRepeticoes) === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}</select>
-            <p class="field__hint">Unidades ou áreas que se repetem integralmente no mesmo projeto.</p></div>
-        </div>
-        <div class="field">
-          <label class="field__label">${critEscopo.criterio}</label>
-          ${segmented('ic-indefinicao_escopo', [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], escLabel)}
-          <p class="field__hint" id="ic-hint-indefinicao_escopo">${critEscopo[escLabel]}</p>
-        </div>
-      </div>
-      <div class="field-group">
         <h3 class="bloco__titulo">Imóvel</h3>
         <div class="row-2">
           <div class="field"><label class="field__label">CEP</label><input type="text" id="f-cep" value="${escHtml(im.cep || '')}" placeholder="58000-000" maxlength="9"><p class="field__hint" id="cep-status"></p></div>
@@ -285,6 +261,12 @@ STEPS.push({
         <div class="field"><label class="field__label">Cidade – UF</label><input type="text" id="f-cidade-uf" value="${escHtml(im.cidadeUf || '')}"></div>
       </div>
       <div class="field-group">
+        <h3 class="bloco__titulo">Entendimento do projeto</h3>
+        <div class="field">
+          <textarea id="f-entendimento" aria-label="Entendimento do projeto" rows="8" placeholder="Ex.: O projeto arquitetônico objeto desta proposta trata-se de…">${escHtml(state.entendimentoProjeto || '')}</textarea>
+        </div>
+      </div>
+      <div class="field-group">
         <h3 class="bloco__titulo">Expectativas do cliente</h3>
         <div class="row-2">
           <div class="field">
@@ -296,6 +278,24 @@ STEPS.push({
             <select id="f-prazo-cliente"><option value="">Não informado</option>
               ${PRAZO_CLIENTE_OPCOES.map(o => `<option value="${o.label}" ${state.prazoEsperadoCliente === o.label ? 'selected' : ''}>${o.label}</option>`).join('')}</select>
           </div>
+        </div>
+      </div>
+      <div class="field-group">
+        <h3 class="bloco__titulo">Áreas e escopo</h3>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Área do imóvel ou terreno (m²)</label><input type="number" min="0" step="1" id="f-area-terreno" value="${state.areaTerreno || ''}"></div>
+          <div class="field"><label class="field__label">Área edificada prevista (m²)</label><input type="number" min="0" step="1" id="f-area" value="${state.areaConstruida || ''}"></div>
+        </div>
+        <div class="row-2">
+          <div class="field"><label class="field__label">Contagem de repetições</label>
+            <select id="f-repeticoes">${REPETICOES_FAIXAS.map(f => `<option value="${f.value}" ${faixaRepeticao(state.contagemRepeticoes) === f.value ? 'selected' : ''}>${f.label}</option>`).join('')}</select>
+            <p class="field__hint">Unidades ou áreas que se repetem integralmente no mesmo projeto.</p></div>
+          <div class="field"><label class="field__label">Área externa de intervenção (m²)</label><input type="number" min="0" step="1" id="f-area-ext" value="${state.areaExterna || ''}"></div>
+        </div>
+        <div class="field">
+          <label class="field__label">${critEscopo.criterio}</label>
+          ${segmented('ic-indefinicao_escopo', [{ value: 'baixo', label: 'Baixo' }, { value: 'medio', label: 'Médio' }, { value: 'alto', label: 'Alto' }], escLabel)}
+          <p class="field__hint" id="ic-hint-indefinicao_escopo">${critEscopo[escLabel]}</p>
         </div>
       </div>
     `;
@@ -387,13 +387,8 @@ STEPS.push({
       f.etapas.push(e);
     }
     const tag = (p) => (p === 'O' ? '<span class="tag-opcional">opcional</span>' : '');
-    const ind = recomputeIndicadores(state);
     const clausulas = Catalogo.clausulas(state.etapasSelecionadas, state.servicoId);
     return `
-      ${pct.porEtapa ? `<div class="field-group"><h3 class="bloco__titulo">Percentual do honorário</h3>
-        <div class="data-row"><span class="data-row__label">Calculado pelas fases contratadas</span><span class="data-row__value tabular"><strong>${fmtPct(pct.percentual)}</strong></span></div>
-        <p class="field__hint">Soma do peso das fases com etapa marcada (${fmtPct(pct.doFluxo)})${pct.incremento ? ` + ${fmtPct(pct.incremento)} por fase anterior não contratada (${fmtPct(Catalogo.atual().acrescimoLacuna)} de ${fmtPct(pct.lacuna)})` : ''}${pct.acrescimo ? ` + acréscimo (${fmtPct(pct.acrescimo)})` : ''}. Dentro da fase, cada etapa leva o seu fator (1 ou 2) sobre a soma dos fatores das etapas marcadas: desmarcar uma etapa redistribui o valor da fase entre as que ficam. Pesos publicados em Referências › Fases e etapas.</p>
-      </div>` : `<p class="field__hint">${srv.com_preco ? 'Este serviço tem preço único: as etapas não mudam o honorário.' : ''}</p>`}
       <div class="field-group">
         <h3 class="bloco__titulo">Etapas e entregas</h3>
         ${fases.map(f => {
@@ -433,14 +428,9 @@ STEPS.push({
             ${on && Catalogo.temQuantidade(c.clausula) ? `<input type="number" min="1" step="1" class="clausula-n" data-qtd="${c.id}" value="${n != null ? n : ''}" placeholder="N">` : ''}
           </div>`;
         }).join('') : '<p class="small muted">Nenhuma cláusula nas etapas marcadas.</p>'}
-      </div>
-      <div class="field-group">
-        <h3 class="bloco__titulo">Conferência de complexidade</h3>
-        <div class="row-2">
-          <div class="indicador-calculado"><span class="indicador-calculado__label">Grau de detalhamento</span><span class="indicador-calculado__valor">${nivel(ind.det)}</span></div>
-          <div class="indicador-calculado"><span class="indicador-calculado__label">Empenho ao projeto vs porte</span><span class="indicador-calculado__valor">${nivel(ind.emp)}</span></div>
-        </div>
-        <p class="field__hint">Calculados das etapas e das ${ind.n} entregas marcadas.</p>
+        <p class="clausulas__sub">Despesas reembolsáveis</p>
+        <p class="field__hint" style="margin:0 0 10px">Ficam por conta do cliente e entram na proposta quando marcadas. Textos em Contratos › Gestor de cláusulas.</p>
+        ${Catalogo.despesas().map(dr => `<label class="check-row"><input type="checkbox" data-despesa="${dr.id}" ${(state.despesasReembolsaveisSelecionadas || []).includes(dr.id) ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span><span class="check-row__text small">${escHtml(dr.texto)}</span></label>`).join('') || '<p class="small muted">Nenhuma despesa cadastrada.</p>'}
       </div>
     `;
   },
@@ -484,6 +474,15 @@ STEPS.push({
         if (e.target.checked) l.add(id); else l.delete(id);
         state.clausulasSelecionadas = [...l];
         ctx.rerender();
+      };
+    });
+    el.querySelectorAll('input[data-despesa]').forEach(cb => {
+      cb.onchange = e => {
+        const l = new Set(state.despesasReembolsaveisSelecionadas || []);
+        if (e.target.checked) l.add(e.target.dataset.despesa); else l.delete(e.target.dataset.despesa);
+        state.despesasReembolsaveisSelecionadas = Catalogo.despesas().map(d => d.id).filter(id => l.has(id));
+        state.incluirDespesasReembolsaveis = state.despesasReembolsaveisSelecionadas.length > 0;
+        ctx.updateTicket();
       };
     });
     el.querySelectorAll('input[data-qtd]').forEach(inp => {
@@ -639,16 +638,6 @@ STEPS.push({
         </div>
         ${parcelas.length ? `<p class="field__hint">Referência (entrada + peso das fases contratadas): ${parcelas.map(p => `${escHtml(p.nome)} ${Math.round(p.percentual * 100)}%`).join(' · ')}.</p>` : ''}
       </div>
-      <div class="field-group">
-        <h3 class="bloco__titulo">Despesas reembolsáveis</h3>
-        <div class="switch-row">
-          <div class="switch-row__text"><div class="switch-row__title">Incluir na proposta</div><div class="switch-row__hint">Desmarque os itens que não entram nesta proposta</div></div>
-          <label class="switch"><input type="checkbox" id="f-reembolsaveis" ${state.incluirDespesasReembolsaveis !== false ? 'checked' : ''}><span class="switch__track"></span><span class="switch__thumb"></span></label>
-        </div>
-        <div class="entregaveis-list" id="despesas-reembolsaveis-lista" ${state.incluirDespesasReembolsaveis === false ? 'hidden' : ''} style="margin-top:10px">
-          ${(data.despesasReembolsaveis || []).map(dr => `<label class="check-row check-row--sub"><input type="checkbox" data-despesa="${dr.id}" ${(state.despesasReembolsaveisSelecionadas || []).includes(dr.id) ? 'checked' : ''}><span class="check-row__box">${checkSvg()}</span><span class="check-row__text small">${escHtml(dr.texto)}</span></label>`).join('')}
-        </div>
-      </div>
     `;
   },
   bind(el, state, data, ctx) {
@@ -674,14 +663,6 @@ STEPS.push({
     el.querySelector('#f-entrada').oninput = e => { state.pctEntrada = (parseFloat(e.target.value) || 0) / 100; ctx.updateTicket(); };
     el.querySelector('#f-max-parcelas-cartao').onchange = e => { state.maxParcelasCartao = parseInt(e.target.value, 10) || 8; };
     el.querySelector('#f-max-parcelas-boleto').onchange = e => { state.maxParcelasBoleto = parseInt(e.target.value, 10) || 8; };
-    el.querySelector('#f-reembolsaveis').onchange = e => { state.incluirDespesasReembolsaveis = e.target.checked; el.querySelector('#despesas-reembolsaveis-lista').hidden = !e.target.checked; };
-    el.querySelectorAll('input[data-despesa]').forEach(cb => {
-      cb.onchange = e => {
-        const s = new Set(state.despesasReembolsaveisSelecionadas || []);
-        if (e.target.checked) s.add(e.target.dataset.despesa); else s.delete(e.target.dataset.despesa);
-        state.despesasReembolsaveisSelecionadas = [...s];
-      };
-    });
   },
   validate(state) {
     const srv = Catalogo.servico(state.servicoId);
@@ -699,10 +680,9 @@ let moduloAssinantes = null;
 STEPS.push({
   id: 'cliente',
   title: 'Cliente e emissão',
-  desc: 'O nome do projeto, para quem vai a proposta e quem da equipe a emite e assina.',
+  desc: 'O nome do projeto, para quem vai a proposta e o responsável técnico que a assina. A data da proposta é a do dia em que ela é finalizada.',
   render(state) {
     const c = state.cliente;
-    const trava = !!(state._oportunidadeId || state.numeroProposta);
     const vinculo = state._simulacao ? '' : (state._oportunidadeId || state._clienteId)
       ? `<div class="card vinculo">
           <p class="small muted" style="margin:0 0 4px">Ligado ao Universo</p>
@@ -715,12 +695,6 @@ STEPS.push({
           <div id="busca-cliente-res" class="busca-res"></div>
           <p class="field__hint">Sem busca, o cliente é cadastrado no Universo ao finalizar (com aviso se já houver alguém parecido).</p></div>`;
     return `
-      <div class="field-group simulacao-chave">
-        <h3 class="bloco__titulo">Tipo de orçamento</h3>
-        <label class="check-row"><input type="checkbox" id="f-simulacao" ${state._simulacao ? 'checked' : ''} ${trava ? 'disabled' : ''}><span class="check-row__box">${checkSvg()}</span>
-          <span class="check-row__text"><strong>Simulação</strong>: orçamento sem cliente, para testar ou estimar custo. Recebe número como qualquer proposta, não cadastra cliente, não entra no funil, e o PDF sai marcado como simulação.</span></label>
-        ${trava && !state._simulacao ? '<p class="field__hint">Este orçamento está ligado a uma oportunidade ou já foi numerado.</p>' : ''}
-      </div>
       <div class="field-group">
         <h3 class="bloco__titulo">Projeto</h3>
         <div class="field">
@@ -743,17 +717,14 @@ STEPS.push({
         </div>
       </div>
       <div class="field-group">
-        <h3 class="bloco__titulo">Emissão</h3>
-        <div class="field"><label class="field__label">Data da proposta</label><input type="date" id="f-data-proposta" value="${state.dataProposta || ''}" min="2020-01-01" max="2035-12-31"></div>
-        <div class="field"><label class="field__label">Quem assina</label><div id="f-assinantes"><p class="small muted">Carregando a equipe…</p></div>
-          <p class="field__hint">Da Equipe do Universo (quem pode assinar propostas). A rubrica entra no PDF só na emissão.</p></div>
+        <h3 class="bloco__titulo">Responsável técnico</h3>
+        <div class="field"><div id="f-assinantes"><p class="small muted">Carregando a equipe…</p></div>
+          <p class="field__hint">Quem da equipe responde pela proposta e a assina (Equipe do Universo). A data é a do dia em que a proposta é finalizada; a rubrica entra no PDF só na emissão.</p></div>
       </div>
     `;
   },
   bind(el, state, data, ctx) {
     ligarVinculoUniverso(el, state, ctx);
-    const chave = el.querySelector('#f-simulacao');
-    if (chave) chave.onchange = () => { state._simulacao = chave.checked; if (state._simulacao) state._clienteId = null; ctx.rerender(); };
     el.querySelector('#f-nome-projeto').oninput = e => { state.nomeProjeto = e.target.value; };
     el.querySelector('#f-nome').oninput = e => { state.cliente.nome = e.target.value; ctx.updateTicket(); };
     el.querySelector('#f-email').oninput = e => { state.cliente.email = e.target.value; };
@@ -763,7 +734,6 @@ STEPS.push({
     el.querySelectorAll('input[name="representacao"]').forEach(r => {
       r.onchange = e => { state.cliente.representacao = e.target.value; doc.value = state.cliente.documento = maskDocumento(state.cliente.documento, e.target.value); };
     });
-    el.querySelector('#f-data-proposta').oninput = e => { state.dataProposta = dataValidaOuVazia(e.target.value); };
 
     // seletor comum de quem assina (Universo, base/v1)
     const caixa = el.querySelector('#f-assinantes');
@@ -777,7 +747,8 @@ STEPS.push({
           foto: (p) => Universo.bruto(`equipe/${p.id}/foto?variante=s`).then(r => r.blob()).then(b => URL.createObjectURL(b)),
           valor: state.assinantes || [],
           novo: !(state.assinantes || []).length,
-          aoMudar: (copias) => { state.assinantes = copias; salvarRascunho(); renderGuia(); },
+          rotulo: '+ Responsável técnico',
+          aoMudar: (copias) => { state.assinantes = copias; salvarRascunho(); renderGuia(); atualizarRevisao(); },
         });
       } catch (e) {
         caixa.innerHTML = `<p class="small muted">Não consegui carregar a equipe (${escHtml(e.message)}).</p>`;
@@ -785,9 +756,8 @@ STEPS.push({
     })();
   },
   validate(state) {
-    if (!state.cliente.nome && !state._simulacao) return 'Informe o nome do cliente (ou marque Simulação).';
-    if (!state.dataProposta) return 'Informe a data da proposta.';
-    if (!(state.assinantes || []).some(a => a && a.nome)) return 'Escolha quem assina a proposta.';
+    if (!state.cliente.nome && !state._simulacao) return 'Informe o nome do cliente.';
+    if (!(state.assinantes || []).some(a => a && a.nome)) return 'Escolha o responsável técnico.';
     return true;
   }
 });
@@ -826,6 +796,11 @@ STEPS.push({
     return `
       ${falta.length ? `<div class="field-group pendencias"><h3 class="bloco__titulo">Falta para finalizar</h3>
         ${falta.map(p => `<button type="button" class="pendencia" data-ir="${p.i}"><b>${escHtml(p.titulo)}</b> ${escHtml(p.msg)}</button>`).join('')}</div>` : ''}
+      <div class="field-group">
+        <h3 class="bloco__titulo">Prévia do documento</h3>
+        <div class="previa-pdf" id="previa-pdf" data-vazia="1"><p class="small muted">Montando a prévia…</p></div>
+        <p class="field__hint">${state.numeroProposta ? `Como sai o PDF da proposta ${escHtml(state.numeroProposta)}.` : 'Sem número: ele só é gerado ao finalizar o orçamento.'} A rubrica entra só no PDF emitido. <a href="#" id="previa-pdf-abrir" target="_blank" rel="noopener" hidden>Abrir em outra aba</a></p>
+      </div>
       ${memoria}
       ${state._revisaoDeCodigo ? `<p class="field__hint aviso-revisao">Revisão da proposta <strong>${escHtml(state._revisaoDeCodigo)}</strong>: ao finalizar, ela recebe o mesmo número com a revisão seguinte, e a anterior passa a constar como substituída.</p>` : ''}
       <div class="field-group">
@@ -850,6 +825,7 @@ STEPS.push({
       state._erroFinalizar = '';
       ctx.rerender();
       try {
+        state.dataProposta = hojeISO();
         recalcular(state);
         const proposta = await Comercial.registrarProposta(state, data);
         state._propostaId = proposta.id;

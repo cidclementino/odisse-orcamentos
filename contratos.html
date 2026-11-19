@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contratos · Vendas — Odisse</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
+<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
+<link rel="stylesheet" href="styles.css?v=05640618bf">
+</head>
+<body>
+
+<div id="app" class="app app--no-sidebar" hidden>
+  <header class="topo" data-pagina="contratos"></header>
+  <script src="topo.js?v=fd14e457f9"></script>
+
+  <main class="ct">
+    <div class="ct-abas">
+      <span class="ct-abas__secao">Contratos</span>
+      <div class="abas" role="tablist" aria-label="Páginas de Contratos">
+        <button type="button" role="tab" data-aba="contratos">Contratos</button>
+        <button type="button" role="tab" data-aba="clausulas">Gestor de cláusulas</button>
+      </div>
+    </div>
+
+    <!-- Contratos: o emissor ainda não existe -->
+    <section data-painel="contratos" hidden>
+      <div class="ct-cab"><h1>Contratos</h1></div>
+      <div class="ct-vazio">
+        <p><strong>O emissor de contratos ainda não está pronto.</strong></p>
+        <p>Por enquanto, o contrato assinado se registra no <a href="crm.html">Funil</a>, na ficha da oportunidade (Contrato e projeto), que cria o projeto no Projetos.
+          As cláusulas que o contrato vai usar já se editam no <a href="#clausulas">Gestor de cláusulas</a>.</p>
+      </div>
+    </section>
+
+    <!-- Gestor de cláusulas -->
+    <section data-painel="clausulas" hidden>
+      <div class="ct-cab">
+        <h1>Gestor de cláusulas</h1>
+        <div class="ct-pub" id="ct-pub"></div>
+      </div>
+      <div id="ct-aviso"></div>
+
+      <div class="ct-bloco">
+        <h2 class="ct-bloco__titulo">Despesas reembolsáveis <span class="ct-conta" id="conta-despesas"></span></h2>
+        <div class="ct-pilha" id="despesas"><p class="small muted">Carregando…</p></div>
+      </div>
+
+      <div class="ct-bloco">
+        <div class="ct-bloco__cab">
+          <h2 class="ct-bloco__titulo">Cláusulas dos eventos <span class="ct-conta" id="conta-eventos"></span></h2>
+          <label class="check-row ct-mostrar"><input type="checkbox" id="mostrar-sem"><span class="check-row__box"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="check-row__text small">Mostrar também eventos sem cláusula</span></label>
+        </div>
+        <div id="eventos"><p class="small muted">Carregando…</p></div>
+      </div>
+
+      <section class="ct-notas">
+        <div><p class="ct-notas__titulo">Onde aparecem</p>
+          <p>As despesas e as cláusulas dos eventos aparecem no bloco Cláusulas do formulário da proposta (Escopo) e vão para o PDF. Depois, entram também no contrato.</p></div>
+        <div><p class="ct-notas__titulo">Publicar</p>
+          <p>As propostas leem a última versão publicada dos Honorários. Mudou um texto aqui, publique para que ele chegue às propostas novas. Propostas já finalizadas não mudam.</p></div>
+        <div><p class="ct-notas__titulo">Cláusulas dos eventos</p>
+          <p>O texto é o mesmo do evento no Plano Geral de Trabalho (Projetos): mudar aqui muda lá. Se a cláusula é obrigatória ou opcional em cada serviço continua no <a href="https://projetos.odisse.com.br/pgt.html" target="_blank" rel="noopener">PGT</a>. N no texto vira a quantidade informada na proposta.</p></div>
+        <div><p class="ct-notas__titulo">Editar</p>
+          <p>Lápis abre o texto. Enter grava, Shift+Enter quebra a linha, Esc desfaz; sair do campo também grava. Despesa marcada por padrão já vem marcada nas propostas novas.</p></div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<script src="config.js?v=07793b6f66"></script>
+<script src="auth.js?v=71994a29a1"></script>
+<script>exigirAutenticacao();</script>
+<script src="store.js?v=66a6878146"></script>
+<script>
+// ==========================================================================
+// Contratos (vendas). Aba Contratos: o emissor ainda não existe. Aba Gestor de cláusulas: os textos das
+// cláusulas que aparecem no formulário da proposta — despesas reembolsáveis (tabela vendas_clausulas, 0019)
+// e cláusulas dos eventos do PGT (campo pgt_eventos.clausula; o vendas edita só esse campo). As propostas
+// leem do retrato publicado dos Honorários, que leva os dois.
+// ==========================================================================
+const ICONE = {
+  lapis: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5l2 2L5 11H3V9z"/></svg>',
+  cima: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 4-4 4 4"/></svg>',
+  baixo: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 5 4 4 4-4"/></svg>',
+  fora: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l6 6M10 4l-6 6"/></svg>',
+};
+let DESP = [], PGT = null, HON = null;
+
+function aviso(texto, tipo = 'erro') {
+  const a = document.getElementById('ct-aviso');
+  a.innerHTML = texto ? `<p class="ct-msg ct-msg--${tipo}">${escHtml(texto)}</p>` : '';
+}
+
+// ---------------------------------------------------------------- publicar
+function desenharPub() {
+  const el = document.getElementById('ct-pub');
+  if (!HON) { el.innerHTML = ''; return; }
+  const p = HON.publicacao;
+  el.innerHTML = `<span class="ct-pub__estado">${p ? `Honorários v${p.numero} · ${new Date(p.publicado_em).toLocaleDateString('pt-BR')}` : 'Honorários ainda não publicados'}</span>
+    ${HON.pendente ? '<span class="etq etq--atencao">mudanças não publicadas</span>' : '<span class="etq etq--ok">publicado</span>'}
+    <button type="button" class="u-botao forte" id="btn-publicar" ${HON.pendente ? '' : 'disabled'}>Publicar versão</button>`;
+  const b = document.getElementById('btn-publicar');
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Publicando…';
+    try { await Universo.post('honorarios/publicar', { nota: 'Cláusulas (Gestor de cláusulas)' }); aviso(''); }
+    catch (e) { aviso(e.status === 409 ? 'Nada mudou desde a última versão.' : 'Não consegui publicar: ' + e.message); }
+    await lerHonorarios();
+  };
+}
+async function lerHonorarios() {
+  try { HON = await Universo.get('honorarios'); } catch (e) { HON = null; }
+  desenharPub();
+}
+
+// ---------------------------------------------------------------- edição no lugar
+// Texto vira campo com contorno ocre: Enter grava, Shift+Enter quebra linha, Esc desfaz, sair do campo grava.
+function editarNoLugar(alvo, valor, gravar) {
+  const ta = document.createElement('textarea');
+  ta.className = 'ct-editar'; ta.value = valor || ''; ta.rows = Math.max(2, Math.ceil((valor || '').length / 90));
+  alvo.replaceChildren(ta); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+  let feito = false;
+  const fim = async (salvar) => {
+    if (feito) return; feito = true;
+    const novo = ta.value.trim();
+    if (salvar && novo && novo !== (valor || '').trim()) { ta.disabled = true; await gravar(novo); }
+    else await gravar(null);
+  };
+  ta.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fim(true); }
+    if (e.key === 'Escape') { e.preventDefault(); fim(false); }
+  };
+  ta.onblur = () => fim(true);
+}
+
+// ---------------------------------------------------------------- despesas (Pilha)
+async function lerDespesas(fresco) {
+  const buscar = async () => (await Universo.listar('vendas-clausulas', { grupo: 'despesa' })).itens;
+  try {
+    DESP = await comCopia('gestor:despesas', buscar, (n) => { DESP = n; desenharDespesas(); }, { fresco });
+  } catch (e) {
+    document.getElementById('despesas').innerHTML = `<p class="small muted">Não consegui ler as despesas (${escHtml(e.message)}). Confira se a migração 0019 do Universo já está no ar.</p>`;
+    return;
+  }
+  desenharDespesas();
+}
+function desenharDespesas() {
+  const box = document.getElementById('despesas');
+  document.getElementById('conta-despesas').textContent = DESP.length || '';
+  box.innerHTML = DESP.map((d, i) => `
+    <div class="ct-cartao" data-id="${d.id}">
+      <span class="ct-pos">${i + 1}</span>
+      <button type="button" class="ctl__btn" data-editar title="Editar o texto" aria-label="Editar o texto">${ICONE.lapis}</button>
+      <div class="ct-texto" data-texto>${escHtml(d.texto)}</div>
+      <label class="check-row ct-padrao" title="Já vem marcada nas propostas novas"><input type="checkbox" data-padrao ${d.padrao ? 'checked' : ''}><span class="check-row__box"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4 4 8-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="check-row__text small">por padrão</span></label>
+      <span class="ct-ctl">
+        <button type="button" class="ctl__btn" data-mover="-1" ${i === 0 ? 'disabled' : ''} aria-label="Subir">${ICONE.cima}</button>
+        <button type="button" class="ctl__btn" data-mover="1" ${i === DESP.length - 1 ? 'disabled' : ''} aria-label="Descer">${ICONE.baixo}</button>
+        <button type="button" class="ctl__btn ctl__btn--perigo" data-arquivar aria-label="Tirar da lista">${ICONE.fora}</button>
+      </span>
+    </div>`).join('') + '<button type="button" class="ct-acrescentar" id="btn-nova-despesa">+ Acrescentar despesa</button>';
+
+  const guardar = async (fazer) => {
+    try { await fazer(); aviso(''); } catch (e) { aviso(e.status === 409 ? 'Alguém mudou esta lista ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
+    await lerDespesas(true); lerHonorarios();
+  };
+  box.querySelectorAll('.ct-cartao').forEach((c) => {
+    const d = DESP.find((x) => x.id === c.dataset.id);
+    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), d.texto, (novo) =>
+      novo ? guardar(() => Universo.alterar('vendas-clausulas', d.id, { texto: novo, versao: d.versao })) : desenharDespesas());
+    c.querySelector('[data-padrao]').onchange = (e) => guardar(() => Universo.alterar('vendas-clausulas', d.id, { padrao: e.target.checked ? 1 : 0, versao: d.versao }));
+    c.querySelectorAll('[data-mover]').forEach((b) => b.onclick = () => {
+      const i = DESP.indexOf(d), j = i + Number(b.dataset.mover);
+      const l = [...DESP]; [l[i], l[j]] = [l[j], l[i]];
+      guardar(async () => { for (const [k, x] of l.entries()) if (x.ordem !== k + 1) await Universo.alterar('vendas-clausulas', x.id, { ordem: k + 1, versao: x.versao }); });
+    });
+    c.querySelector('[data-arquivar]').onclick = () => {
+      if (!confirm('Tirar esta despesa da lista? Ela some das propostas novas depois de publicar (dá para trazer de volta pelo Universo).')) return;
+      guardar(() => Universo.post(`vendas-clausulas/${d.id}/arquivar`, { versao: d.versao }));
+    };
+  });
+  document.getElementById('btn-nova-despesa').onclick = () => {
+    const novo = document.createElement('div');
+    novo.className = 'ct-cartao ct-cartao--novo';
+    novo.innerHTML = '<span class="ct-pos">+</span><span></span><div class="ct-texto"></div>';
+    box.insertBefore(novo, document.getElementById('btn-nova-despesa'));
+    editarNoLugar(novo.querySelector('.ct-texto'), '', (texto) => texto
+      ? guardar(() => Universo.criar('vendas-clausulas', { grupo: 'despesa', texto, padrao: 1, ordem: DESP.length + 1 }))
+      : desenharDespesas());
+  };
+}
+
+// ---------------------------------------------------------------- cláusulas dos eventos
+async function lerPgt(fresco) {
+  try { PGT = await comCopia('gestor:pgt', () => Universo.get('pgt'), (n) => { PGT = n; desenharEventos(); }, { fresco }); }
+  catch (e) { document.getElementById('eventos').innerHTML = `<p class="small muted">Não consegui ler o Plano Geral de Trabalho (${escHtml(e.message)}).</p>`; return; }
+  desenharEventos();
+}
+function desenharEventos() {
+  if (!PGT) return;
+  const todos = document.getElementById('mostrar-sem').checked;
+  const sigla = Object.fromEntries((PGT.servicos || []).map((s) => [s.id, s.sigla]));
+  const etapas = PGT.etapas || [];
+  const evs = (PGT.eventos || []).filter((v) => !v.encerramento && (todos || (v.clausula && v.clausula.trim())));
+  document.getElementById('conta-eventos').textContent = (PGT.eventos || []).filter((v) => v.clausula && v.clausula.trim()).length || '';
+  const pert = (v) => Object.entries(v.servicos || {}).filter(([, p]) => p === 'P' || p === 'O')
+    .map(([s, p]) => `<span class="etq ${p === 'P' ? '' : 'etq--opcional'}" title="${p === 'P' ? 'obrigatória' : 'opcional'} em ${escHtml(sigla[s] || s)}">${escHtml(sigla[s] || s)} · ${p === 'P' ? 'obrigatória' : 'opcional'}</span>`).join('');
+  const html = (PGT.fases || []).map((f) => {
+    const blocos = etapas.filter((e) => e.fase_id === f.id).map((e) => {
+      const l = evs.filter((v) => v.etapa_id === e.id);
+      if (!l.length) return '';
+      return `<p class="ct-etapa"><b>${escHtml(e.sigla)}</b> ${escHtml(e.nome)}</p>` + l.map((v) => `
+        <div class="ct-cartao ct-cartao--evento" data-id="${v.id}">
+          <button type="button" class="ctl__btn" data-editar title="Editar o texto" aria-label="Editar a cláusula de ${escHtml(v.nome)}">${ICONE.lapis}</button>
+          <div><div class="ct-texto${v.clausula ? '' : ' ct-texto--sem'}" data-texto>${v.clausula ? escHtml(v.clausula) : 'sem cláusula'}</div>
+            <div class="ct-evento">${escHtml(v.nome)}</div></div>
+          <span class="ct-etqs"><span class="etq etq--codigo">${escHtml(v.codigo || '')}</span>${pert(v)}</span>
+        </div>`).join('');
+    }).join('');
+    return blocos ? `<div class="ct-grupo"><p class="ct-grupo__titulo">${escHtml(f.nome)}</p>${blocos}</div>` : '';
+  }).join('');
+  const box = document.getElementById('eventos');
+  box.innerHTML = html || '<div class="ct-vazio"><p>Nenhum evento com cláusula no Plano Geral de Trabalho.</p></div>';
+  box.querySelectorAll('.ct-cartao--evento').forEach((c) => {
+    const v = PGT.eventos.find((x) => x.id === c.dataset.id);
+    c.querySelector('[data-editar]').onclick = () => editarNoLugar(c.querySelector('[data-texto]'), v.clausula, async (novo) => {
+      if (!novo) return desenharEventos();
+      try { await Universo.alterar('pgt-eventos', v.id, { clausula: novo, versao: v.versao }); aviso(''); }
+      catch (e) { aviso(e.status === 409 ? 'Este evento mudou no PGT ao mesmo tempo; recarreguei.' : 'Não consegui gravar: ' + e.message); }
+      await lerPgt(true); lerHonorarios();
+    });
+  });
+}
+
+// ---------------------------------------------------------------- abas
+function ligarAbas() {
+  const botoes = [...document.querySelectorAll('.ct-abas [data-aba]')];
+  const mostrar = (id) => {
+    botoes.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.aba === id)));
+    document.querySelectorAll('[data-painel]').forEach((s) => { s.hidden = s.dataset.painel !== id; });
+    document.title = (id === 'clausulas' ? 'Gestor de cláusulas' : 'Contratos') + ' · Vendas — Odisse';
+    if (id === 'clausulas' && !ligarAbas.lido) { ligarAbas.lido = true; lerHonorarios(); lerDespesas(); lerPgt(); }
+  };
+  botoes.forEach((b) => b.onclick = () => { history.replaceState(null, '', '#' + b.dataset.aba); mostrar(b.dataset.aba); });
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (botoes.some((b) => b.dataset.aba === id)) mostrar(id); });
+  const inicial = location.hash.slice(1);
+  mostrar(botoes.some((b) => b.dataset.aba === inicial) ? inicial : 'contratos');
+}
+
+document.getElementById('mostrar-sem').onchange = desenharEventos;
+if (isAuthenticated()) { document.getElementById('app').hidden = false; ligarAbas(); }
+</script>
+</body>
+</html>

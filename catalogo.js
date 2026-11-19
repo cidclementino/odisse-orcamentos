@@ -83,20 +83,37 @@ const Catalogo = (() => {
     const etapas = P.etapas.filter((e) => fasePorId[e.fase_id]).map((e) => ({ ...e, fase: fasePorId[e.fase_id] }));
     const por = (l) => Object.fromEntries(l.map((x) => [x.id, x]));
     const cats = por(B.categorias);
+    // 0019: os textos das cláusulas vêm dos Honorários (editados em Contratos › Gestor de cláusulas);
+    // retrato anterior: valem os do PGT e as despesas de data/despesas-reembolsaveis.json.
+    const textoEvento = H.clausulas_eventos ? (v) => ({ ...v, clausula: H.clausulas_eventos[v.id] || null }) : (v) => v;
+    const despesas = Array.isArray(H.clausulas) ? H.clausulas.filter((c) => c.grupo === 'despesa').map((c) => ({ id: c.id, texto: c.texto, padrao: !!c.padrao })) : null;
     return {
       versoes: Object.fromEntries(TIPOS.map((t) => [t, { numero: pub[t].numero, publicado_em: pub[t].publicado_em }])),
       servicos, categorias: B.categorias, usos: B.usos, fases, etapas,
-      entregas: P.entregaveis || [], eventos: P.eventos || [],
+      entregas: P.entregaveis || [], eventos: (P.eventos || []).map(textoEvento), despesas,
       faixas: B.faixas_prazo || [], pesos: N.pesos,
       parcelaEntrada: H.parametros && H.parametros.parcela_entrada != null ? H.parametros.parcela_entrada : null,
       // "só tal fase": fração do peso das fases anteriores não contratadas que entra como acréscimo (padrão 50%)
       acrescimoLacuna: H.parametros && H.parametros.acrescimo_lacuna != null ? H.parametros.acrescimo_lacuna : 0.5,
       idx: { servico: por(servicos), categoria: cats, uso: por(B.usos), etapa: por(etapas), fase: fasePorId,
-        entrega: por(P.entregaveis || []), evento: por(P.eventos || []) },
+        entrega: por(P.entregaveis || []), evento: por((P.eventos || []).map(textoEvento)) },
     };
   }
 
   const atual = () => C;
+
+  // Despesas reembolsáveis: das cláusulas do vendas (Honorários publicados) ou, antes disso, do data/ do vendas.
+  // Ids antigos (plotagem…) correspondem a vcl_plotagem… na tabela.
+  function despesas() {
+    if (C && C.despesas) return C.despesas;
+    return ((typeof DATA !== 'undefined' && DATA && DATA.despesasReembolsaveisOriginais) || []).map((d) => ({ id: d.id, texto: d.texto, padrao: true }));
+  }
+  function idDespesa(id) {
+    const l = despesas();
+    if (l.some((d) => d.id === id)) return id;
+    const novo = 'vcl_' + id;
+    return l.some((d) => d.id === novo) ? novo : null;
+  }
 
   // ---------------------------------------------------------------- leituras
   const servico = (id) => (C && C.idx.servico[id]) || null;
@@ -286,5 +303,5 @@ const Catalogo = (() => {
   const nomeFase = (f) => { const n = (f && (f.nome || f)) || ''; return /^fase\b/i.test(n) ? n : `Fase ${n}`; };
 
   return { carregar, atual, nomeFase, servico, etapa, tipologia, etapasDoServico, entregasDaEtapa, entregasPadrao, clausulas, temQuantidade,
-    textoClausula, faixa, prazoEtapa, semanasDe, percentual, fracaoSeMarcada, fator, icPadrao, parcelas, migrar, GRUPOS, TURNOS_SEMANA };
+    despesas, idDespesa, textoClausula, faixa, prazoEtapa, semanasDe, percentual, fracaoSeMarcada, fator, icPadrao, parcelas, migrar, GRUPOS, TURNOS_SEMANA };
 })();
