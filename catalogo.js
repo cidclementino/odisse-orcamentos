@@ -242,10 +242,16 @@ const Catalogo = (() => {
     return percentual(srvId, [...l]).noProjeto[etapaId] || 0;
   }
 
-  // Padrão do IC: preset da categoria da tipologia + ajustes do serviço (rótulos baixo/medio/alto).
+  // Padrão do IC (rótulos baixo/medio/alto).
+  // Desde a migração 0022 do Universo: o índice é do serviço (ic_padrao); serviço em fluxo pode ter um por categoria
+  // (ic_categorias), que passa por cima. Retrato anterior: preset da categoria + ajustes do serviço.
   function icPadrao(srvId, categoriaId) {
     const cat = C && C.idx.categoria[categoriaId];
     const s = servico(srvId);
+    if (s && s.ic_padrao) {
+      const proprio = s.dinamica !== 'ilha' && categoriaId && s.ic_categorias ? s.ic_categorias[categoriaId] : null;
+      return { ...s.ic_padrao, ...(proprio || {}) };
+    }
     return { ...((cat && cat.ic_preset) || {}), ...((s && s.ic_ajustes) || {}) };
   }
 
