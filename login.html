@@ -1,61 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Entrar · Vendas — Odisse</title>
-<meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="https://marca.odisse.com.br/favicon/favicon-32x32.png" sizes="32x32">
-<link rel="stylesheet" href="https://marca.odisse.com.br/v1/marca.css">
-<link rel="stylesheet" href="https://universo.odisse.com.br/base/v1/universo.css">
-<link rel="stylesheet" href="styles.css?v=fd2229cb8a">
-</head>
-<body class="gate-body">
-
-<main class="gate">
-  <form class="gate__card" id="gate-form" autocomplete="off">
-    <div class="gate__marca"><span class="gate__selo" aria-hidden="true"></span><span class="gate__logotipo" role="img" aria-label="Odisse"></span></div>
-    <p class="gate__rotulo">Vendas</p>
-    <label class="gate__field">
-      <span>Senha</span>
-      <input type="password" id="gate-password" autocomplete="current-password" required autofocus>
-    </label>
-    <label class="gate__field">
-      <span>Seu nome</span>
-      <input type="text" id="gate-name" placeholder="Quem está preenchendo" required>
-    </label>
-    <p class="gate__error" id="gate-error" role="alert" hidden>Senha incorreta. Tente novamente.</p>
-    <button type="submit" class="btn btn--primary">Entrar</button>
-    <p class="gate__note">Funil, orçamentos e propostas do Odisse. Acesso restrito à equipe; faz parte do <a href="https://universo.odisse.com.br/">Universo</a>.</p>
-  </form>
-</main>
-
-<script src="config.js?v=07793b6f66"></script>
-<script src="auth.js?v=71994a29a1"></script>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Vendas — agora no Universo</title>
 <script>
-  if (isAuthenticated()) window.location.href = paginaDeVolta();
-
-  document.getElementById('gate-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pass = document.getElementById('gate-password').value;
-    const name = document.getElementById('gate-name').value.trim();
-    const errEl = document.getElementById('gate-error');
-    const botao = e.target.querySelector('button');
-    botao.disabled = true;
-    const r = await conferirSenha(pass);
-    botao.disabled = false;
-    if (r !== 'ok') {
-      errEl.textContent = r === 'senha'
-        ? 'Senha incorreta. Tente novamente.'
-        : 'Não consegui falar com o servidor. Confira a internet e tente de novo.';
-      errEl.hidden = false;
-      return;
-    }
-    errEl.hidden = true;
-    setAuthenticated(name, pass);
-    window.location.href = paginaDeVolta();
-  });
+  // Desde 24/11/2026 o vendas mora no Universo: universo.odisse.com.br/vendas/ (mesma senha da equipe).
+  (function () {
+    var p = location.pathname.split('/').pop() || 'index.html';
+    var destino = p === 'login.html' ? '/' : '/vendas/' + (p === '404.html' ? '' : p);
+    location.replace('https://universo.odisse.com.br' + destino + location.search + location.hash);
+  })();
 </script>
-</body>
+</head>
+<body><p>O vendas agora fica no <a href="https://universo.odisse.com.br/vendas/">Universo</a>.</p></body>
 </html>
